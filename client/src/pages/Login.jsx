@@ -49,7 +49,7 @@ const Login = () => {
                             <div className="h-12 w-12 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">U</div>
                         </div>
                         <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-                            Welcome Back
+                            Welcome
                         </h2>
                         <p className="mt-2 text-sm text-gray-600">
                             Log in to access your account dashboard
