@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AddDropApproval from '../components/AddDropApproval';
@@ -26,28 +26,55 @@ const DeanDashboard = () => {
         { id: 2, title: 'Medical/Repeat Form submittion', date: '2026-02-01', description: 'Deadline for all departments.' },
     ];
 
-    // Mock Data for Staff Registrations
-    const [staffRegistrations, setStaffRegistrations] = useState([
-        { id: 1, name: 'Dr. Emily White', email: 'emily.white@kln.ac.lk', mobile: '0712345678', status: 'Approved', requestedAt: '2026-01-20' },
-        { id: 2, name: 'Mr. David Black', email: 'david.black@kln.ac.lk', mobile: '0778889990', status: 'Approved', requestedAt: '2026-01-18' },
-        { id: 3, name: 'Ms. Sarah Green', email: 'sarah.green@kln.ac.lk', mobile: '0754443332', status: 'Approved', requestedAt: '2026-01-21' },
-    ]);
+    // Data for Staff Registrations
+    const [staffRegistrations, setStaffRegistrations] = useState([]);
+
+    useEffect(() => {
+        const fetchStaff = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/dashboard/faculty-staff');
+                const data = await response.json();
+                setStaffRegistrations(data);
+            } catch (error) {
+                console.error("Error fetching staff:", error);
+            }
+        };
+        fetchStaff();
+    }, []);
 
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
-    const handleApproveStaff = (id) => {
-        setStaffRegistrations(staffRegistrations.map(staff =>
-            staff.id === id ? { ...staff, status: 'Approved' } : staff
-        ));
+    const handleApproveStaff = async (id) => {
+        try {
+            await fetch(`http://localhost:5000/api/dashboard/faculty-staff/${id}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'Approved' })
+            });
+            setStaffRegistrations(staffRegistrations.map(staff =>
+                staff.id === id ? { ...staff, status: 'Approved' } : staff
+            ));
+        } catch (error) {
+            console.error("Error approving staff:", error);
+        }
     };
 
-    const handleRejectStaff = (id) => {
-        setStaffRegistrations(staffRegistrations.map(staff =>
-            staff.id === id ? { ...staff, status: 'Rejected' } : staff
-        ));
+    const handleRejectStaff = async (id) => {
+        try {
+            await fetch(`http://localhost:5000/api/dashboard/faculty-staff/${id}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'Rejected' })
+            });
+            setStaffRegistrations(staffRegistrations.map(staff =>
+                staff.id === id ? { ...staff, status: 'Rejected' } : staff
+            ));
+        } catch (error) {
+            console.error("Error rejecting staff:", error);
+        }
     };
 
     const menuItems = [
@@ -85,7 +112,7 @@ const DeanDashboard = () => {
                                                 <td className="px-6 py-4 font-medium text-gray-900">{staff.name}</td>
                                                 <td className="px-6 py-4 text-gray-700">{staff.email}</td>
                                                 <td className="px-6 py-4 text-gray-700">{staff.mobile}</td>
-                                                <td className="px-6 py-4 text-gray-500">{staff.requestedAt}</td>
+                                                <td className="px-6 py-4 text-gray-500">{new Date(staff.requestedAt).toLocaleDateString()}</td>
                                                 <td className="px-6 py-4">
                                                     <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${staff.status === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
                                                         staff.status === 'Rejected' ? 'bg-red-100 text-red-700 border-red-200' :

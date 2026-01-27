@@ -18,7 +18,7 @@ const validateEmail = (email, role) => {
 
     if (email === 'setoh45412@gxuzi.com') return true;
 
-    if (email === 'ganab30286@gxuzi.com') return true; 
+    if (email === 'ganab30286@gxuzi.com') return true;
 
 
     if (email === 'hemoyev878@gamening.com') return true;
@@ -159,6 +159,10 @@ exports.login = async (req, res) => {
 
         if (!user.is_verified) {
             return res.status(403).json({ message: 'Please verify your email before logging in.' });
+        }
+
+        if ((user.role === 'FacultyStaff' || user.role === 'DeptStaff') && user.approval_status !== 'Approved') {
+            return res.status(403).json({ message: 'Your account is waiting for approval.' });
         }
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {

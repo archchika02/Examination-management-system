@@ -24,36 +24,53 @@ const AcademicSupervisorDashboard = () => {
     const [sidebarExpanded, setSidebarExpanded] = useState(false);
     const [activeSection, setActiveSection] = useState('Home');
 
-    // Mock Data for Academic Supervisor Registrations
-    const [supervisorRegistrations, setSupervisorRegistrations] = useState([
-        { id: 1, name: 'Prof. Alan Grant', email: 'alan.grant@kln.ac.lk', mobile: '0771122334', status: 'Approved', requestedAt: '2026-01-22' },
-        { id: 2, name: 'Dr. Ellie Sattler', email: 'ellie.sattler@kln.ac.lk', mobile: '0719988776', status: 'Approved', requestedAt: '2026-01-23' },
-    ]);
+    // State for Department Staff Registrations
+    const [deptStaffRegistrations, setDeptStaffRegistrations] = useState([]);
 
-    const handleApproveSupervisor = (id) => {
-        setSupervisorRegistrations(supervisorRegistrations.map(supervisor =>
-            supervisor.id === id ? { ...supervisor, status: 'Approved' } : supervisor
-        ));
+    const handleApproveStaff = async (id) => {
+        try {
+            await fetch(`http://localhost:5000/api/dashboard/faculty-staff/${id}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'Approved' })
+            });
+            setDeptStaffRegistrations(deptStaffRegistrations.map(staff =>
+                staff.id === id ? { ...staff, status: 'Approved' } : staff
+            ));
+        } catch (error) {
+            console.error("Error approving staff:", error);
+        }
     };
 
-    const handleRejectSupervisor = (id) => {
-        setSupervisorRegistrations(supervisorRegistrations.map(supervisor =>
-            supervisor.id === id ? { ...supervisor, status: 'Rejected' } : supervisor
-        ));
+    const handleRejectStaff = async (id) => {
+        try {
+            await fetch(`http://localhost:5000/api/dashboard/faculty-staff/${id}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'Rejected' })
+            });
+            setDeptStaffRegistrations(deptStaffRegistrations.map(staff =>
+                staff.id === id ? { ...staff, status: 'Rejected' } : staff
+            ));
+        } catch (error) {
+            console.error("Error rejecting staff:", error);
+        }
     };
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [statsRes, activitiesRes, deadlinesRes] = await Promise.all([
+                const [statsRes, activitiesRes, deadlinesRes, staffRes] = await Promise.all([
                     fetch('http://localhost:5000/api/dashboard/stats'),
                     fetch('http://localhost:5000/api/dashboard/activities'),
-                    fetch('http://localhost:5000/api/dashboard/deadlines')
+                    fetch('http://localhost:5000/api/dashboard/deadlines'),
+                    fetch('http://localhost:5000/api/dashboard/department-staff')
                 ]);
 
                 if (statsRes.ok) setStats(await statsRes.json());
                 if (activitiesRes.ok) setActivities(await activitiesRes.json());
                 if (deadlinesRes.ok) setDeadlines(await deadlinesRes.json());
+                if (staffRes.ok) setDeptStaffRegistrations(await staffRes.json());
             } catch (error) {
                 console.error("Failed to fetch dashboard data", error);
             } finally {
@@ -78,7 +95,7 @@ const AcademicSupervisorDashboard = () => {
         { name: 'Personalized Timetable', icon: '📅' },
         { name: 'Upload Results', icon: '📤' },
         { name: 'Add/Drop Form Approval', icon: '📝' },
-        { name: 'Staff Registrations', icon: '👥' },
+        { name: 'Department Staff Registrations', icon: '👥' },
         { name: 'Add Course Unit', icon: '➕' },
         { name: 'Alerts', icon: '🔔' }
     ];
@@ -105,12 +122,12 @@ const AcademicSupervisorDashboard = () => {
                 return <TimetableConfiguration />;
             case 'Alerts':
                 return <SupervisorAlerts />;
-            case 'Staff Registrations':
+            case 'Department Staff Registrations':
                 return (
                     <div className="space-y-6 animate-fade-in-up">
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                             <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-lg font-bold text-gray-800">Staff Registrations as Academic Supervisor</h2>
+                                <h2 className="text-lg font-bold text-gray-800">Department Staff Registrations</h2>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
@@ -125,31 +142,31 @@ const AcademicSupervisorDashboard = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 text-sm md:text-base">
-                                        {supervisorRegistrations.map((supervisor) => (
-                                            <tr key={supervisor.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-4 font-medium text-gray-900">{supervisor.name}</td>
-                                                <td className="px-6 py-4 text-gray-700">{supervisor.email}</td>
-                                                <td className="px-6 py-4 text-gray-700">{supervisor.mobile}</td>
-                                                <td className="px-6 py-4 text-gray-500">{supervisor.requestedAt}</td>
+                                        {deptStaffRegistrations.map((staff) => (
+                                            <tr key={staff.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 font-medium text-gray-900">{staff.name}</td>
+                                                <td className="px-6 py-4 text-gray-700">{staff.email}</td>
+                                                <td className="px-6 py-4 text-gray-700">{staff.mobile}</td>
+                                                <td className="px-6 py-4 text-gray-500">{new Date(staff.requestedAt).toLocaleDateString()}</td>
                                                 <td className="px-6 py-4">
-                                                    <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${supervisor.status === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
-                                                        supervisor.status === 'Rejected' ? 'bg-red-100 text-red-700 border-red-200' :
+                                                    <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${staff.status === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
+                                                        staff.status === 'Rejected' ? 'bg-red-100 text-red-700 border-red-200' :
                                                             'bg-yellow-100 text-yellow-700 border-yellow-200'
                                                         }`}>
-                                                        {supervisor.status}
+                                                        {staff.status}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    {supervisor.status === 'Approved' ? (
+                                                    {staff.status === 'Approved' ? (
                                                         <button
-                                                            onClick={() => handleRejectSupervisor(supervisor.id)}
+                                                            onClick={() => handleRejectStaff(staff.id)}
                                                             className="px-3 py-1 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-lg text-xs font-semibold transition-colors"
                                                         >
                                                             Deny Access
                                                         </button>
                                                     ) : (
                                                         <button
-                                                            onClick={() => handleApproveSupervisor(supervisor.id)}
+                                                            onClick={() => handleApproveStaff(staff.id)}
                                                             className="px-3 py-1 bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 rounded-lg text-xs font-semibold transition-colors"
                                                         >
                                                             Enable Access
