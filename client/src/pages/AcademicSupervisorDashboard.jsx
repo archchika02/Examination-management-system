@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import PreferredTimetable from '../components/PreferredTimetable';
+import PersonalizedTimetable from '../components/PersonalizedTimetable';
+import UploadResults from '../components/UploadResults';
 import AllocationsDashboard from '../components/AllocationsDashboard';
 import AddDropApproval from '../components/AddDropApproval';
 import AddCourseUnit from '../components/AddCourseUnit';
 import TimetableConfiguration from '../components/TimetableConfiguration';
 import AssignExaminer from '../components/AssignExaminer';
 import SupervisorTimetableManager from '../components/SupervisorTimetableManager';
+import SupervisorAlerts from '../components/SupervisorAlerts';
 
 const AcademicSupervisorDashboard = () => {
     const { user, logout } = useAuth();
@@ -20,6 +23,24 @@ const AcademicSupervisorDashboard = () => {
     // New State for Sidebar and Navigation
     const [sidebarExpanded, setSidebarExpanded] = useState(false);
     const [activeSection, setActiveSection] = useState('Home');
+
+    // Mock Data for Academic Supervisor Registrations
+    const [supervisorRegistrations, setSupervisorRegistrations] = useState([
+        { id: 1, name: 'Prof. Alan Grant', email: 'alan.grant@kln.ac.lk', mobile: '0771122334', status: 'Approved', requestedAt: '2026-01-22' },
+        { id: 2, name: 'Dr. Ellie Sattler', email: 'ellie.sattler@kln.ac.lk', mobile: '0719988776', status: 'Approved', requestedAt: '2026-01-23' },
+    ]);
+
+    const handleApproveSupervisor = (id) => {
+        setSupervisorRegistrations(supervisorRegistrations.map(supervisor =>
+            supervisor.id === id ? { ...supervisor, status: 'Approved' } : supervisor
+        ));
+    };
+
+    const handleRejectSupervisor = (id) => {
+        setSupervisorRegistrations(supervisorRegistrations.map(supervisor =>
+            supervisor.id === id ? { ...supervisor, status: 'Rejected' } : supervisor
+        ));
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -50,14 +71,16 @@ const AcademicSupervisorDashboard = () => {
 
     const menuItems = [
         { name: 'Home', icon: '🏠' },
-        { name: 'Preferred Timetable', icon: '📅' },
+        { name: 'Timetable Configuration', icon: '⚙️' },
+        { name: 'Preferred Timetable', icon: '🗓️' },
         { name: 'Assign Examiner', icon: '👨‍🏫' },
         { name: 'Allocations Dashboard', icon: '📊' },
+        { name: 'Personalized Timetable', icon: '📅' },
+        { name: 'Upload Results', icon: '📤' },
         { name: 'Add/Drop Form Approval', icon: '📝' },
         { name: 'Staff Registrations', icon: '👥' },
         { name: 'Add Course Unit', icon: '➕' },
-        { name: 'Alerts', icon: '🔔' },
-        { name: 'Timetable Configuration', icon: '⚙️' }
+        { name: 'Alerts', icon: '🔔' }
     ];
 
     if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -66,6 +89,10 @@ const AcademicSupervisorDashboard = () => {
         switch (activeSection) {
             case 'Allocations Dashboard':
                 return <AllocationsDashboard />;
+            case 'Personalized Timetable':
+                return <PersonalizedTimetable enableConcerns={false} />;
+            case 'Upload Results':
+                return <UploadResults />;
             case 'Preferred Timetable':
                 return <PreferredTimetable />;
             case 'Assign Examiner':
@@ -76,6 +103,67 @@ const AcademicSupervisorDashboard = () => {
                 return <AddCourseUnit />;
             case 'Timetable Configuration':
                 return <TimetableConfiguration />;
+            case 'Alerts':
+                return <SupervisorAlerts />;
+            case 'Staff Registrations':
+                return (
+                    <div className="space-y-6 animate-fade-in-up">
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-lg font-bold text-gray-800">Staff Registrations as Academic Supervisor</h2>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase text-gray-500 font-semibold tracking-wider">
+                                            <th className="px-6 py-4">Name</th>
+                                            <th className="px-6 py-4">Email</th>
+                                            <th className="px-6 py-4">Mobile Number</th>
+                                            <th className="px-6 py-4">Requested At</th>
+                                            <th className="px-6 py-4">Status</th>
+                                            <th className="px-6 py-4">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 text-sm md:text-base">
+                                        {supervisorRegistrations.map((supervisor) => (
+                                            <tr key={supervisor.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 font-medium text-gray-900">{supervisor.name}</td>
+                                                <td className="px-6 py-4 text-gray-700">{supervisor.email}</td>
+                                                <td className="px-6 py-4 text-gray-700">{supervisor.mobile}</td>
+                                                <td className="px-6 py-4 text-gray-500">{supervisor.requestedAt}</td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${supervisor.status === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
+                                                        supervisor.status === 'Rejected' ? 'bg-red-100 text-red-700 border-red-200' :
+                                                            'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                                        }`}>
+                                                        {supervisor.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {supervisor.status === 'Approved' ? (
+                                                        <button
+                                                            onClick={() => handleRejectSupervisor(supervisor.id)}
+                                                            className="px-3 py-1 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-lg text-xs font-semibold transition-colors"
+                                                        >
+                                                            Deny Access
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleApproveSupervisor(supervisor.id)}
+                                                            className="px-3 py-1 bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 rounded-lg text-xs font-semibold transition-colors"
+                                                        >
+                                                            Enable Access
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                );
             case 'Home':
             default:
                 return (

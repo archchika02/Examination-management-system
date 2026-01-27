@@ -46,7 +46,7 @@ const Register = () => {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => {
-            const newData = { ...prev, [name]: value }; 
+            const newData = { ...prev, [name]: value };
             if (name === 'email') {
                 if (value.endsWith('@stu.kln.ac.lk') || value === 'setoh45412@gxuzi.com' || value === 'hemoyev878@gamening.com') {
                     setAvailableRoles(['Student', 'BatchRepresentative']);
@@ -106,7 +106,7 @@ const Register = () => {
             return;
         }
 
-        if (formData.role === 'Student' || formData.role === 'BatchRepresentative') { 
+        if (formData.role === 'Student' || formData.role === 'BatchRepresentative') {
             if (!formData.email.endsWith('@stu.kln.ac.lk') && formData.email !== 'archchika27@gmail.com' && formData.email !== 'setoh45412@gxuzi.com' && formData.email !== 'hemoyev878@gamening.com') {
                 setError('Student/BatchRepresentative must use @stu.kln.ac.lk email');
                 return;
@@ -116,6 +116,11 @@ const Register = () => {
                 setError('Staff roles must use @kln.ac.lk email');
                 return;
             }
+        }
+
+        if (formData.mobile && !/^\d{10}$/.test(formData.mobile)) {
+            setError('Mobile number must be exactly 10 digits');
+            return;
         }
 
         const pwdError = validatePassword();
@@ -253,7 +258,7 @@ const Register = () => {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">Level</label>
-                                        <input name="level" type="text" placeholder="e.g. Level 1" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:text-sm leading-normal" onChange={handleChange} value={formData.level} />
+                                        <input name="level" type="text" placeholder="e.g. 1" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:text-sm leading-normal" onChange={handleChange} value={formData.level} />
                                     </div>
                                 </div>
                             )}

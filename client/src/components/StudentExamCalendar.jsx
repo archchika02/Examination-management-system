@@ -64,6 +64,15 @@ const StudentExamCalendar = () => {
         }
     };
 
+    const [examDeadline, setExamDeadline] = useState(null);
+
+    useEffect(() => {
+        const deadline = localStorage.getItem('exam_deadline');
+        if (deadline) {
+            setExamDeadline(deadline);
+        }
+    }, []);
+
     const generateCalendarDays = () => {
         const days = [];
         for (let i = 0; i < firstDayOfMonth; i++) {
@@ -191,6 +200,13 @@ const StudentExamCalendar = () => {
                             <div>
                                 <h2 className="text-2xl font-bold text-gray-800">Timetable Configuration</h2>
                                 <p className="text-gray-500 text-sm mt-1">Select dates and add modules to your list</p>
+                                {examDeadline && (
+                                    <div className="mt-2 inline-block bg-red-50 border border-red-200 rounded-lg px-3 py-1 animate-pulse">
+                                        <p className="text-sm font-bold text-red-700 flex items-center gap-2">
+                                            <span>⏰</span> Deadline: {examDeadline}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                             <div className="flex gap-3">
                                 <select
