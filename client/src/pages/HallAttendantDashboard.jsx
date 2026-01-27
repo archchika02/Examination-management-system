@@ -211,7 +211,7 @@ const HallAttendantDashboard = () => {
                                 : 'bg-gray-100 border-transparent text-gray-400 cursor-not-allowed'
                             }`}
                     >
-                        Request Reschedule ({selectedSessions.length})
+                        Report Concerns ({selectedSessions.length})
                     </button>
                 </div>
 
@@ -309,7 +309,7 @@ const HallAttendantDashboard = () => {
                                         <div className="space-y-4">
                                             {/* Reason Input */}
                                             <div>
-                                                <label htmlFor="reason" className="block text-sm font-bold text-gray-900 mb-2">Reason for Reschedule <span className="text-red-500">*</span></label>
+                                                <label htmlFor="reason" className="block text-sm font-bold text-gray-900 mb-2">Reason<span className="text-red-500">*</span></label>
                                                 <textarea
                                                     id="reason"
                                                     rows="4"
@@ -395,7 +395,7 @@ const HallAttendantDashboard = () => {
                                         <div className="space-y-4">
                                             {/* Reason Input */}
                                             <div>
-                                                <label htmlFor="reason" className="block text-sm font-bold text-gray-900 mb-2">Reason for Reschedule <span className="text-red-500">*</span></label>
+                                                <label htmlFor="reason" className="block text-sm font-bold text-gray-900 mb-2">Reason<span className="text-red-500">*</span></label>
                                                 <textarea
                                                     id="reason"
                                                     rows="4"

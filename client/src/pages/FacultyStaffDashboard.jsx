@@ -54,11 +54,11 @@ const FacultyStaffDashboard = () => {
     const menuItems = [
         { name: 'Home', icon: '🏠' },
         { name: 'Timetable', icon: '📅' },
+        { name: 'Hall Attendants', icon: '👥' },
+        { name: 'Generate Reports', icon: '📊' },
         { name: 'Add/Drop Forms', icon: '📝' },
         { name: 'Academic Course Units', icon: '📚' },
         { name: 'Medical/Repeat Forms', icon: '🏥' },
-        { name: 'Generate Reports', icon: '📊' },
-        { name: 'Hall Attendants', icon: '👥' },
         { name: 'Deadlines', icon: '⏰' },
         { name: 'Edit Forms', icon: '✏️' },
     ];

@@ -22,7 +22,12 @@ const TimetableConfiguration = () => {
     const month = currentDate.getMonth();
 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 is Sunday
+    // Adjust logic: 0 is Sunday in JS. We want 0 to be Monday.
+    // Sunday (0) -> 6
+    // Monday (1) -> 0
+    // ...
+    // Saturday (6) -> 5
+    const firstDayOfMonth = (new Date(year, month, 1).getDay() + 6) % 7;
 
     const months = [
         "January", "February", "March", "April", "May", "June",
@@ -142,8 +147,27 @@ const TimetableConfiguration = () => {
         setSelectedExamDates(new Set());
     };
 
+    const [deadlineDate, setDeadlineDate] = useState('');
+
+    const formatDateToUK = (dateString) => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}/${month}/${year}`;
+    };
+
     const sendToRepresentative = () => {
-        alert("Configuration sent to representative! (Mock Action)");
+        if (!deadlineDate) {
+            alert("Please set a deadline date before sending.");
+            return;
+        }
+        const formattedDeadline = formatDateToUK(deadlineDate);
+
+        // Mock Backend: Save to localStorage so Batch Rep can see it
+        localStorage.setItem('exam_deadline', formattedDeadline);
+
+        // In a real app, you would send this to the backend
+        console.log("Sending configuration to BatchRep with deadline:", formattedDeadline);
+        alert(`Configuration sent to representative! Deadline set to: ${formattedDeadline}`);
     };
 
     return (
@@ -202,7 +226,7 @@ const TimetableConfiguration = () => {
 
                 {/* Calendar Grid */}
                 <div className="grid grid-cols-7 gap-2 mb-2">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
                         <div key={day} className="text-center font-semibold text-gray-500 py-2">
                             {day}
                         </div>
@@ -300,6 +324,28 @@ const TimetableConfiguration = () => {
 
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col gap-3">
                     <h3 className="text-lg font-bold text-gray-800 mb-2">Actions</h3>
+
+                    <div className="mb-2 relative">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Set Deadline</label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={formatDateToUK(deadlineDate)}
+                                placeholder="dd/mm/yyyy"
+                                readOnly
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-gray-50 text-gray-700"
+                            />
+                            <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            </div>
+                            <input
+                                type="date"
+                                value={deadlineDate}
+                                onChange={(e) => setDeadlineDate(e.target.value)}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                        </div>
+                    </div>
 
                     <button
                         onClick={markAllAvailable}

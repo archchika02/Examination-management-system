@@ -26,9 +26,8 @@ const DepartmentStaffDashboard = () => {
 
     // Mock Data for Notifications
     const notifications = [
-        { id: 1, type: 'deadline', message: 'Result submission for CS101 extended to Feb 5th', time: '2 hours ago', urgent: true },
-        { id: 2, type: 'venue', message: 'CS202 Exam moved to Lab 2', time: 'Yesterday', urgent: false },
-        { id: 3, type: 'meeting', message: 'Department meeting on Friday at 10 AM', time: '2 days ago', urgent: false },
+        { id: 1, type: 'venue', message: 'Personalized timetable released', time: 'Yesterday', urgent: false },
+        { id: 2, type: 'meeting', message: 'New reschedule allocated', time: '2 days ago', urgent: false },
     ];
 
     const handleLogout = () => {
@@ -44,7 +43,7 @@ const DepartmentStaffDashboard = () => {
 
     const renderContent = () => {
         if (activeSection === 'Personalized Timetable') {
-            return <PersonalizedTimetable />;
+            return <PersonalizedTimetable enableConcerns={true} />;
         }
 
         if (activeSection === 'Upload Results') {

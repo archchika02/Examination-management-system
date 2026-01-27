@@ -28,9 +28,9 @@ const DeanDashboard = () => {
 
     // Mock Data for Staff Registrations
     const [staffRegistrations, setStaffRegistrations] = useState([
-        { id: 1, name: 'Dr. Emily White', email: 'emily.white@kln.ac.lk', department: 'Computer Science', status: 'Pending', requestedAt: '2026-01-20' },
-        { id: 2, name: 'Mr. David Black', email: 'david.black@kln.ac.lk', department: 'Mathematics', status: 'Approved', requestedAt: '2026-01-18' },
-        { id: 3, name: 'Ms. Sarah Green', email: 'sarah.green@kln.ac.lk', department: 'Physics', status: 'Pending', requestedAt: '2026-01-21' },
+        { id: 1, name: 'Dr. Emily White', email: 'emily.white@kln.ac.lk', mobile: '0712345678', status: 'Approved', requestedAt: '2026-01-20' },
+        { id: 2, name: 'Mr. David Black', email: 'david.black@kln.ac.lk', mobile: '0778889990', status: 'Approved', requestedAt: '2026-01-18' },
+        { id: 3, name: 'Ms. Sarah Green', email: 'sarah.green@kln.ac.lk', mobile: '0754443332', status: 'Approved', requestedAt: '2026-01-21' },
     ]);
 
     const handleLogout = () => {
@@ -64,14 +64,16 @@ const DeanDashboard = () => {
                 return (
                     <div className="space-y-6 animate-fade-in-up">
                         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                            <h2 className="text-lg font-bold text-gray-800 mb-4">Staff Registration Requests</h2>
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-lg font-bold text-gray-800">Staff Registrations as Faculty Staff</h2>
+                            </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
                                         <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase text-gray-500 font-semibold tracking-wider">
                                             <th className="px-6 py-4">Name</th>
                                             <th className="px-6 py-4">Email</th>
-                                            <th className="px-6 py-4">Department</th>
+                                            <th className="px-6 py-4">Mobile Number</th>
                                             <th className="px-6 py-4">Requested At</th>
                                             <th className="px-6 py-4">Status</th>
                                             <th className="px-6 py-4">Actions</th>
@@ -82,7 +84,7 @@ const DeanDashboard = () => {
                                             <tr key={staff.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4 font-medium text-gray-900">{staff.name}</td>
                                                 <td className="px-6 py-4 text-gray-700">{staff.email}</td>
-                                                <td className="px-6 py-4 text-gray-700">{staff.department}</td>
+                                                <td className="px-6 py-4 text-gray-700">{staff.mobile}</td>
                                                 <td className="px-6 py-4 text-gray-500">{staff.requestedAt}</td>
                                                 <td className="px-6 py-4">
                                                     <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${staff.status === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
@@ -93,24 +95,23 @@ const DeanDashboard = () => {
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    {staff.status === 'Pending' ? (
-                                                        <div className="flex items-center space-x-2">
-                                                            <button
-                                                                onClick={() => handleApproveStaff(staff.id)}
-                                                                className="px-3 py-1 bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 rounded-lg text-xs font-semibold transition-colors"
-                                                            >
-                                                                Approve
-                                                            </button>
+                                                    <td className="px-6 py-4">
+                                                        {staff.status === 'Approved' ? (
                                                             <button
                                                                 onClick={() => handleRejectStaff(staff.id)}
                                                                 className="px-3 py-1 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-lg text-xs font-semibold transition-colors"
                                                             >
-                                                                Reject
+                                                                Deny Access
                                                             </button>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-gray-400 text-xs italic">No actions</span>
-                                                    )}
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleApproveStaff(staff.id)}
+                                                                className="px-3 py-1 bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 rounded-lg text-xs font-semibold transition-colors"
+                                                            >
+                                                                Enable Access
+                                                            </button>
+                                                        )}
+                                                    </td>
                                                 </td>
                                             </tr>
                                         ))}
