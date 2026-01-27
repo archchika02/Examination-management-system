@@ -5,12 +5,28 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
 const validateEmail = (email, role) => {
-    // Allow specific test email
+    // Allow specific test email 
     if (email === 'archchika27@gmail.com') return true;
 
-    if (role === 'Student') {
+    if (email === 'borem80471@gxuzi.com') return true;
+
+    if (email === 'heneweb112@okexbit.com') return true;
+
+    if (email === 'wenahof206@sepole.com') return true;
+
+    if (email === 'pigig20161@sepole.com') return true;
+
+    if (email === 'setoh45412@gxuzi.com') return true;
+
+    if (email === 'ganab30286@gxuzi.com') return true; 
+
+
+    if (email === 'hemoyev878@gamening.com') return true;
+
+    if (role === 'Student' || role === 'BatchRepresentative') {
         return email.endsWith('@stu.kln.ac.lk');
-    } else {
+    }
+    else {
         // For other roles, assume staff domain
         return email.endsWith('@kln.ac.lk');
     }
@@ -83,7 +99,7 @@ exports.register = async (req, res) => {
             );
             const userId = userResult.insertId;
 
-            if (role === 'Student') {
+            if (role === 'Student' || role === 'BatchRepresentative') {
                 if (!student_number) throw new Error('Student number is required');
                 await connection.execute(
                     'INSERT INTO student_details (user_id, student_number, level) VALUES (?, ?, ?)',

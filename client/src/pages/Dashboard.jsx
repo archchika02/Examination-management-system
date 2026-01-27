@@ -1,5 +1,12 @@
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import AcademicSupervisorDashboard from './AcademicSupervisorDashboard';
+import DeanDashboard from './DeanDashboard';
+import FacultyStaffDashboard from './FacultyStaffDashboard';
+import DepartmentStaffDashboard from './DepartmentStaffDashboard';
+import StudentDashboard from './StudentDashboard';
+import BatchRepDashboard from './BatchRepDashboard';
+import HallAttendantDashboard from './HallAttendantDashboard';
 
 const Dashboard = () => {
     const { user, logout } = useAuth();
@@ -9,6 +16,34 @@ const Dashboard = () => {
         logout();
         navigate('/login');
     };
+
+    if (user?.role === 'AcademicSupervisor') {
+        return <AcademicSupervisorDashboard />;
+    }
+
+    if (user?.role === 'Dean') {
+        return <DeanDashboard />;
+    }
+
+    if (user?.role === 'FacultyStaff') {
+        return <FacultyStaffDashboard />;
+    }
+
+    if (user?.role === 'DeptStaff') {
+        return <DepartmentStaffDashboard />;
+    }
+
+    if (user?.role === 'Student') {
+        return <StudentDashboard />;
+    }
+
+    if (user?.role === 'BatchRepresentative') {
+        return <BatchRepDashboard />;
+    }
+
+    if (user?.role === 'HallAttendant') {
+        return <HallAttendantDashboard />;
+    }
 
     return (
         <div className="min-h-screen bg-gray-100">
