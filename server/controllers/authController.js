@@ -5,12 +5,32 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
 const validateEmail = (email, role) => {
-    // Allow specific test email
+    // Allow specific test email 
     if (email === 'archchika27@gmail.com') return true;
 
-    if (role === 'Student') {
+    if (email === 'nacow76709@gxuzi.com') return true; //faculty staff
+
+    if (email === 'wevaw72949@gxuzi.com') return true; // hall atta
+
+    if (email === 'bagivi1341@gxuzi.com') return true; //dept staff
+
+    if (email === 'yihobat906@gxuzi.com') return true; // faculty staff
+
+    if (email === 'lihij13980@gamening.com') return true; //batch rep
+
+    if (email === 'wevaw72949@gxuzi.com') return true; // for AS
+
+
+    if (email === 'hemoyev878@gamening.com') return true;
+
+    if (email === 'thavashikalaxi@gmail.com') return true;
+
+    if (email === 'archchika.t@gmail.com') return true;
+
+    if (role === 'Student' || role === 'BatchRepresentative') {
         return email.endsWith('@stu.kln.ac.lk');
-    } else {
+    }
+    else {
         // For other roles, assume staff domain
         return email.endsWith('@kln.ac.lk');
     }
@@ -48,7 +68,7 @@ const sendEmail = async (to, subject, html) => {
 };
 
 exports.register = async (req, res) => {
-    const { email, password, role, name, mobile, student_number, level } = req.body;
+    let { email, password, role, name, mobile, student_number, level } = req.body;
 
     try {
         // 1. Validation
@@ -68,6 +88,11 @@ exports.register = async (req, res) => {
             }
         }
 
+        // Map BatchRepresentative to BatchRep for database storage
+        if (role === 'BatchRepresentative') {
+            role = 'BatchRep';
+        }
+
         // 2. Hash Password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -83,7 +108,7 @@ exports.register = async (req, res) => {
             );
             const userId = userResult.insertId;
 
-            if (role === 'Student') {
+            if (role === 'Student' || role === 'BatchRep') {
                 if (!student_number) throw new Error('Student number is required');
                 await connection.execute(
                     'INSERT INTO student_details (user_id, student_number, level) VALUES (?, ?, ?)',
@@ -93,7 +118,7 @@ exports.register = async (req, res) => {
 
             // Create Verification Token
             const verificationToken = crypto.randomBytes(32).toString('hex');
-            const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+            const verificationExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
             await connection.execute(
                 'INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)',
@@ -144,14 +169,24 @@ exports.login = async (req, res) => {
         if (!user.is_verified) {
             return res.status(403).json({ message: 'Please verify your email before logging in.' });
         }
+
+        if ((user.role === 'FacultyStaff' || user.role === 'DeptStaff') && user.approval_status !== 'Approved') {
+            return res.status(403).json({ message: 'Your account is waiting for approval.' });
+        }
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
+        // Map BatchRep back to BatchRepresentative for frontend
+        let role = user.role;
+        if (role === 'BatchRep') {
+            role = 'BatchRepresentative';
+        }
+
         const payload = {
             user_id: user.user_id,
-            role: user.role,
+            role: role,
             name: user.name
         };
 
@@ -282,5 +317,65 @@ exports.verifyEmail = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error verifying email' });
+    }
+};
+
+exports.resendVerification = async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        const [users] = await pool.execute('SELECT * FROM users WHERE email = ?', [email]);
+
+        if (users.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const user = users[0];
+
+        if (user.is_verified) {
+            return res.status(400).json({ message: 'Email is already verified.' });
+        }
+
+        const connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        try {
+            // Delete existing tokens for this email to prevent spam/confusion
+            await connection.execute('DELETE FROM email_verifications WHERE email = ?', [email]);
+
+            // Create new Verification Token
+            const verificationToken = crypto.randomBytes(32).toString('hex');
+            const verificationExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+            await connection.execute(
+                'INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)',
+                [email, verificationToken, verificationExpires]
+            );
+
+            await connection.commit();
+
+            // Send Email
+            const verifyUrl = `http://localhost:5173/verify-email?token=${verificationToken}&email=${email}`;
+            const emailHtml = `
+                    <h1>Verify Your Email</h1>
+                    <p>You requested a new verification link. Please click the link below to verify your account:</p>
+                    <a href="${verifyUrl}">${verifyUrl}</a>
+                    <p>This link will expire in 5 minutes.</p>
+                `;
+
+            await sendEmail(email, 'EMS Account Verification - Resend', emailHtml);
+
+            res.json({ message: 'A new verification email has been sent. Please check your inbox (and spam).' });
+
+        } catch (err) {
+            await connection.rollback();
+            throw err;
+        } finally {
+            connection.release();
+        }
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error resending verification email' });
     }
 };
