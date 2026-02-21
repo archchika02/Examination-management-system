@@ -1,23 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const StudentNotifications = () => {
     const { user } = useAuth();
+    const [notifications, setNotifications] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Mock Data for Notifications
-    const notifications = [
-        {
-            id: 1,
-            type: 'Form Status',
-            category: 'Faculty Notifications',
-            title: 'Course Registration Approved',
-            description: 'Your course registration for the current semester has been approved by the Faculty Board.', // Added description
-            time: '1 day ago',
-            status: 'Approved',
-            statusColor: 'green',
-            icon: '✅'
-        }
-    ];
+    useEffect(() => {
+        const fetchNotifications = async () => {
+            if (!user?.user_id) return;
+            try {
+                const res = await fetch(`http://localhost:5000/api/course-registration/student/${user.user_id}`);
+                const data = await res.json();
+
+                // Map database rows into structured notifications
+                const mappedNotifications = data.map((reg) => {
+                    let title, description, statusColor, icon;
+
+                    if (reg.status === 'Approved') {
+                        title = 'Course Registration Approved ✅';
+                        description = 'Good news! Your course registration for the current academic year has been reviewed and APPROVED by the Faculty Board.';
+                        statusColor = 'green';
+                        icon = '🎉';
+                    } else if (reg.status === 'Rejected') {
+                        title = 'Course Registration Rejected ❌';
+                        description = `Your recent course registration form has been REJECTED by Faculty Staff. Reason: "${reg.reject_reason || 'No specific reason provided'}". Please revise and resubmit your form.`;
+                        statusColor = 'red';
+                        icon = '⚠️';
+                    } else {
+                        // Pending
+                        title = 'Registration Under Review ⏳';
+                        description = 'Your course registration form has successfully been submitted. It is currently PENDING review by the Faculty Staff.';
+                        statusColor = 'orange';
+                        icon = '📝';
+                    }
+
+                    return {
+                        id: reg.id,
+                        type: 'Registration Update',
+                        category: 'Faculty Notifications',
+                        title,
+                        description,
+                        time: new Date(reg.created_at).toLocaleDateString(),
+                        status: reg.status,
+                        statusColor,
+                        icon
+                    };
+                });
+
+                setNotifications(mappedNotifications);
+            } catch (error) {
+                console.error("Error fetching notifications:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchNotifications();
+    }, [user]);
 
     // Derived State for Summary Cards
     const totalNotifications = notifications.length;
