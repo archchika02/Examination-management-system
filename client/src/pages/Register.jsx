@@ -48,12 +48,12 @@ const Register = () => {
         setFormData(prev => {
             const newData = { ...prev, [name]: value };
             if (name === 'email') {
-                if (value.endsWith('@stu.kln.ac.lk') || value === 'setoh45412@gxuzi.com' || value === 'hemoyev878@gamening.com') {
+                if (value.endsWith('@stu.kln.ac.lk') || value === 'lihij13980@gamening.com' || value === 'hemoyev878@gamening.com') {
                     setAvailableRoles(['Student', 'BatchRepresentative']);
                     if (!['Student', 'BatchRepresentative'].includes(newData.role)) {
                         newData.role = 'Student';
                     }
-                } else if (value.endsWith('@kln.ac.lk') || value === 'archchika27@gmail.com' || value === 'wenahof206@sepole.com' || value === 'heneweb112@okexbit.com' || value === 'pigig20161@sepole.com' || value === 'borem80471@gxuzi.com' || value === 'ganab30286@gxuzi.com') {
+                } else if (value.endsWith('@kln.ac.lk') || value === 'archchika27@gmail.com' || value === 'bagivi1341@gxuzi.com' || value === 'wevaw72949@gxuzi.com' || value === 'yihobat906@gxuzi.com' || value === 'nacow76709@gxuzi.com' || value === 'wevaw72949@gxuzi.com' || value === 'thavashikalaxi@gmail.com') {
                     let staffRoles = ['FacultyStaff', 'DeptStaff', 'Dean', 'HallAttendant', 'AcademicSupervisor'];
                     if (takenRoles.dean) staffRoles = staffRoles.filter(r => r !== 'Dean');
                     if (takenRoles.supervisor) staffRoles = staffRoles.filter(r => r !== 'AcademicSupervisor');
@@ -107,12 +107,12 @@ const Register = () => {
         }
 
         if (formData.role === 'Student' || formData.role === 'BatchRepresentative') {
-            if (!formData.email.endsWith('@stu.kln.ac.lk') && formData.email !== 'archchika27@gmail.com' && formData.email !== 'setoh45412@gxuzi.com' && formData.email !== 'hemoyev878@gamening.com') {
+            if (!formData.email.endsWith('@stu.kln.ac.lk') && formData.email !== 'archchika27@gmail.com' && formData.email !== 'lihij13980@gamening.com' && formData.email !== 'hemoyev878@gamening.com') {
                 setError('Student/BatchRepresentative must use @stu.kln.ac.lk email');
                 return;
             }
         } else {
-            if (!formData.email.endsWith('@kln.ac.lk') && formData.email !== 'archchika27@gmail.com' && formData.email !== 'wenahof206@sepole.com' && formData.email !== 'heneweb112@okexbit.com' && formData.email !== 'pigig20161@sepole.com' && formData.email !== 'borem80471@gxuzi.com' && formData.email !== 'ganab30286@gxuzi.com') {
+            if (!formData.email.endsWith('@kln.ac.lk') && formData.email !== 'archchika27@gmail.com' && formData.email !== 'bagivi1341@gxuzi.com' && formData.email !== 'wevaw72949@gxuzi.com' && formData.email !== 'yihobat906@gxuzi.com' && formData.email !== 'nacow76709@gxuzi.com' && formData.email !== 'wevaw72949@gxuzi.com' && formData.email !== 'thavashikalaxi@gmail.com') {
                 setError('Staff roles must use @kln.ac.lk email');
                 return;
             }

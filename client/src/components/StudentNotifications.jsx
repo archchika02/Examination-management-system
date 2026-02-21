@@ -8,16 +8,6 @@ const StudentNotifications = () => {
     const notifications = [
         {
             id: 1,
-            type: 'Exam Alerts',
-            title: 'INTE 21323: Data Structures - Exam Rescheduled',
-            description: 'The exam for Data Structures has been rescheduled to next Monday due to hall availability.', // Added description to match use in map
-            time: '2 hours ago',
-            status: 'Rescheduled',
-            statusColor: 'orange',
-            icon: '📅'
-        },
-        {
-            id: 2,
             type: 'Form Status',
             category: 'Faculty Notifications',
             title: 'Course Registration Approved',

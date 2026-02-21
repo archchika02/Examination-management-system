@@ -8,20 +8,22 @@ const validateEmail = (email, role) => {
     // Allow specific test email 
     if (email === 'archchika27@gmail.com') return true;
 
-    if (email === 'borem80471@gxuzi.com') return true;
+    if (email === 'nacow76709@gxuzi.com') return true; //faculty staff
 
-    if (email === 'heneweb112@okexbit.com') return true;
+    if (email === 'wevaw72949@gxuzi.com') return true; // hall atta
 
-    if (email === 'wenahof206@sepole.com') return true;
+    if (email === 'bagivi1341@gxuzi.com') return true; //dept staff
 
-    if (email === 'pigig20161@sepole.com') return true;
+    if (email === 'yihobat906@gxuzi.com') return true; // faculty staff
 
-    if (email === 'setoh45412@gxuzi.com') return true;
+    if (email === 'lihij13980@gamening.com') return true; //batch rep
 
-    if (email === 'ganab30286@gxuzi.com') return true;
+    if (email === 'wevaw72949@gxuzi.com') return true; // for AS
 
 
     if (email === 'hemoyev878@gamening.com') return true;
+
+    if (email === 'thavashikalaxi@gmail.com') return true;
 
     if (role === 'Student' || role === 'BatchRepresentative') {
         return email.endsWith('@stu.kln.ac.lk');
@@ -64,7 +66,7 @@ const sendEmail = async (to, subject, html) => {
 };
 
 exports.register = async (req, res) => {
-    const { email, password, role, name, mobile, student_number, level } = req.body;
+    let { email, password, role, name, mobile, student_number, level } = req.body;
 
     try {
         // 1. Validation
@@ -84,6 +86,11 @@ exports.register = async (req, res) => {
             }
         }
 
+        // Map BatchRepresentative to BatchRep for database storage
+        if (role === 'BatchRepresentative') {
+            role = 'BatchRep';
+        }
+
         // 2. Hash Password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -99,7 +106,7 @@ exports.register = async (req, res) => {
             );
             const userId = userResult.insertId;
 
-            if (role === 'Student' || role === 'BatchRepresentative') {
+            if (role === 'Student' || role === 'BatchRep') {
                 if (!student_number) throw new Error('Student number is required');
                 await connection.execute(
                     'INSERT INTO student_details (user_id, student_number, level) VALUES (?, ?, ?)',
@@ -109,7 +116,7 @@ exports.register = async (req, res) => {
 
             // Create Verification Token
             const verificationToken = crypto.randomBytes(32).toString('hex');
-            const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+            const verificationExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
             await connection.execute(
                 'INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)',
@@ -169,9 +176,15 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
+        // Map BatchRep back to BatchRepresentative for frontend
+        let role = user.role;
+        if (role === 'BatchRep') {
+            role = 'BatchRepresentative';
+        }
+
         const payload = {
             user_id: user.user_id,
-            role: user.role,
+            role: role,
             name: user.name
         };
 

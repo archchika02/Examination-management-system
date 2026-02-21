@@ -119,13 +119,7 @@ const AssignExaminer = () => {
                     </div>
                 </div>
 
-                {/* Right Controls */}
-                <div>
-                    <button className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 font-medium">
-                        <span>➕</span>
-                        <span>Add New</span>
-                    </button>
-                </div>
+
             </div>
 
             {/* Examiner Assignment Table */}
