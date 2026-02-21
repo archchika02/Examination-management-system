@@ -18,11 +18,11 @@ const extractCourseCodes = (formData, prefix, rows, cols) => {
 
 // Helper to extract student number
 const extractStudentNumber = (formData, prefix, count) => {
-    let number = 'IM/'; // hardcoding prefilled part for now, or you can extract it if needed
+    let number = ''; // Remove hardcoded 'IM/' prefix
     for (let i = 0; i < count; i++) {
         number += formData[`${prefix}_${i}`] || '';
     }
-    return number === 'IM/' ? '' : number; // return empty if no digits entered
+    return number; // Returns only digits entered
 };
 
 // 1. Submit Course Registration
@@ -47,12 +47,16 @@ exports.submitRegistration = async (req, res) => {
         const combination = form_data['course_combo'] || '';
         const totalCredits = parseInt(form_data['total_creds_box']) || 0;
 
+        const address = form_data['address'] || '';
+        const mobile = form_data['mobile'] || '';
+        const email = form_data['email_cr'] || '';
+
         // Insert Header
         const [headerResult] = await connection.execute(
             `INSERT INTO course_unit_registration_headers 
-            (user_id, student_number, student_name, level, course_unit_combination, total_credits, signature, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')`,
-            [user_id || null, studentNumber, studentName.trim(), level, combination, totalCredits, signature]
+            (user_id, student_number, student_name, level, course_unit_combination, total_credits, signature, address, mobile, email, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')`,
+            [user_id || null, studentNumber, studentName.trim(), level, combination, totalCredits, signature, address, mobile, email]
         );
 
         const headerId = headerResult.insertId;
@@ -118,7 +122,22 @@ exports.listRegistrations = async (req, res) => {
     }
 };
 
-// 3. Update status (Approve / Reject)
+// 3. Get list of registrations for a specific student
+exports.getStudentRegistrations = async (req, res) => {
+    const { user_id } = req.params;
+    try {
+        const [headers] = await pool.execute(
+            'SELECT * FROM course_unit_registration_headers WHERE user_id = ? ORDER BY created_at DESC',
+            [user_id]
+        );
+        res.status(200).json(headers);
+    } catch (err) {
+        console.error('Error fetching student registrations:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// 4. Update status (Approve / Reject)
 exports.updateStatus = async (req, res) => {
     const { id } = req.params;
     const { status, reject_reason } = req.body;

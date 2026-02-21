@@ -2,13 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import SignatureCanvas from 'react-signature-canvas';
 
-const StudentCourseUnitRegistration = () => {
+const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
     const { user } = useAuth();
-    const [formData, setFormData] = useState({});
+    // If readOnlyData is provided, use it directly, otherwise use local state
+    const [formData, setFormData] = useState(readOnlyData || {});
     const [submitted, setSubmitted] = useState(false);
     const sigCanvas = useRef(null);
+    const isReadOnly = !!readOnlyData;
 
-    // Form Structure (Copied from EditFormsSection.jsx ID: 1)
+    // ... [formStructure remains exactly the same] ...
     const formStructure = [
         {
             id: 'header_cr',
@@ -169,20 +171,19 @@ const StudentCourseUnitRegistration = () => {
 
     // Pre-fill Logic
     useEffect(() => {
-        if (user) {
+        if (user && !isReadOnly) {
             setFormData(prev => ({
                 ...prev,
                 st_name_cr: user.name || '',
-                // Parse student ID if format matches IM/2023/001 logic later if needed
                 email_cr: user.email || '',
-                // Additional mock pre-fills
                 level: '1',
                 mobile: '0712345678'
             }));
         }
-    }, [user]);
+    }, [user, isReadOnly]);
 
     const handleInputChange = (id, value) => {
+        if (isReadOnly) return;
         setFormData(prev => ({
             ...prev,
             [id]: value
@@ -191,6 +192,7 @@ const StudentCourseUnitRegistration = () => {
 
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
+        if (isReadOnly) return;
 
         if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
             alert("Please provide your digital signature before submitting.");
@@ -200,12 +202,11 @@ const StudentCourseUnitRegistration = () => {
         setSubmitted(true);
 
         try {
-            // Using getCanvas() instead of getTrimmedCanvas() to avoid "trim_canvas is not a function" error in this Vite setup
             const signatureBase64 = sigCanvas.current.getCanvas().toDataURL('image/png');
             console.log("Form Data Submitted:", formData);
 
             const payload = {
-                user_id: user?.user_id || null, // Assuming user object has user_id or id
+                user_id: user?.user_id || null,
                 form_data: formData,
                 signature: signatureBase64
             };
@@ -224,7 +225,6 @@ const StudentCourseUnitRegistration = () => {
             }
 
             alert("Registration Form Submitted Successfully!");
-            // Optionally reset form or navigate away
             sigCanvas.current.clear();
         } catch (error) {
             console.error('Error submitting form:', error);
@@ -290,6 +290,8 @@ const StudentCourseUnitRegistration = () => {
                                             key={c}
                                             type="text"
                                             maxLength={2}
+                                            readOnly={isReadOnly}
+                                            value={formData[`${element.id}_${r}_${c}`] || ''}
                                             className="flex-1 border-r border-black last:border-r-0 w-full text-center text-[10px] focus:bg-blue-50 outline-none uppercase"
                                             onChange={(e) => handleInputChange(`${element.id}_${r}_${c}`, e.target.value)}
                                         />
@@ -307,23 +309,33 @@ const StudentCourseUnitRegistration = () => {
                             <div key={idx} className="flex-1 text-center">
                                 {label.includes('SIGNATURE') ? (
                                     <div className="border-b border-black border-dashed mb-1 w-full bg-white relative flex flex-col justify-end" style={{ height: '80px' }}>
-                                        <div className="absolute inset-0">
-                                            <SignatureCanvas
-                                                ref={sigCanvas}
-                                                canvasProps={{ className: 'signature-canvas w-full h-full' }}
-                                            />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => sigCanvas?.current?.clear()}
-                                            className="absolute bottom-1 right-1 text-[8px] bg-gray-200 px-1 py-0.5 rounded hover:bg-gray-300 no-print z-10"
-                                        >
-                                            Clear
-                                        </button>
+                                        {isReadOnly ? (
+                                            formData.signature && (
+                                                <img src={formData.signature} className="absolute inset-0 object-contain w-full h-full p-2" alt="Signature" />
+                                            )
+                                        ) : (
+                                            <>
+                                                <div className="absolute inset-0">
+                                                    <SignatureCanvas
+                                                        ref={sigCanvas}
+                                                        canvasProps={{ className: 'signature-canvas w-full h-full' }}
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => sigCanvas?.current?.clear()}
+                                                    className="absolute bottom-1 right-1 text-[8px] bg-gray-200 px-1 py-0.5 rounded hover:bg-gray-300 no-print z-10"
+                                                >
+                                                    Clear
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 ) : (
                                     <input
-                                        type="date"
+                                        type="text"
+                                        readOnly={isReadOnly}
+                                        value={formData[`sig_${idx}`] || (isReadOnly ? formData.dateSubmitted : '') || ''}
                                         className="h-8 border-b border-black border-dashed mb-1 w-full text-center focus:bg-blue-50 outline-none font-serif"
                                         onChange={(e) => handleInputChange(`sig_${idx}`, e.target.value)}
                                     />
@@ -364,7 +376,7 @@ const StudentCourseUnitRegistration = () => {
 
                 {field.type === 'box_input_prefilled' && (
                     <div className="flex gap-1 items-center">
-                        {field.value.map((val, i) => (
+                        {field.value?.map((val, i) => (
                             <div key={`p-${i}`} className="w-8 h-8 border border-gray-800 bg-gray-100 flex items-center justify-center font-bold text-xl">{val}</div>
                         ))}
                         {/* Dynamic Student ID Inputs */}
@@ -374,11 +386,10 @@ const StudentCourseUnitRegistration = () => {
                                     key={i}
                                     type="text"
                                     maxLength={1}
-                                    className="w-8 h-8 border border-gray-800 text-center font-bold text-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase"
-                                    onChange={(e) => {
-                                        // Complex logic to stitch ID together could go here
-                                        handleInputChange(`${field.id}_${i}`, e.target.value)
-                                    }}
+                                    readOnly={isReadOnly}
+                                    value={formData[`${field.id}_${i}`] || ''}
+                                    className="w-8 h-8 border border-gray-800 text-center font-bold text-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase bg-white"
+                                    onChange={(e) => handleInputChange(`${field.id}_${i}`, e.target.value)}
                                 />
                             ))}
                         </div>
@@ -388,7 +399,8 @@ const StudentCourseUnitRegistration = () => {
                 {field.type === 'box_single' && (
                     <input
                         type="text"
-                        className="w-24 h-10 border border-gray-800 text-center px-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                        readOnly={isReadOnly}
+                        className="w-24 h-10 border border-gray-800 text-center px-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-bold"
                         value={formData[field.id] || ''}
                         onChange={(e) => handleInputChange(field.id, e.target.value)}
                     />
@@ -397,7 +409,8 @@ const StudentCourseUnitRegistration = () => {
                 {field.type === 'box_small' && (
                     <input
                         type="text"
-                        className="w-16 h-8 border border-gray-800 text-center px-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        readOnly={isReadOnly}
+                        className="w-16 h-8 border border-gray-800 text-center px-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white font-bold"
                         value={formData[field.id] || ''}
                         onChange={(e) => handleInputChange(field.id, e.target.value)}
                     />
@@ -406,7 +419,8 @@ const StudentCourseUnitRegistration = () => {
                 {(field.type === 'line_input' || field.type === 'line_input_dotted' || field.type === 'dotted_line') && (
                     <input
                         type="text"
-                        className={`flex-1 border-b-2 border-gray-300 ${field.type.includes('dotted') ? 'border-dotted' : ''} h-8 px-2 focus:border-blue-500 outline-none min-w-[150px]`}
+                        readOnly={isReadOnly}
+                        className={`flex-1 border-b-2 border-gray-300 ${field.type.includes('dotted') ? 'border-dotted' : ''} h-8 px-2 focus:border-blue-500 outline-none min-w-[150px] bg-transparent font-medium`}
                         value={formData[field.id] || ''}
                         onChange={(e) => handleInputChange(field.id, e.target.value)}
                     />
@@ -416,14 +430,15 @@ const StudentCourseUnitRegistration = () => {
                     <div className="flex items-center gap-4 flex-1">
                         <div className="flex items-center gap-2">
                             <div
-                                onClick={() => handleInputChange(`${field.id}_mr`, !formData[`${field.id}_mr`])}
-                                className={`w-8 h-8 border border-gray-800 cursor-pointer flex items-center justify-center ${formData[`${field.id}_mr`] ? 'bg-black text-white' : 'bg-white'}`}
+                                onClick={() => !isReadOnly && handleInputChange(`${field.id}_mr`, !formData[`${field.id}_mr`])}
+                                className={`w-8 h-8 border border-gray-800 flex items-center justify-center ${!isReadOnly ? 'cursor-pointer' : ''} ${formData[`${field.id}_mr`] ? 'bg-black text-white' : 'bg-white'}`}
                             >
                                 {formData[`${field.id}_mr`] && '✓'}
                             </div>
                             <input
                                 type="text"
-                                className="flex-1 border-b border-gray-400 border-dotted h-8 px-2 outline-none min-w-[200px]"
+                                readOnly={isReadOnly}
+                                className="flex-1 border-b border-gray-400 border-dotted h-8 px-2 outline-none min-w-[200px] bg-transparent font-medium"
                                 placeholder="Name..."
                                 value={formData[field.id] || ''}
                                 onChange={(e) => handleInputChange(field.id, e.target.value)}
@@ -432,8 +447,8 @@ const StudentCourseUnitRegistration = () => {
                         <div className="flex items-center gap-2">
                             <span className="font-bold text-sm bg-gray-200 px-1">{field.secondaryLabel}</span>
                             <div
-                                onClick={() => handleInputChange(`${field.id}_ms`, !formData[`${field.id}_ms`])}
-                                className={`w-8 h-8 border border-gray-800 cursor-pointer flex items-center justify-center ${formData[`${field.id}_ms`] ? 'bg-black text-white' : 'bg-white'}`}
+                                onClick={() => !isReadOnly && handleInputChange(`${field.id}_ms`, !formData[`${field.id}_ms`])}
+                                className={`w-8 h-8 border border-gray-800 flex items-center justify-center ${!isReadOnly ? 'cursor-pointer' : ''} ${formData[`${field.id}_ms`] ? 'bg-black text-white' : 'bg-white'}`}
                             >
                                 {formData[`${field.id}_ms`] && '✓'}
                             </div>
@@ -445,8 +460,9 @@ const StudentCourseUnitRegistration = () => {
                     <div className="border border-black p-1 flex items-center gap-4 bg-white/50">
                         <span className="font-bold text-sm uppercase px-2">{field.label}</span>
                         <input
-                            type="number"
-                            className="w-20 h-10 border-l border-black pl-2 focus:bg-blue-50 outline-none"
+                            type="text"
+                            readOnly={isReadOnly}
+                            className="w-20 h-10 border-l border-black pl-2 focus:bg-blue-50 outline-none bg-transparent font-bold text-lg text-center"
                             value={formData[field.id] || ''}
                             onChange={(e) => handleInputChange(field.id, e.target.value)}
                         />
@@ -457,22 +473,24 @@ const StudentCourseUnitRegistration = () => {
     }
 
     return (
-        <div className="max-w-5xl mx-auto pb-20 animate-fade-in-up">
-            <div className="flex justify-between items-center mb-6 no-print">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-800">Academic Course Unit Registration</h2>
-                    <p className="text-gray-500 text-sm mt-1">Please fill the form below in block capitals.</p>
+        <div className={`mx-auto ${!isReadOnly ? 'max-w-5xl pb-20 animate-fade-in-up' : 'w-[210mm] relative'}`}>
+            {!isReadOnly && (
+                <div className="flex justify-between items-center mb-6 no-print">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800">Academic Course Unit Registration</h2>
+                        <p className="text-gray-500 text-sm mt-1">Please fill the form below in block capitals.</p>
+                    </div>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={submitted}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg flex items-center gap-2"
+                    >
+                        {submitted ? 'Submitting...' : 'Submit Registration'}
+                    </button>
                 </div>
-                <button
-                    onClick={handleSubmit}
-                    disabled={submitted}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg flex items-center gap-2"
-                >
-                    {submitted ? 'Submitting...' : 'Submit Registration'}
-                </button>
-            </div>
+            )}
 
-            <div className="bg-white p-16 shadow-2xl border border-gray-200 min-h-screen relative mx-auto w-full max-w-[210mm]">
+            <div className={`bg-white p-12 ${!isReadOnly ? 'shadow-2xl border border-gray-200 min-h-screen relative mx-auto' : ''} w-full max-w-[210mm]`}>
                 {/* Paper Form Container */}
                 {formStructure.map(element => renderFormElement(element))}
             </div>
