@@ -53,7 +53,7 @@ const Register = () => {
                     if (!['Student', 'BatchRepresentative'].includes(newData.role)) {
                         newData.role = 'Student';
                     }
-                } else if (value.endsWith('@kln.ac.lk') || value === 'archchika27@gmail.com' || value === 'bagivi1341@gxuzi.com' || value === 'wevaw72949@gxuzi.com' || value === 'yihobat906@gxuzi.com' || value === 'nacow76709@gxuzi.com' || value === 'wevaw72949@gxuzi.com' || value === 'thavashikalaxi@gmail.com') {
+                } else if (value.endsWith('@kln.ac.lk') || value === 'archchika27@gmail.com' || value === 'bagivi1341@gxuzi.com' || value === 'wevaw72949@gxuzi.com' || value === 'yihobat906@gxuzi.com' || value === 'nacow76709@gxuzi.com' || value === 'wevaw72949@gxuzi.com' || value === 'thavashikalaxi@gmail.com' || value === 'archchika.t@gmail.com') {
                     let staffRoles = ['FacultyStaff', 'DeptStaff', 'Dean', 'HallAttendant', 'AcademicSupervisor'];
                     if (takenRoles.dean) staffRoles = staffRoles.filter(r => r !== 'Dean');
                     if (takenRoles.supervisor) staffRoles = staffRoles.filter(r => r !== 'AcademicSupervisor');
@@ -112,7 +112,7 @@ const Register = () => {
                 return;
             }
         } else {
-            if (!formData.email.endsWith('@kln.ac.lk') && formData.email !== 'archchika27@gmail.com' && formData.email !== 'bagivi1341@gxuzi.com' && formData.email !== 'wevaw72949@gxuzi.com' && formData.email !== 'yihobat906@gxuzi.com' && formData.email !== 'nacow76709@gxuzi.com' && formData.email !== 'wevaw72949@gxuzi.com' && formData.email !== 'thavashikalaxi@gmail.com') {
+            if (!formData.email.endsWith('@kln.ac.lk') && formData.email !== 'archchika27@gmail.com' && formData.email !== 'bagivi1341@gxuzi.com' && formData.email !== 'wevaw72949@gxuzi.com' && formData.email !== 'yihobat906@gxuzi.com' && formData.email !== 'nacow76709@gxuzi.com' && formData.email !== 'wevaw72949@gxuzi.com' && formData.email !== 'thavashikalaxi@gmail.com' && formData.email !== 'archchika.t@gmail.com') {
                 setError('Staff roles must use @kln.ac.lk email');
                 return;
             }

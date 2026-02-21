@@ -25,6 +25,8 @@ const validateEmail = (email, role) => {
 
     if (email === 'thavashikalaxi@gmail.com') return true;
 
+    if (email === 'archchika.t@gmail.com') return true;
+
     if (role === 'Student' || role === 'BatchRepresentative') {
         return email.endsWith('@stu.kln.ac.lk');
     }
@@ -315,5 +317,65 @@ exports.verifyEmail = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error verifying email' });
+    }
+};
+
+exports.resendVerification = async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        const [users] = await pool.execute('SELECT * FROM users WHERE email = ?', [email]);
+
+        if (users.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const user = users[0];
+
+        if (user.is_verified) {
+            return res.status(400).json({ message: 'Email is already verified.' });
+        }
+
+        const connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        try {
+            // Delete existing tokens for this email to prevent spam/confusion
+            await connection.execute('DELETE FROM email_verifications WHERE email = ?', [email]);
+
+            // Create new Verification Token
+            const verificationToken = crypto.randomBytes(32).toString('hex');
+            const verificationExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+            await connection.execute(
+                'INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)',
+                [email, verificationToken, verificationExpires]
+            );
+
+            await connection.commit();
+
+            // Send Email
+            const verifyUrl = `http://localhost:5173/verify-email?token=${verificationToken}&email=${email}`;
+            const emailHtml = `
+                    <h1>Verify Your Email</h1>
+                    <p>You requested a new verification link. Please click the link below to verify your account:</p>
+                    <a href="${verifyUrl}">${verifyUrl}</a>
+                    <p>This link will expire in 5 minutes.</p>
+                `;
+
+            await sendEmail(email, 'EMS Account Verification - Resend', emailHtml);
+
+            res.json({ message: 'A new verification email has been sent. Please check your inbox (and spam).' });
+
+        } catch (err) {
+            await connection.rollback();
+            throw err;
+        } finally {
+            connection.release();
+        }
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error resending verification email' });
     }
 };
