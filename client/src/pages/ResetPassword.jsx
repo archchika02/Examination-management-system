@@ -12,12 +12,53 @@ const ResetPassword = () => {
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
 
+    // Real-time Validation State
+    const [passwordCriteria, setPasswordCriteria] = useState({
+        length: false,
+        hasLetter: false,
+        hasNumber: false,
+        hasSpecial: false
+    });
+    const [passwordsMatch, setPasswordsMatch] = useState(true);
+
+    const handlePasswordChange = (value) => {
+        setPassword(value);
+        setPasswordCriteria({
+            length: value.length >= 8,
+            hasLetter: /[A-Za-z]/.test(value),
+            hasNumber: /[0-9]/.test(value),
+            hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(value)
+        });
+        if (confirmPassword) {
+            setPasswordsMatch(value === confirmPassword);
+        }
+    };
+
+    const handleConfirmPasswordChange = (value) => {
+        setConfirmPassword(value);
+        setPasswordsMatch(password === value);
+    };
+
+    const validatePassword = () => {
+        if (!passwordCriteria.length) return "Password must be at least 8 characters long.";
+        if (!passwordCriteria.hasLetter) return "Password must contain at least one letter.";
+        if (!passwordCriteria.hasNumber) return "Password must contain at least one number.";
+        if (!passwordCriteria.hasSpecial) return "Password must contain at least one special character.";
+        return null;
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
         if (password !== confirmPassword) {
             setError("Passwords do not match");
+            return;
+        }
+
+        const pwdError = validatePassword();
+        if (pwdError) {
+            setError(pwdError);
             return;
         }
 
@@ -51,22 +92,53 @@ const ResetPassword = () => {
                     {message && <div className="text-green-500 text-center text-sm">{message}</div>}
 
                     <div className="space-y-4">
-                        <input
-                            type="password"
-                            required
-                            className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                            placeholder="New Password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                        <input
-                            type="password"
-                            required
-                            className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                            placeholder="Confirm Password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                        />
+                        <div>
+                            <input
+                                type="password"
+                                required
+                                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                placeholder="New Password"
+                                value={password}
+                                onChange={(e) => handlePasswordChange(e.target.value)}
+                            />
+                            {/* Real-time Checklist */}
+                            <div className="mt-2 space-y-1">
+                                <div className={`text-xs flex items-center ${passwordCriteria.length ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <span className="mr-1.5">{passwordCriteria.length ? '✓' : '○'}</span> At least 8 characters
+                                </div>
+                                <div className={`text-xs flex items-center ${passwordCriteria.hasLetter ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <span className="mr-1.5">{passwordCriteria.hasLetter ? '✓' : '○'}</span> At least one letter
+                                </div>
+                                <div className={`text-xs flex items-center ${passwordCriteria.hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <span className="mr-1.5">{passwordCriteria.hasNumber ? '✓' : '○'}</span> At least one number
+                                </div>
+                                <div className={`text-xs flex items-center ${passwordCriteria.hasSpecial ? 'text-green-600' : 'text-gray-400'}`}>
+                                    <span className="mr-1.5">{passwordCriteria.hasSpecial ? '✓' : '○'}</span> At least one special char
+                                </div>
+                            </div>
+                        </div>
+                        <div className="relative mt-4">
+                            <input
+                                type="password"
+                                required
+                                className={`appearance-none rounded-md relative block w-full px-3 py-2 border placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm ${!passwordsMatch && confirmPassword ? 'border-red-300 focus:ring-red-500' : 'border-gray-300'}`}
+                                placeholder="Confirm Password"
+                                value={confirmPassword}
+                                onChange={(e) => handleConfirmPasswordChange(e.target.value)}
+                            />
+                            {confirmPassword && (
+                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                    {passwordsMatch ? (
+                                        <span className="text-green-500 text-lg">✓</span>
+                                    ) : (
+                                        <span className="text-red-500 text-lg">✕</span>
+                                    )}
+                                </div>
+                            )}
+                            {!passwordsMatch && confirmPassword && (
+                                <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                            )}
+                        </div>
                     </div>
 
                     <div>
