@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import SignatureCanvas from 'react-signature-canvas';
 
 const StudentCourseUnitRegistration = () => {
     const { user } = useAuth();
     const [formData, setFormData] = useState({});
     const [submitted, setSubmitted] = useState(false);
+    const sigCanvas = useRef(null);
 
     // Form Structure (Copied from EditFormsSection.jsx ID: 1)
     const formStructure = [
@@ -187,16 +189,49 @@ const StudentCourseUnitRegistration = () => {
         }));
     };
 
-    const handleSubmit = () => {
-        setSubmitted(true);
-        console.log("Form Data Submitted:", formData);
+    const handleSubmit = async (e) => {
+        if (e) e.preventDefault();
 
-        // Mock successful submission
-        setTimeout(() => {
+        if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
+            alert("Please provide your digital signature before submitting.");
+            return;
+        }
+
+        setSubmitted(true);
+
+        try {
+            // Using getCanvas() instead of getTrimmedCanvas() to avoid "trim_canvas is not a function" error in this Vite setup
+            const signatureBase64 = sigCanvas.current.getCanvas().toDataURL('image/png');
+            console.log("Form Data Submitted:", formData);
+
+            const payload = {
+                user_id: user?.user_id || null, // Assuming user object has user_id or id
+                form_data: formData,
+                signature: signatureBase64
+            };
+
+            const response = await fetch('http://localhost:5000/api/course-registration/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Network response was not ok');
+            }
+
             alert("Registration Form Submitted Successfully!");
+            // Optionally reset form or navigate away
+            sigCanvas.current.clear();
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            alert("Error submitting form. Please try again.");
+        } finally {
             setSubmitted(false);
-            // navigate to dashboard or show success state
-        }, 1500);
+        }
     };
 
     const renderFormElement = (element, parent = null) => {
@@ -234,10 +269,10 @@ const StudentCourseUnitRegistration = () => {
                 return (
                     <div key={element.id} className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6 border border-black min-h-[500px]">
                         <div className="border-r border-black p-4 flex flex-col h-full">
-                            {element.left.map((item, i) => renderFormElement({ ...item, id: `${element.id}_l_${i}` }, element))}
+                            {element.left.map((item, i) => renderFormElement({ ...item, id: item.id || `${element.id}_l_${i}` }, element))}
                         </div>
                         <div className="p-4 flex flex-col h-full">
-                            {element.right.map((item, i) => renderFormElement({ ...item, id: `${element.id}_r_${i}` }, element))}
+                            {element.right.map((item, i) => renderFormElement({ ...item, id: item.id || `${element.id}_r_${i}` }, element))}
                         </div>
                     </div>
                 );
@@ -271,8 +306,20 @@ const StudentCourseUnitRegistration = () => {
                         {element.labels.map((label, idx) => (
                             <div key={idx} className="flex-1 text-center">
                                 {label.includes('SIGNATURE') ? (
-                                    <div className="h-10 border-b border-black border-dashed mb-1 w-full bg-gray-50 flex items-end justify-center text-gray-400 text-xs italic">
-                                        (Digital Signature Placeholder)
+                                    <div className="border-b border-black border-dashed mb-1 w-full bg-white relative flex flex-col justify-end" style={{ height: '80px' }}>
+                                        <div className="absolute inset-0">
+                                            <SignatureCanvas
+                                                ref={sigCanvas}
+                                                canvasProps={{ className: 'signature-canvas w-full h-full' }}
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => sigCanvas?.current?.clear()}
+                                            className="absolute bottom-1 right-1 text-[8px] bg-gray-200 px-1 py-0.5 rounded hover:bg-gray-300 no-print z-10"
+                                        >
+                                            Clear
+                                        </button>
                                     </div>
                                 ) : (
                                     <input

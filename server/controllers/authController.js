@@ -110,9 +110,11 @@ exports.register = async (req, res) => {
 
             if (role === 'Student' || role === 'BatchRep') {
                 if (!student_number) throw new Error('Student number is required');
+                // Ensure level is not undefined, default to 1 if not provided
+                const studentLevel = level || 1;
                 await connection.execute(
                     'INSERT INTO student_details (user_id, student_number, level) VALUES (?, ?, ?)',
-                    [userId, student_number, level]
+                    [userId, student_number, studentLevel]
                 );
             }
 
