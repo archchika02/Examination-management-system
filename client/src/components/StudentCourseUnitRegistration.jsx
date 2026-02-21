@@ -131,6 +131,11 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                     id: 'Grid_Aux_S1'
                 },
                 {
+                    type: 'section_inline',
+                    justify: 'end',
+                    fields: [{ id: 'cred_aux_1', label: 'CREDITS', type: 'box_small' }]
+                },
+                {
                     type: 'grid_section',
                     subtitle: 'SEMESTER 2',
                     rows: 3,
@@ -140,7 +145,7 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                 {
                     type: 'section_inline',
                     justify: 'end',
-                    fields: [{ id: 'cred_aux', label: 'CREDITS', type: 'box_small' }]
+                    fields: [{ id: 'cred_aux_2', label: 'CREDITS', type: 'box_small' }]
                 },
                 {
                     type: 'section_inline',
