@@ -153,7 +153,9 @@ const AcademicCourseUnits = () => {
             formatted[`st_no_cr_${i}`] = rawDigits[i];
         }
 
-        reg.courseUnits.forEach((course, index) => {
+        const gridRowCounters = {};
+
+        reg.courseUnits.forEach((course) => {
             let courseTypeStr = (course.course_type || course.type || '').toLowerCase();
             let gridPrefix = courseTypeStr.includes('compulsory') ? 'Grid_Comp'
                 : courseTypeStr.includes('optional') ? 'Grid_Opt'
@@ -162,10 +164,15 @@ const AcademicCourseUnits = () => {
             let semSuffix = course.semester === 1 ? '_S1' : '_S2';
             let gridId = `${gridPrefix}${semSuffix}`;
 
+            if (gridRowCounters[gridId] === undefined) {
+                gridRowCounters[gridId] = 0;
+            }
+            let rowIndex = gridRowCounters[gridId]++;
+
             const code = course.course_code;
             if (code) {
                 for (let c = 0; c < code.length && c < 12; c++) {
-                    formatted[`${gridId}_${index}_${c}`] = code[c];
+                    formatted[`${gridId}_${rowIndex}_${c}`] = code[c];
                 }
             }
         });

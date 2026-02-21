@@ -285,17 +285,62 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                         <div className="border border-black bg-white">
                             {[...Array(element.rows)].map((_, r) => (
                                 <div key={r} className="flex h-6 border-b border-black last:border-b-0">
-                                    {[...Array(element.cols)].map((_, c) => (
-                                        <input
-                                            key={c}
-                                            type="text"
-                                            maxLength={2}
-                                            readOnly={isReadOnly}
-                                            value={formData[`${element.id}_${r}_${c}`] || ''}
-                                            className="flex-1 border-r border-black last:border-r-0 w-full text-center text-[10px] focus:bg-blue-50 outline-none uppercase"
-                                            onChange={(e) => handleInputChange(`${element.id}_${r}_${c}`, e.target.value)}
-                                        />
-                                    ))}
+                                    {[...Array(element.cols)].map((_, c) => {
+                                        const inputId = `${element.id}_${r}_${c}`;
+                                        return (
+                                            <input
+                                                key={c}
+                                                id={inputId}
+                                                type="text"
+                                                maxLength={1}
+                                                readOnly={isReadOnly}
+                                                value={formData[inputId] || ''}
+                                                className="flex-1 border-r border-black last:border-r-0 w-full text-center text-[10px] focus:bg-blue-50 outline-none uppercase"
+                                                onChange={(e) => handleInputChange(inputId, e.target.value)}
+                                                onKeyUp={(e) => {
+                                                    if (isReadOnly) return;
+                                                    // Auto-advance horizontally on 1 char typed
+                                                    if (e.target.value.length === 1 && e.key !== 'Enter') {
+                                                        const nextColId = `${element.id}_${r}_${c + 1}`;
+                                                        const nextRowId = `${element.id}_${r + 1}_0`;
+
+                                                        let nextEl = document.getElementById(nextColId);
+                                                        // If end of row, optionally jump to next row (decided to stick to horizontal as user mentioned next box, but if they hit enter it goes down)
+                                                        if (!nextEl && c + 1 === element.cols) {
+                                                            nextEl = document.getElementById(nextRowId);
+                                                        }
+                                                        if (nextEl) nextEl.focus();
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (isReadOnly) return;
+                                                    // Jump to next row vertically on Enter
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const nextRowId = `${element.id}_${r + 1}_0`;
+                                                        const nextEl = document.getElementById(nextRowId);
+                                                        if (nextEl) nextEl.focus();
+                                                    } else if (e.key === 'ArrowRight') {
+                                                        const nextEl = document.getElementById(`${element.id}_${r}_${c + 1}`);
+                                                        if (nextEl) nextEl.focus();
+                                                    } else if (e.key === 'ArrowLeft') {
+                                                        const prevEl = document.getElementById(`${element.id}_${r}_${c - 1}`);
+                                                        if (prevEl) prevEl.focus();
+                                                    } else if (e.key === 'ArrowDown') {
+                                                        const nextEl = document.getElementById(`${element.id}_${r + 1}_${c}`);
+                                                        if (nextEl) nextEl.focus();
+                                                    } else if (e.key === 'ArrowUp') {
+                                                        const prevEl = document.getElementById(`${element.id}_${r - 1}_${c}`);
+                                                        if (prevEl) prevEl.focus();
+                                                    } else if (e.key === 'Backspace' && !e.target.value) {
+                                                        // Optional: jumping back on backspace if empty
+                                                        const prevEl = document.getElementById(`${element.id}_${r}_${c - 1}`);
+                                                        if (prevEl) prevEl.focus();
+                                                    }
+                                                }}
+                                            />
+                                        );
+                                    })}
                                 </div>
                             ))}
                         </div>
@@ -381,17 +426,41 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                         ))}
                         {/* Dynamic Student ID Inputs */}
                         <div className="flex gap-1">
-                            {[...Array(field.count)].map((_, i) => (
-                                <input
-                                    key={i}
-                                    type="text"
-                                    maxLength={1}
-                                    readOnly={isReadOnly}
-                                    value={formData[`${field.id}_${i}`] || ''}
-                                    className="w-8 h-8 border border-gray-800 text-center font-bold text-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase bg-white"
-                                    onChange={(e) => handleInputChange(`${field.id}_${i}`, e.target.value)}
-                                />
-                            ))}
+                            {[...Array(field.count)].map((_, i) => {
+                                const boxId = `${field.id}_${i}`;
+                                return (
+                                    <input
+                                        key={i}
+                                        id={boxId}
+                                        type="text"
+                                        maxLength={1}
+                                        readOnly={isReadOnly}
+                                        value={formData[boxId] || ''}
+                                        className="w-8 h-8 border border-gray-800 text-center font-bold text-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase bg-white"
+                                        onChange={(e) => handleInputChange(boxId, e.target.value)}
+                                        onKeyUp={(e) => {
+                                            if (isReadOnly) return;
+                                            if (e.target.value.length === 1 && e.key !== 'Enter') {
+                                                const nextEl = document.getElementById(`${field.id}_${i + 1}`);
+                                                if (nextEl) nextEl.focus();
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (isReadOnly) return;
+                                            if (e.key === 'ArrowRight') {
+                                                const nextEl = document.getElementById(`${field.id}_${i + 1}`);
+                                                if (nextEl) nextEl.focus();
+                                            } else if (e.key === 'ArrowLeft') {
+                                                const prevEl = document.getElementById(`${field.id}_${i - 1}`);
+                                                if (prevEl) prevEl.focus();
+                                            } else if (e.key === 'Backspace' && !e.target.value) {
+                                                const prevEl = document.getElementById(`${field.id}_${i - 1}`);
+                                                if (prevEl) prevEl.focus();
+                                            }
+                                        }}
+                                    />
+                                );
+                            })}
                         </div>
                     </div>
                 )}
