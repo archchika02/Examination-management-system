@@ -9,7 +9,37 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
+    const [resendStatus, setResendStatus] = useState('');
+    const [isResending, setIsResending] = useState(false);
     const navigate = useNavigate();
+
+    const handleResendVerification = async () => {
+        if (!email) {
+            setResendStatus('Please enter your email above first');
+            return;
+        }
+
+        setIsResending(true);
+        setResendStatus('');
+        try {
+            const response = await fetch('http://localhost:5000/api/auth/resend-verification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message);
+            }
+            setResendStatus(data.message);
+            setError(''); // Clear the initial login error
+        } catch (err) {
+            setResendStatus(err.message);
+        } finally {
+            setIsResending(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -58,8 +88,26 @@ const Login = () => {
 
                     <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                         {error && (
-                            <div className="bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm rounded flex items-start animate-pulse">
-                                <span className="mr-2">⚠️</span> {error}
+                            <div className="bg-red-50 border-l-4 border-red-500 p-4 text-red-700 text-sm rounded flex flex-col items-start animate-pulse space-y-2">
+                                <div className="flex items-center">
+                                    <span className="mr-2">⚠️</span> {error}
+                                </div>
+                                {error.toLowerCase().includes('verify your email') && (
+                                    <button
+                                        type="button"
+                                        onClick={handleResendVerification}
+                                        disabled={isResending}
+                                        className="mt-2 text-indigo-600 font-bold underline hover:text-indigo-800 disabled:opacity-50"
+                                    >
+                                        {isResending ? 'Sending...' : 'Resend Verification Email'}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {resendStatus && (
+                            <div className={`p-4 text-sm rounded flex items-start ${resendStatus.toLowerCase().includes('sent') ? 'bg-green-50 text-green-700 border-l-4 border-green-500' : 'bg-red-50 text-red-700 border-l-4 border-red-500'}`}>
+                                <span className="mr-2">{resendStatus.toLowerCase().includes('sent') ? '✓' : '⚠️'}</span> {resendStatus}
                             </div>
                         )}
 
