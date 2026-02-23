@@ -1,14 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 
 const AddDropApproval = () => {
-    // Mock Data
-    const [requests, setRequests] = useState([
-        { id: 1, studentNumber: 'S12345', name: 'John Doe', form: 'add_drop_form_1.pdf', status: 'Pending', reason: '' },
-        { id: 2, studentNumber: 'S67890', name: 'Jane Smith', form: 'add_drop_form_2.pdf', status: 'Approved', reason: '' },
-        { id: 3, studentNumber: 'S11223', name: 'Alice Johnson', form: 'add_drop_form_3.pdf', status: 'Rejected', reason: 'Course full' },
-        { id: 4, studentNumber: 'S44556', name: 'Bob Brown', form: 'add_drop_form_4.pdf', status: 'Pending', reason: '' },
-        { id: 5, studentNumber: 'S77889', name: 'Charlie Davis', form: 'add_drop_form_5.pdf', status: 'Pending', reason: '' },
-    ]);
+    const { user } = useAuth();
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchRequests = async () => {
+            try {
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                if (!token) {
+                    console.error("No token found");
+                    setLoading(false);
+                    return;
+                }
+
+                const response = await fetch('http://localhost:5000/api/add-drop/list', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (!Array.isArray(data)) {
+                        setRequests([{ id: 999, studentNumber: 'ERR', name: 'Expected array, got: ' + typeof data, status: 'Rejected' }]);
+                        return;
+                    }
+
+                    try {
+                        const role = user?.role;
+                        const formattedData = data.map(req => {
+                            let tabStatus = req.status || 'Pending';
+                            if (role === 'AcademicSupervisor' || role === 'Academic Supervisor') {
+                                if (req.status === 'Pending Supervisor') tabStatus = 'Pending';
+                                else if (['Pending Dean', 'Approved'].includes(req.status)) tabStatus = 'Approved';
+                                else if (['Rejected by Supervisor', 'Rejected by Dean', 'Rejected'].includes(req.status)) tabStatus = 'Rejected';
+                            } else if (role === 'Dean') {
+                                if (req.status === 'Pending Dean') tabStatus = 'Pending';
+                                else if (req.status === 'Approved') tabStatus = 'Approved';
+                                else if (['Rejected by Dean', 'Rejected'].includes(req.status)) tabStatus = 'Rejected';
+                            } else if (role === 'FacultyStaff') {
+                                if (req.status === 'Approved') tabStatus = 'Approved';
+                            }
+
+                            return {
+                                id: req.id,
+                                studentNumber: req.student_number || 'Missing Number',
+                                name: req.student_name || 'Missing Name',
+                                form: `Add/Drop Form (${(Number(req.sem1_credits) || 0) + (Number(req.sem2_credits) || 0)} Credits)`,
+                                status: req.status || 'Pending',
+                                tabStatus: tabStatus,
+                                reason: req.reject_reason || '',
+                                ...req
+                            };
+                        });
+
+                        setRequests(formattedData);
+                    } catch (mapError) {
+                        setRequests([{ id: 998, studentNumber: 'MAP-ERR', name: mapError.message, status: 'Rejected' }]);
+                    }
+                } else {
+                    const errorText = await response.text();
+                    console.error("Failed to fetch add/drop requests:", errorText);
+                    setRequests([{ id: 997, studentNumber: 'API-ERR', name: `${response.status} ${response.statusText}`, reason: errorText, status: 'Rejected' }]);
+                }
+            } catch (error) {
+                console.error("Error fetching add/drop requests:", error);
+                setRequests([{ id: 996, studentNumber: 'FETCH-ERR', name: error.message, status: 'Rejected' }]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchRequests();
+    }, [user]);
 
     const [activeTab, setActiveTab] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
@@ -16,20 +84,42 @@ const AddDropApproval = () => {
     const [selectedRequest, setSelectedRequest] = useState(null);
     const [rejectionReason, setRejectionReason] = useState('');
 
+    // View Modal State
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [viewData, setViewData] = useState(null);
+
     // Filtering Logic
     const filteredRequests = requests.filter(request => {
-        const matchesTab = activeTab === 'All' || request.status === activeTab;
+        const matchesTab = activeTab === 'All' || request.tabStatus === activeTab;
         const matchesSearch =
-            request.studentNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            request.name.toLowerCase().includes(searchQuery.toLowerCase());
+            (request.studentNumber && request.studentNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (request.name && request.name.toLowerCase().includes(searchQuery.toLowerCase()));
         return matchesTab && matchesSearch;
     });
 
     // Actions
-    const handleApprove = (id) => {
-        setRequests(requests.map(req =>
-            req.id === id ? { ...req, status: 'Approved' } : req
-        ));
+    const handleApprove = async (id) => {
+        try {
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const response = await fetch(`http://localhost:5000/api/add-drop/${id}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: 'Approved' })
+            });
+
+            if (response.ok) {
+                setRequests(requests.map(req =>
+                    req.id === id ? { ...req, status: 'Approved' } : req
+                ));
+            } else {
+                console.error("Failed to approve request");
+            }
+        } catch (error) {
+            console.error("Error approving request:", error);
+        }
     };
 
     const openRejectModal = (request) => {
@@ -38,19 +128,52 @@ const AddDropApproval = () => {
         setRejectModalOpen(true);
     };
 
-    const handleRejectSubmit = () => {
+    const handleRejectSubmit = async () => {
         if (!selectedRequest) return;
-        setRequests(requests.map(req =>
-            req.id === selectedRequest.id ? { ...req, status: 'Rejected', reason: rejectionReason } : req
-        ));
-        setRejectModalOpen(false);
-        setSelectedRequest(null);
+
+        try {
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const response = await fetch(`http://localhost:5000/api/add-drop/${selectedRequest.id}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: 'Rejected', reason: rejectionReason })
+            });
+
+            if (response.ok) {
+                setRequests(requests.map(req =>
+                    req.id === selectedRequest.id ? { ...req, status: 'Rejected', reason: rejectionReason } : req
+                ));
+                setRejectModalOpen(false);
+                setSelectedRequest(null);
+            } else {
+                console.error("Failed to reject request");
+            }
+        } catch (error) {
+            console.error("Error rejecting request:", error);
+        }
+    };
+
+    const openViewModal = (request) => {
+        setViewData(request);
+        setIsViewModalOpen(true);
+    };
+
+    const closeViewModal = () => {
+        setIsViewModalOpen(false);
+        setViewData(null);
+    };
+
+    const handlePrint = () => {
+        window.print();
     };
 
     return (
         <div className="space-y-6 animate-fade-in-up">
             {/* Header and Controls */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 no-print">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
 
                     {/* Tabs */}
@@ -60,8 +183,8 @@ const AddDropApproval = () => {
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === tab
-                                        ? 'bg-white text-indigo-600 shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
+                                    ? 'bg-white text-indigo-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
                                     }`}
                             >
                                 {tab}
@@ -84,7 +207,7 @@ const AddDropApproval = () => {
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden no-print">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
@@ -103,25 +226,28 @@ const AddDropApproval = () => {
                                         <td className="px-6 py-4 font-medium text-gray-900">{request.studentNumber}</td>
                                         <td className="px-6 py-4 text-gray-700">{request.name}</td>
                                         <td className="px-6 py-4">
-                                            <a href="#" className="text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1 font-medium">
-                                                📄 {request.form}
-                                            </a>
+                                            <button
+                                                onClick={() => openViewModal(request)}
+                                                className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-1.5 rounded flex items-center gap-2 font-medium transition-colors"
+                                            >
+                                                📄 View Form
+                                            </button>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${request.status === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
-                                                    request.status === 'Rejected' ? 'bg-red-100 text-red-700 border-red-200' :
-                                                        'bg-yellow-100 text-yellow-700 border-yellow-200'
+                                            <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${request.tabStatus === 'Approved' ? 'bg-green-100 text-green-700 border-green-200' :
+                                                request.tabStatus === 'Rejected' ? 'bg-red-100 text-red-700 border-red-200' :
+                                                    'bg-yellow-100 text-yellow-700 border-yellow-200'
                                                 }`}>
                                                 {request.status}
                                             </span>
-                                            {request.status === 'Rejected' && request.reason && (
+                                            {request.tabStatus === 'Rejected' && request.reason && (
                                                 <div className="mt-1 text-xs text-red-500 italic max-w-xs break-words">
                                                     "{request.reason}"
                                                 </div>
                                             )}
                                         </td>
                                         <td className="px-6 py-4">
-                                            {request.status === 'Pending' ? (
+                                            {request.tabStatus === 'Pending' ? (
                                                 <div className="flex items-center space-x-3">
                                                     <button
                                                         onClick={() => handleApprove(request.id)}
@@ -137,7 +263,7 @@ const AddDropApproval = () => {
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <span className="text-gray-400 text-xs italic">No actions available</span>
+                                                <span className="text-gray-400 text-xs italic">Review Complete</span>
                                             )}
                                         </td>
                                     </tr>
@@ -159,7 +285,7 @@ const AddDropApproval = () => {
 
             {/* Rejection Modal */}
             {rejectModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in no-print">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden animate-scale-in">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h3 className="text-lg font-bold text-gray-800">Reject Request</h3>
@@ -192,6 +318,187 @@ const AddDropApproval = () => {
                                 Send Reason & Reject
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* View PDF Modal */}
+            {isViewModalOpen && viewData && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in p-4 print:p-0 print:bg-white overflow-y-auto">
+                    <div className="bg-white shadow-2xl w-full max-w-4xl max-h-[90vh] print:max-h-full print:shadow-none relative flex flex-col my-auto rounded-xl print:rounded-none">
+
+                        {/* Modal Header Toolbar (Not printed) */}
+                        <div className="sticky top-0 bg-gray-900 text-white p-4 flex justify-between items-center rounded-t-xl print:hidden z-10">
+                            <div className="font-medium flex items-center gap-2">
+                                📄 Add/Drop Request - <span className="text-indigo-300">{viewData.studentNumber}</span>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handlePrint}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-semibold transition-colors flex items-center gap-2"
+                                >
+                                    🖨️ Print / Save PDF
+                                </button>
+                                <button
+                                    onClick={closeViewModal}
+                                    className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded text-sm font-semibold transition-colors"
+                                >
+                                    ✕ Close
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* PDF View Content Container */}
+                        <div className="p-8 print:p-0 overflow-y-auto bg-gray-200/50 print:bg-white flex flex-col items-center flex-1" id="printable-pdf-area">
+
+                            {/* PDF Paper Sheet */}
+                            <div className="bg-white p-12 shadow-md border border-gray-200 w-full max-w-[210mm] min-h-[297mm] print:shadow-none print:border-none print:w-full">
+
+                                {/* 1. HEADER */}
+                                <div className="text-center mb-8 space-y-1">
+                                    <h2 className="text-gray-900 font-serif text-xl font-bold">UNIVERSITY OF KELANIYA - SRI LANKA</h2>
+                                    <h3 className="text-gray-900 font-serif text-lg font-semibold">FACULTY OF SCIENCE</h3>
+                                    <h2 className="text-gray-900 font-serif text-xl font-bold underline decoration-2 underline-offset-4 mb-4 block mt-4">APPLICATION TO ADD/ DROP COURSE UNITS</h2>
+                                    <h3 className="text-gray-900 font-serif text-lg font-semibold mt-4">SEMESTER II - ACADEMIC YEAR 2023/2024</h3>
+                                </div>
+
+                                {/* 2. STUDENT INFO */}
+                                <div className="space-y-6 mb-8">
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-sm font-semibold uppercase font-serif whitespace-nowrap">STUDENT NUMBER:</span>
+                                        <div className="flex gap-1 ml-2">
+                                            {[...Array(12)].map((_, i) => (
+                                                <div key={i} className="w-8 h-8 border border-gray-800 text-center font-bold text-xl uppercase flex items-center justify-center">
+                                                    {viewData.studentNumber[i] || ''}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-sm font-semibold uppercase font-serif whitespace-nowrap">STUDENT NAME (Mr/Ms):</span>
+                                        <div className="flex-1 border-b border-gray-400 border-dashed h-8 px-2 font-medium flex items-end pb-1">{viewData.name}</div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-sm font-semibold uppercase font-serif whitespace-nowrap">CONTACT NUMBER:</span>
+                                        <div className="flex-1 border-b border-gray-400 border-dashed h-8 px-2 font-medium flex items-end pb-1">{viewData.contact_number || '-'}</div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-sm font-semibold uppercase font-serif whitespace-nowrap">EMAIL ADDRESS:</span>
+                                        <div className="flex-1 border-b border-gray-400 border-dashed h-8 px-2 font-medium flex items-end pb-1 text-blue-800">{viewData.email || '-'}</div>
+                                    </div>
+                                </div>
+
+                                {/* 3. COMBINATION */}
+                                <div className="flex flex-wrap gap-12 mb-8 p-6 bg-gray-50/50 rounded-lg border border-gray-200 items-center justify-center print:bg-transparent print:border-none print:p-0 print:mb-8 print:justify-start">
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-sm font-semibold uppercase font-serif whitespace-nowrap">COURSE COMBINATION:</span>
+                                        <div className="w-24 h-8 border border-gray-800 flex items-center justify-center font-bold">{viewData.combination || '-'}</div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-sm font-semibold uppercase font-serif whitespace-nowrap">YEAR:</span>
+                                        <div className="w-24 h-8 border border-gray-800 flex items-center justify-center font-bold">{viewData.year || '-'}</div>
+                                    </div>
+                                </div>
+
+                                {/* 4. ADD TABLE */}
+                                <div className="mb-8 border border-black">
+                                    <div className="border-b border-black text-center font-bold p-2 bg-gray-100 uppercase text-sm font-serif print:bg-gray-100/50">
+                                        TO ADD A COURSE UNIT
+                                    </div>
+                                    <div className="grid bg-white" style={{ gridTemplateColumns: '1fr 1.5fr' }}>
+                                        <div className="border-r border-black p-2 text-center text-xs font-bold border-b border-black font-serif">Course Unit</div>
+                                        <div className="p-2 text-center text-xs font-bold border-b border-black font-serif">Recommendation of the relevant Senior Academic Advisor (Signature)</div>
+
+                                        {[...Array(4)].map((_, idx) => (
+                                            <React.Fragment key={idx}>
+                                                <div className="border-r border-black border-b border-black last:border-b-0 h-10 flex items-center justify-center font-bold text-gray-800 uppercase tracking-widest">
+                                                    {(viewData.added_courses && viewData.added_courses[idx]) || ''}
+                                                </div>
+                                                <div className="border-b border-black last:border-b-0 h-10 bg-gray-50/50 flex items-center justify-center"></div>
+                                            </React.Fragment>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* 5. DROP TABLE */}
+                                <div className="mb-10 border border-black">
+                                    <div className="border-b border-black text-center font-bold p-2 bg-gray-100 uppercase text-sm font-serif print:bg-gray-100/50">
+                                        TO DROP A COURSE UNIT
+                                    </div>
+                                    <div className="grid bg-white" style={{ gridTemplateColumns: '1fr 1.5fr' }}>
+                                        <div className="border-r border-black p-2 text-center text-xs font-bold border-b border-black font-serif">Course Unit</div>
+                                        <div className="p-2 text-center text-xs font-bold border-b border-black font-serif">Recommendation of the relevant Senior Academic Advisor (Signature)</div>
+
+                                        {[...Array(4)].map((_, idx) => (
+                                            <React.Fragment key={idx}>
+                                                <div className="border-r border-black border-b border-black last:border-b-0 h-10 flex items-center justify-center font-bold text-gray-800 uppercase tracking-widest">
+                                                    {(viewData.dropped_courses && viewData.dropped_courses[idx]) || ''}
+                                                </div>
+                                                <div className="border-b border-black last:border-b-0 h-10 bg-gray-50/50 flex items-center justify-center"></div>
+                                            </React.Fragment>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* 6. CREDITS SUMMARY */}
+                                <div className="space-y-4 mb-8">
+                                    <div className="flex items-center justify-end w-full gap-4">
+                                        <span className="text-sm font-semibold uppercase font-serif">Number of credits registered for Semester I:</span>
+                                        <span className="font-bold">=</span>
+                                        <div className="w-24 h-8 flex items-center justify-end px-2 font-bold">{viewData.sem1_credits || '0'}</div>
+                                    </div>
+                                    <div className="flex items-center justify-end w-full gap-4">
+                                        <span className="text-sm font-semibold uppercase font-serif">Number of credits registered for Semester II:</span>
+                                        <span className="font-bold">=</span>
+                                        <div className="w-24 h-8 flex items-center justify-end px-2 font-bold">{viewData.sem2_credits || '0'}</div>
+                                    </div>
+                                    <div className="flex items-center justify-end w-full gap-4 pt-2 border-t border-dashed border-gray-400">
+                                        <span className="text-sm font-semibold uppercase font-serif">Total number of credits registered for Academic Year 2023/2024:</span>
+                                        <span className="font-bold">=</span>
+                                        <div className="w-24 h-8 flex items-center justify-end px-2 font-bold text-lg">{viewData.total_credits || '0'}</div>
+                                    </div>
+                                </div>
+
+                                {/* 7. DECLARATION */}
+                                <div className="mb-8 text-sm font-serif leading-relaxed">
+                                    <span className="font-bold">Declaration: </span>
+                                    This is my final selection of course units for Semester II of 2023/2024, and I shall not change them for any reason after this date.
+                                </div>
+
+                                {/* 8. APPLICANT SIGNATURES */}
+                                <div className="mb-16 mt-8 flex justify-between items-end gap-16">
+                                    <div className="flex-1 text-center">
+                                        <div className="h-8 border-b border-dashed border-black w-full text-center flex items-end justify-center pb-1 font-serif font-medium">
+                                            {viewData.signature_date ? new Date(viewData.signature_date).toLocaleDateString() : '-'}
+                                        </div>
+                                        <div className="text-sm font-serif font-bold uppercase pt-2">Date</div>
+                                    </div>
+                                    <div className="flex-1 text-center">
+                                        <div className="h-8 border-b border-dashed border-black w-full text-center flex items-end justify-center pb-1 font-serif italic text-blue-900 shadow-sm signature-font">
+                                            {viewData.signature || ''}
+                                        </div>
+                                        <div className="text-sm font-serif font-bold uppercase pt-2">Signature</div>
+                                    </div>
+                                </div>
+
+                                {/* 9. DEAN SIGNATURES */}
+                                <div className="mb-8 mt-12 flex justify-between items-end gap-16 relative pb-10 border-t border-gray-200 pt-10">
+                                    <div className="flex-1 text-center">
+                                        <div className="h-8 border-b border-dashed border-black w-full bg-gray-50/30"></div>
+                                        <div className="text-sm font-serif font-bold uppercase pt-2">Date</div>
+                                    </div>
+                                    <div className="flex-1 text-center">
+                                        <div className="h-8 border-b border-dashed border-black w-full bg-gray-50/30"></div>
+                                        <div className="text-sm font-serif font-bold uppercase pt-2">Signature of the Dean</div>
+                                    </div>
+                                    <div className="w-full text-left absolute bottom-0 left-0 text-[10px] italic font-serif text-gray-500">
+                                        Office of the Dean – Faculty of Science, University of Kelaniya
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             )}

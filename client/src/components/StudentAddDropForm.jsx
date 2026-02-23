@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const StudentAddDropForm = () => {
@@ -94,15 +94,77 @@ const StudentAddDropForm = () => {
         }));
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         setSubmitted(true);
-        console.log("Add/Drop Form Data:", formData);
 
-        // Mock successful submission
-        setTimeout(() => {
-            alert("Add/Drop Request Submitted Successfully!");
+        try {
+            // Reconstruct student number from individual boxes
+            let student_number = '';
+            for (let i = 0; i < 12; i++) {
+                if (formData[`st_no_${i}`]) {
+                    student_number += formData[`st_no_${i}`];
+                }
+            }
+
+            // Extract added courses
+            const added_courses = [];
+            for (let i = 0; i < 4; i++) {
+                const course = formData[`add_table_row${i}_col0`];
+                if (course && course.trim() !== '') {
+                    added_courses.push(course.trim());
+                }
+            }
+
+            // Extract dropped courses
+            const dropped_courses = [];
+            for (let i = 0; i < 4; i++) {
+                const course = formData[`drop_table_row${i}_col0`];
+                if (course && course.trim() !== '') {
+                    dropped_courses.push(course.trim());
+                }
+            }
+
+            const payload = {
+                student_number,
+                student_name: formData.st_name,
+                contact_number: formData.contact,
+                email: formData.email,
+                combination: formData.combo,
+                year: formData.year,
+                sem1_credits: formData.sem1_cred,
+                sem2_credits: formData.sem2_cred,
+                total_credits: formData.total_cred,
+                signature: formData.signatures_Signature,
+                signature_date: formData.signatures_Date,
+                added_courses,
+                dropped_courses
+            };
+
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const response = await fetch('http://localhost:5000/api/add-drop/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert("Add/Drop Request Submitted Successfully!");
+                // Optionally clear form or redirect
+            } else {
+                alert(`Error: ${data.message}`);
+                console.error("Submission error:", data);
+            }
+        } catch (error) {
+            console.error("Error submitting form:", error);
+            alert("An error occurred while submitting the request.");
+        } finally {
             setSubmitted(false);
-        }, 1500);
+        }
     };
 
     const renderFormElement = (element) => {
@@ -149,21 +211,22 @@ const StudentAddDropForm = () => {
                                 </div>
                             ))}
                             {[...Array(element.rows)].map((_, rIdx) => (
-                                <片 key={rIdx}>
+                                <React.Fragment key={rIdx}>
                                     {/* Column 1: Course Unit (Student Input) */}
                                     <div className="border-r border-black border-b border-black last:border-b-0 h-10 p-1">
                                         <input
                                             type="text"
-                                            className="w-full h-full border-none focus:bg-blue-50 outline-none px-2 text-center"
+                                            className="w-full h-full border-none focus:bg-blue-50 outline-none px-2 text-center uppercase"
                                             placeholder={`Course Unit ${rIdx + 1}`}
-                                            onChange={(e) => handleInputChange(`${element.id}_row${rIdx}_col0`, e.target.value)}
+                                            value={formData[`${element.id}_row${rIdx}_col0`] || ''}
+                                            onChange={(e) => handleInputChange(`${element.id}_row${rIdx}_col0`, e.target.value.toUpperCase())}
                                         />
                                     </div>
                                     {/* Column 2: Recommendation (Staff only - Disabled or Placeholder) */}
                                     <div className="border-b border-black last:border-b-0 h-10 bg-gray-50 flex items-center justify-center text-gray-400 text-xs italic">
                                         (For Official Use Only)
                                     </div>
-                                </片>
+                                </React.Fragment>
                             ))}
                         </div>
                     </div>
@@ -188,6 +251,7 @@ const StudentAddDropForm = () => {
                                         type={label === 'Date' ? 'date' : 'text'}
                                         placeholder={label === 'Signature' ? 'Type Name as Digital Signature' : ''}
                                         className="h-8 border-b border-dashed border-black w-full text-center focus:bg-blue-50 outline-none font-serif"
+                                        value={formData[`${element.id}_${label}`] || ''}
                                         onChange={(e) => handleInputChange(`${element.id}_${label}`, e.target.value)}
                                     />
                                 ) : (
@@ -218,10 +282,24 @@ const StudentAddDropForm = () => {
                         {[...Array(field.count)].map((_, i) => (
                             <input
                                 key={i}
+                                id={`${field.id}_${i}`}
                                 type="text"
+                                value={formData[`${field.id}_${i}`] || ''}
                                 maxLength={1}
                                 className="w-8 h-8 border border-gray-800 text-center font-bold text-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase"
-                                onChange={(e) => handleInputChange(`${field.id}_${i}`, e.target.value)}
+                                onChange={(e) => {
+                                    handleInputChange(`${field.id}_${i}`, e.target.value.toUpperCase());
+                                    if (e.target.value && i < field.count - 1) {
+                                        const nextBox = document.getElementById(`${field.id}_${i + 1}`);
+                                        if (nextBox) nextBox.focus();
+                                    }
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Backspace' && !formData[`${field.id}_${i}`] && i > 0) {
+                                        const prevBox = document.getElementById(`${field.id}_${i - 1}`);
+                                        if (prevBox) prevBox.focus();
+                                    }
+                                }}
                             />
                         ))}
                     </div>
@@ -260,8 +338,7 @@ const StudentAddDropForm = () => {
         )
     };
 
-    // Virtual React Fragment helper since I used a weird char in renderer above
-    const 片 = ({ children }) => <>{children}</>;
+    // Removed Virtual React Fragment helper as it causes unmounting on re-renders
 
     return (
         <div className="max-w-5xl mx-auto pb-20 animate-fade-in-up">

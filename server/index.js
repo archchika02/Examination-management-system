@@ -29,6 +29,9 @@ app.use('/api/configurations', configurationRoutes);
 const courseRegistrationRoutes = require('./routes/courseRegistrationRoutes');
 app.use('/api/course-registration', courseRegistrationRoutes);
 
+const addDropRoutes = require('./routes/addDropRoutes');
+app.use('/api/add-drop', addDropRoutes);
+
 // --- Background Jobs ---
 // Delete unverified accounts older than 24 hours. Runs every hour at minute 0.
 cron.schedule('0 * * * *', async () => {
