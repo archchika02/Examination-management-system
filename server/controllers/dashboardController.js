@@ -3,7 +3,7 @@ const pool = require('../config/db');
 exports.getStats = async (req, res) => {
     try {
         const [addDropCount] = await pool.execute(
-            "SELECT COUNT(*) as count FROM add_drop_requests WHERE status = 'PENDING'"
+            "SELECT COUNT(*) as count FROM add_drop_request_headers WHERE status = 'Pending'"
         );
         const [courseCount] = await pool.execute(
             'SELECT COUNT(*) as count FROM course_units'

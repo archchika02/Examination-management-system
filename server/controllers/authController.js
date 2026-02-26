@@ -110,9 +110,11 @@ exports.register = async (req, res) => {
 
             if (role === 'Student' || role === 'BatchRep') {
                 if (!student_number) throw new Error('Student number is required');
+                // Ensure level is not undefined, default to 1 if not provided
+                const studentLevel = level || 1;
                 await connection.execute(
                     'INSERT INTO student_details (user_id, student_number, level) VALUES (?, ?, ?)',
-                    [userId, student_number, level]
+                    [userId, student_number, studentLevel]
                 );
             }
 
@@ -184,10 +186,20 @@ exports.login = async (req, res) => {
             role = 'BatchRepresentative';
         }
 
+        let studentLevel = 1;
+        if (role === 'Student' || role === 'BatchRepresentative') {
+            const [studentDetails] = await pool.execute('SELECT level FROM student_details WHERE user_id = ?', [user.user_id]);
+            if (studentDetails.length > 0) {
+                studentLevel = studentDetails[0].level;
+            }
+        }
+
         const payload = {
             user_id: user.user_id,
+            email: user.email,
             role: role,
-            name: user.name
+            name: user.name,
+            level: studentLevel
         };
 
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });

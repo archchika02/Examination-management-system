@@ -1,55 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import StudentCourseUnitRegistration from './StudentCourseUnitRegistration';
 
 const AcademicCourseUnits = () => {
-    // Mock Data
-    const [registrations, setRegistrations] = useState([
-        {
-            id: 1,
-            studentNumber: 'IM/2022/025',
-            studentName: 'Alice Smith',
-            formName: 'CourseReg_2023001.pdf',
-            courseUnits: ['CS101', 'CS102', 'MA101'],
-            dateSubmitted: '2026-01-20',
-            status: 'Pending'
-        },
-        {
-            id: 2,
-            studentNumber: 'IM/2022/026',
-            studentName: 'Bob Johnson',
-            formName: 'CourseReg_2023002.pdf',
-            courseUnits: ['CS101', 'CS103', 'PH101'],
-            dateSubmitted: '2026-01-21',
-            status: 'Approved'
-        },
-        {
-            id: 3,
-            studentNumber: 'IM/2022/027',
-            studentName: 'Charlie Brown',
-            formName: 'CourseReg_2023003.pdf',
-            courseUnits: ['CS101', 'MA102'],
-            dateSubmitted: '2026-01-22',
-            status: 'Rejected'
-        },
-        {
-            id: 4,
-            studentNumber: 'IM/2022/028',
-            studentName: 'David Wilson',
-            formName: 'CourseReg_2023015.pdf',
-            courseUnits: ['CS102', 'CS103', 'MA101'],
-            dateSubmitted: '2026-01-24',
-            status: 'Pending'
-        },
-        {
-            id: 5,
-            studentNumber: 'IM/2022/029',
-            studentName: 'Eva Green',
-            formName: 'CourseReg_2023022.pdf',
-            courseUnits: ['CS101', 'CS102', 'PH101'],
-            dateSubmitted: '2026-01-25',
-            status: 'Pending'
-        }
-    ]);
-
+    const [registrations, setRegistrations] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('All');
 
@@ -59,6 +14,42 @@ const AcademicCourseUnits = () => {
     const [selectedRegistration, setSelectedRegistration] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
 
+    // Reference to the rendered PDF layout (invisible)
+    const pdfRef = useRef();
+
+    // Fetch data from backend
+    const fetchRegistrations = async () => {
+        try {
+            const res = await fetch('http://localhost:5000/api/course-registration/list');
+            const data = await res.json();
+            // Map the DB schema to the table format
+            const mappedData = data.map(dbRow => {
+                const stNo = dbRow.student_number?.startsWith('IM/') ? dbRow.student_number : `IM/${dbRow.student_number || ''}`;
+                return {
+                    id: dbRow.id,
+                    studentNumber: stNo,
+                    studentName: dbRow.student_name,
+                    formName: `CourseReg_${stNo.replace(/[^a-zA-Z0-9]/g, '')}.pdf`,
+                    courseUnits: dbRow.courses || [],
+                    totalCredits: dbRow.total_credits,
+                    dateSubmitted: new Date(dbRow.created_at).toLocaleDateString(),
+                    status: dbRow.status,
+                    signature: dbRow.signature,
+                    address: dbRow.address || '',
+                    mobile: dbRow.mobile || '',
+                    email: dbRow.email || ''
+                };
+            });
+            setRegistrations(mappedData);
+        } catch (error) {
+            console.error("Error fetching registrations:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchRegistrations();
+    }, []);
+
     // Filter Logic
     const filteredRegistrations = registrations.filter(reg => {
         const matchesSearch = reg.studentNumber.toLowerCase().includes(searchTerm.toLowerCase());
@@ -67,10 +58,17 @@ const AcademicCourseUnits = () => {
     });
 
     // Actions
-    const handleApprove = (id) => {
-        setRegistrations(registrations.map(reg =>
-            reg.id === id ? { ...reg, status: 'Approved' } : reg
-        ));
+    const handleApprove = async (id) => {
+        try {
+            const res = await fetch(`http://localhost:5000/api/course-registration/${id}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'Approved' })
+            });
+            if (res.ok) fetchRegistrations();
+        } catch (err) {
+            console.error("Error approving:", err);
+        }
     };
 
     const initiateReject = (reg) => {
@@ -79,20 +77,49 @@ const AcademicCourseUnits = () => {
         setRejectModalOpen(true);
     };
 
-    const confirmReject = () => {
+    const confirmReject = async () => {
         if (selectedRegistration) {
-            console.log(`Rejecting ${selectedRegistration.studentNumber} with reason: ${rejectReason}`);
-            setRegistrations(registrations.map(reg =>
-                reg.id === selectedRegistration.id ? { ...reg, status: 'Rejected' } : reg
-            ));
-            setRejectModalOpen(false);
-            setSelectedRegistration(null);
+            try {
+                const res = await fetch(`http://localhost:5000/api/course-registration/${selectedRegistration.id}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'Rejected', reject_reason: rejectReason })
+                });
+                if (res.ok) {
+                    fetchRegistrations();
+                    setRejectModalOpen(false);
+                    setSelectedRegistration(null);
+                }
+            } catch (err) {
+                console.error("Error rejecting:", err);
+            }
         }
     };
 
     const initiateView = (reg) => {
         setSelectedRegistration(reg);
         setViewModalOpen(true);
+    };
+
+    const downloadPDF = async (reg) => {
+        // Find the invisible element we rendered for PDF layout
+        const element = document.getElementById(`pdf-form-${reg.id}`);
+        if (!element) return;
+
+        try {
+            const canvas = await html2canvas(element, { scale: 2 });
+            const imgData = canvas.toDataURL('image/png');
+
+            // A4 Aspect Ratio 210x297mm
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(reg.formName);
+        } catch (err) {
+            console.error("Error generating PDF:", err);
+        }
     };
 
     const getStatusColor = (status) => {
@@ -102,6 +129,58 @@ const AcademicCourseUnits = () => {
             case 'Pending': return 'bg-yellow-100 text-yellow-700';
             default: return 'bg-gray-100 text-gray-700';
         }
+    };
+
+    // Helper to format DB row data into the structure expected by StudentCourseUnitRegistration
+    const formatForReadOnlyForm = (reg) => {
+        const formatted = {
+            st_name_cr: reg.studentName || '',
+            level: '1',
+            mobile: reg.mobile,
+            email_cr: reg.email,
+            address: reg.address,
+            signature: reg.signature,
+            dateSubmitted: reg.dateSubmitted
+        };
+
+        // The studentNumber string from DB is e.g. "IM/12345". 
+        // The first 3 chars "IM/" map to the static prefilled boxes.
+        // The remaining 5-8 chars map to st_no_cr_0 through 7
+        const dbStNo = reg.studentNumber || '';
+        const rawDigits = dbStNo.replace(/^IM\//, '');
+
+        for (let i = 0; i < rawDigits.length && i < 8; i++) {
+            formatted[`st_no_cr_${i}`] = rawDigits[i];
+        }
+
+        const gridRowCounters = {};
+
+        reg.courseUnits.forEach((course) => {
+            let courseTypeStr = (course.course_type || course.type || '').toLowerCase();
+            let gridPrefix = courseTypeStr.includes('compulsory') ? 'Grid_Comp'
+                : courseTypeStr.includes('optional') ? 'Grid_Opt'
+                    : 'Grid_Aux';
+
+            let semSuffix = course.semester === 1 ? '_S1' : '_S2';
+            let gridId = `${gridPrefix}${semSuffix}`;
+
+            if (gridRowCounters[gridId] === undefined) {
+                gridRowCounters[gridId] = 0;
+            }
+            let rowIndex = gridRowCounters[gridId]++;
+
+            const code = course.course_code;
+            if (code) {
+                for (let c = 0; c < code.length && c < 12; c++) {
+                    formatted[`${gridId}_${rowIndex}_${c}`] = code[c];
+                }
+            }
+        });
+
+        formatted.cred_comp_total = reg.totalCredits;
+        formatted.total_creds_box = reg.totalCredits;
+
+        return formatted;
     };
 
     return (
@@ -165,10 +244,11 @@ const AcademicCourseUnits = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {reg.studentName}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:text-blue-800 cursor-pointer" onClick={() => initiateView(reg)}>
-                                            <div className="flex items-center gap-1">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:text-blue-800 cursor-pointer" onClick={() => downloadPDF(reg)}>
+                                            <div className="flex items-center gap-1 group">
                                                 <span>📄</span>
-                                                {reg.formName}
+                                                <span className="underline decoration-transparent group-hover:decoration-blue-800 transition-colors">{reg.formName}</span>
+                                                <span className="text-xs ml-1 text-gray-400 group-hover:text-blue-800">📥</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -213,22 +293,12 @@ const AcademicCourseUnits = () => {
                             ) : (
                                 <tr>
                                     <td colSpan="6" className="px-6 py-10 text-center text-sm text-gray-500">
-                                        No registrations found matching your criteria.
+                                        No registrations found.
                                     </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
-                </div>
-                <div className="bg-gray-50 px-6 py-3 border-t border-gray-200 flex items-center justify-between">
-                    <div className="text-xs text-gray-500">
-                        Showing <span className="font-medium">{filteredRegistrations.length}</span> results
-                    </div>
-                    {/* Pagination placeholder */}
-                    <div className="flex gap-1">
-                        <button className="px-2 py-1 border border-gray-300 rounded bg-white text-gray-500 text-xs hover:bg-gray-50 disabled:opacity-50" disabled>Previous</button>
-                        <button className="px-2 py-1 border border-gray-300 rounded bg-white text-gray-500 text-xs hover:bg-gray-50 disabled:opacity-50" disabled>Next</button>
-                    </div>
                 </div>
             </div>
 
@@ -238,75 +308,28 @@ const AcademicCourseUnits = () => {
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden animate-scale-in">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <div>
-                                <h3 className="text-lg font-bold text-gray-800">Course Registration Form</h3>
+                                <h3 className="text-lg font-bold text-gray-800">Course Registration Submission</h3>
                                 <p className="text-sm text-gray-500">{selectedRegistration.studentName} ({selectedRegistration.studentNumber})</p>
                             </div>
-                            <button
-                                onClick={() => setViewModalOpen(false)}
-                                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors"
-                            >
-                                ✕
-                            </button>
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => downloadPDF(selectedRegistration)}
+                                    className="px-3 py-1.5 bg-blue-50 text-blue-700 font-bold text-sm rounded hover:bg-blue-100 transition-colors flex items-center gap-2"
+                                >
+                                    <span>📥</span> Download PDF
+                                </button>
+                                <button
+                                    onClick={() => setViewModalOpen(false)}
+                                    className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors"
+                                >
+                                    ✕
+                                </button>
+                            </div>
                         </div>
-                        <div className="flex-1 bg-gray-100 p-6 overflow-y-auto">
-                            {/* Mock PDF Viewer */}
-                            <div className="w-full h-full bg-white shadow-lg border border-gray-200 mx-auto max-w-3xl p-8 min-h-[800px] flex flex-col">
-                                <div className="border-b-2 border-slate-800 pb-4 mb-8 flex justify-between items-end">
-                                    <div>
-                                        <h1 className="text-2xl font-bold uppercase tracking-widest text-slate-800">EMS University</h1>
-                                        <p className="text-sm text-slate-600">Faculty of Computing</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <h2 className="text-xl font-bold text-slate-700">Course Registration</h2>
-                                        <p className="text-sm text-slate-500">Semester 1, 2026</p>
-                                    </div>
-                                </div>
-                                <div className="space-y-6">
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block text-xs font-bold uppercase text-gray-500">Student Name</label>
-                                            <div className="text-gray-900 font-medium border-b border-gray-300 pb-1">{selectedRegistration.studentName}</div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold uppercase text-gray-500">Registration No</label>
-                                            <div className="text-gray-900 font-medium border-b border-gray-300 pb-1">{selectedRegistration.studentNumber}</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-8">
-                                        <h4 className="font-bold text-sm uppercase text-slate-700 bg-slate-100 p-2 mb-4">Selected Course Units</h4>
-                                        <table className="w-full text-sm">
-                                            <thead className="border-b border-gray-300">
-                                                <tr>
-                                                    <th className="text-left py-2 font-semibold text-gray-600">Course Code</th>
-                                                    <th className="text-left py-2 font-semibold text-gray-600">Course Name</th>
-                                                    <th className="text-right py-2 font-semibold text-gray-600">Credits</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-100">
-                                                {selectedRegistration.courseUnits.map((unit, idx) => (
-                                                    <tr key={idx} className="py-2">
-                                                        <td className="py-2">{unit}</td>
-                                                        <td className="py-2">Mock Course Name</td>
-                                                        <td className="py-2 text-right">3</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-
-                                    <div className="mt-12 pt-8 border-t border-gray-200">
-                                        <div className="flex justify-between items-end">
-                                            <div className="w-48 text-center">
-                                                <div className="h-12 border-b border-gray-400 mb-2"></div>
-                                                <p className="text-xs uppercase text-gray-500">Student Signature</p>
-                                            </div>
-                                            <div className="text-xs text-gray-400">
-                                                Date: {selectedRegistration.dateSubmitted}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                        <div className="flex-1 bg-gray-100 p-6 overflow-y-auto w-full">
+                            {/* Render exact layout */}
+                            <div className="bg-white shadow-lg mx-auto w-full max-w-[210mm] border border-gray-200 pointer-events-none transform scale-90 origin-top">
+                                <StudentCourseUnitRegistration readOnlyData={formatForReadOnlyForm(selectedRegistration)} />
                             </div>
                         </div>
                         <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3">
@@ -350,7 +373,7 @@ const AcademicCourseUnits = () => {
                         <div className="p-6">
                             <h3 className="text-lg font-bold text-gray-800 mb-2">Reject Registration</h3>
                             <p className="text-sm text-gray-600 mb-4">
-                                Please provide a reason for rejecting <span className="font-semibold">{selectedRegistration.studentNumber}</span>'s registration. This will be sent to the student.
+                                Please provide a reason for rejecting <span className="font-semibold">{selectedRegistration.studentNumber}</span>'s registration.
                             </p>
 
                             <textarea
@@ -380,6 +403,15 @@ const AcademicCourseUnits = () => {
                     </div>
                 </div>
             )}
+
+            {/* Hidden Off-Screen Renderers for PDF Downloading */}
+            <div className="fixed top-[-9999px] left-[-9999px]">
+                {registrations.map(reg => (
+                    <div key={reg.id} id={`pdf-form-${reg.id}`} className="w-[210mm] bg-white p-12">
+                        <StudentCourseUnitRegistration readOnlyData={formatForReadOnlyForm(reg)} />
+                    </div>
+                ))}
+            </div>
         </div>
     );
 };

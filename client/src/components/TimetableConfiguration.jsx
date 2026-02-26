@@ -3,7 +3,10 @@ import { useState, useEffect } from 'react';
 const TimetableConfiguration = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedExamDates, setSelectedExamDates] = useState(new Set());
-    const [showHolidays, setShowHolidays] = useState(false);
+
+    // Drag selection state
+    const [isDragging, setIsDragging] = useState(false);
+    const [isAdding, setIsAdding] = useState(true); // true = adding, false = removing
 
     // Mock Poya days for 2026 (Example dates)
     const poyaDays2026 = [
@@ -51,7 +54,11 @@ const TimetableConfiguration = () => {
 
     const formatDateKey = (date) => {
         if (!date) return null;
-        return date.toISOString().split('T')[0];
+        // Avoid timezone shift issues by using local date values directly
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     };
 
     const isSunday = (date) => date && date.getDay() === 0;
@@ -67,7 +74,7 @@ const TimetableConfiguration = () => {
         return holidays2026.includes(key);
     };
 
-    const isUnavailable = (date) => isSunday(date) || isPoya(date) || (showHolidays && isHoliday(date));
+    const isUnavailable = (date) => isSunday(date) || isPoya(date) || isHoliday(date);
 
     const toggleDateSelection = (date) => {
         if (!date || isUnavailable(date)) return;
@@ -81,6 +88,45 @@ const TimetableConfiguration = () => {
         }
         setSelectedExamDates(newSelected);
     };
+
+    const handleMouseDown = (date) => {
+        if (!date || isUnavailable(date)) return;
+        setIsDragging(true);
+        const key = formatDateKey(date);
+        const willAdd = !selectedExamDates.has(key);
+        setIsAdding(willAdd);
+
+        const newSelected = new Set(selectedExamDates);
+        if (willAdd) {
+            newSelected.add(key);
+        } else {
+            newSelected.delete(key);
+        }
+        setSelectedExamDates(newSelected);
+    };
+
+    const handleMouseEnter = (date) => {
+        if (!isDragging || !date || isUnavailable(date)) return;
+
+        const key = formatDateKey(date);
+        const newSelected = new Set(selectedExamDates);
+        if (isAdding) {
+            newSelected.add(key);
+        } else {
+            newSelected.delete(key);
+        }
+        setSelectedExamDates(newSelected);
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    // Attach global mouse up to stop dragging if cursor leaves the calendar
+    useEffect(() => {
+        window.addEventListener('mouseup', handleMouseUp);
+        return () => window.removeEventListener('mouseup', handleMouseUp);
+    }, []);
 
     const countUnavailable = () => {
         let sundays = 0;
@@ -108,7 +154,7 @@ const TimetableConfiguration = () => {
             const date = new Date(year, month, i);
             const sunBool = isSunday(date);
             const poyaBool = isPoya(date);
-            const holBool = showHolidays && isHoliday(date);
+            const holBool = isHoliday(date);
 
             if (sunBool) sun++;
             if (poyaBool) poy++;
@@ -155,19 +201,37 @@ const TimetableConfiguration = () => {
         return `${day}/${month}/${year}`;
     };
 
-    const sendToRepresentative = () => {
+    const sendToRepresentative = async () => {
         if (!deadlineDate) {
             alert("Please set a deadline date before sending.");
             return;
         }
         const formattedDeadline = formatDateToUK(deadlineDate);
 
-        // Mock Backend: Save to localStorage so Batch Rep can see it
-        localStorage.setItem('exam_deadline', formattedDeadline);
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/global-dates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    allowed_dates: Array.from(selectedExamDates),
+                    deadline: formattedDeadline
+                })
+            });
 
-        // In a real app, you would send this to the backend
-        console.log("Sending configuration to BatchRep with deadline:", formattedDeadline);
-        alert(`Configuration sent to representative! Deadline set to: ${formattedDeadline}`);
+            if (response.ok) {
+                // Also save to localStorage as a fallback/cache if desired
+                localStorage.setItem('exam_deadline', formattedDeadline);
+                localStorage.setItem('allowed_exam_dates', JSON.stringify(Array.from(selectedExamDates)));
+
+                console.log("Sending configuration to BatchRep with deadline:", formattedDeadline);
+                alert(`Configuration sent to representative! Deadline set to: ${formattedDeadline}`);
+            } else {
+                alert("Failed to send configuration to representative. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error sending configuration:", error);
+            alert("An error occurred while sending the configuration.");
+        }
     };
 
     return (
@@ -216,12 +280,10 @@ const TimetableConfiguration = () => {
                         <div className="w-4 h-4 bg-yellow-100 text-yellow-600 flex items-center justify-center rounded text-xs">P</div>
                         <span className="text-gray-600">Poya Day</span>
                     </div>
-                    {showHolidays && (
-                        <div className="flex items-center gap-2 animate-fade-in">
-                            <div className="w-4 h-4 bg-pink-100 text-pink-600 flex items-center justify-center rounded text-xs">H</div>
-                            <span className="text-gray-600">Holiday</span>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-2 animate-fade-in">
+                        <div className="w-4 h-4 bg-pink-100 text-pink-600 flex items-center justify-center rounded text-xs">H</div>
+                        <span className="text-gray-600">Holiday</span>
+                    </div>
                 </div>
 
                 {/* Calendar Grid */}
@@ -240,7 +302,7 @@ const TimetableConfiguration = () => {
                         const isSel = selectedExamDates.has(key);
                         const isSun = isSunday(date);
                         const isPoy = isPoya(date);
-                        const isHol = showHolidays && isHoliday(date);
+                        const isHol = isHoliday(date);
                         const unavail = isSun || isPoy || isHol;
 
                         let bgClass = "bg-white hover:bg-gray-50 border-gray-200 text-gray-700 cursor-pointer";
@@ -260,9 +322,13 @@ const TimetableConfiguration = () => {
                         return (
                             <div
                                 key={key}
-                                onClick={() => toggleDateSelection(date)}
+                                onMouseDown={() => handleMouseDown(date)}
+                                onMouseEnter={() => handleMouseEnter(date)}
+                                onMouseUp={handleMouseUp}
+                                // Keep onClick for single clicks outside of drag logic, but prevent conflict if needed
+                                // (onMouseDown/Up handles clicks as well, but standard JS click event is fine to keep or remove. We'll rely on our mice events for the action, but single clicks will trigger MouseDown + MouseUp quickly, effectively handling acts.)
                                 className={`
-                                    relative p-2 rounded-xl border flex flex-col items-center justify-center h-24 transition-all duration-200
+                                    relative p-2 rounded-xl border flex flex-col items-center justify-center h-24 transition-all duration-200 select-none
                                     ${bgClass}
                                 `}
                             >
@@ -293,12 +359,10 @@ const TimetableConfiguration = () => {
                             <span className="text-yellow-700 font-medium">Total Poya Days</span>
                             <span className="text-xl font-bold text-yellow-700">{exactStats.poy}</span>
                         </div>
-                        {showHolidays && (
-                            <div className="flex justify-between items-center p-3 bg-pink-50 rounded-lg animate-fade-in">
-                                <span className="text-pink-700 font-medium">National Holidays</span>
-                                <span className="text-xl font-bold text-pink-700">{exactStats.hol}</span>
-                            </div>
-                        )}
+                        <div className="flex justify-between items-center p-3 bg-pink-50 rounded-lg animate-fade-in">
+                            <span className="text-pink-700 font-medium">National Holidays</span>
+                            <span className="text-xl font-bold text-pink-700">{exactStats.hol}</span>
+                        </div>
                         <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                             <span className="text-green-700 font-medium">Available Days</span>
                             <span className="text-xl font-bold text-green-700">{exactStats.avail}</span>
@@ -307,18 +371,6 @@ const TimetableConfiguration = () => {
                             <span className="text-indigo-700 font-medium">Selected for Exams</span>
                             <span className="text-2xl font-extrabold text-indigo-700">{selectedExamDates.size}</span>
                         </div>
-                    </div>
-
-                    <div className="mt-6 pt-4 border-t">
-                        <label className="flex items-center space-x-2 text-sm text-gray-600 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={showHolidays}
-                                onChange={(e) => setShowHolidays(e.target.checked)}
-                                className="rounded text-indigo-600 focus:ring-indigo-500"
-                            />
-                            <span>Show National Holidays</span>
-                        </label>
                     </div>
                 </div>
 

@@ -1,12 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import SignatureCanvas from 'react-signature-canvas';
 
-const StudentCourseUnitRegistration = () => {
+const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
     const { user } = useAuth();
-    const [formData, setFormData] = useState({});
+    // If readOnlyData is provided, use it directly, otherwise use local state
+    const [formData, setFormData] = useState(readOnlyData || {});
     const [submitted, setSubmitted] = useState(false);
+    const sigCanvas = useRef(null);
+    const isReadOnly = !!readOnlyData;
 
-    // Form Structure (Copied from EditFormsSection.jsx ID: 1)
+    // ... [formStructure remains exactly the same] ...
     const formStructure = [
         {
             id: 'header_cr',
@@ -127,6 +131,11 @@ const StudentCourseUnitRegistration = () => {
                     id: 'Grid_Aux_S1'
                 },
                 {
+                    type: 'section_inline',
+                    justify: 'end',
+                    fields: [{ id: 'cred_aux_1', label: 'CREDITS', type: 'box_small' }]
+                },
+                {
                     type: 'grid_section',
                     subtitle: 'SEMESTER 2',
                     rows: 3,
@@ -136,7 +145,7 @@ const StudentCourseUnitRegistration = () => {
                 {
                     type: 'section_inline',
                     justify: 'end',
-                    fields: [{ id: 'cred_aux', label: 'CREDITS', type: 'box_small' }]
+                    fields: [{ id: 'cred_aux_2', label: 'CREDITS', type: 'box_small' }]
                 },
                 {
                     type: 'section_inline',
@@ -167,36 +176,67 @@ const StudentCourseUnitRegistration = () => {
 
     // Pre-fill Logic
     useEffect(() => {
-        if (user) {
+        if (user && !isReadOnly) {
             setFormData(prev => ({
                 ...prev,
                 st_name_cr: user.name || '',
-                // Parse student ID if format matches IM/2023/001 logic later if needed
                 email_cr: user.email || '',
-                // Additional mock pre-fills
                 level: '1',
                 mobile: '0712345678'
             }));
         }
-    }, [user]);
+    }, [user, isReadOnly]);
 
     const handleInputChange = (id, value) => {
+        if (isReadOnly) return;
         setFormData(prev => ({
             ...prev,
             [id]: value
         }));
     };
 
-    const handleSubmit = () => {
-        setSubmitted(true);
-        console.log("Form Data Submitted:", formData);
+    const handleSubmit = async (e) => {
+        if (e) e.preventDefault();
+        if (isReadOnly) return;
 
-        // Mock successful submission
-        setTimeout(() => {
+        if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
+            alert("Please provide your digital signature before submitting.");
+            return;
+        }
+
+        setSubmitted(true);
+
+        try {
+            const signatureBase64 = sigCanvas.current.getCanvas().toDataURL('image/png');
+            console.log("Form Data Submitted:", formData);
+
+            const payload = {
+                user_id: user?.user_id || null,
+                form_data: formData,
+                signature: signatureBase64
+            };
+
+            const response = await fetch('http://localhost:5000/api/course-registration/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Network response was not ok');
+            }
+
             alert("Registration Form Submitted Successfully!");
+            sigCanvas.current.clear();
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            alert("Error submitting form. Please try again.");
+        } finally {
             setSubmitted(false);
-            // navigate to dashboard or show success state
-        }, 1500);
+        }
     };
 
     const renderFormElement = (element, parent = null) => {
@@ -234,10 +274,10 @@ const StudentCourseUnitRegistration = () => {
                 return (
                     <div key={element.id} className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6 border border-black min-h-[500px]">
                         <div className="border-r border-black p-4 flex flex-col h-full">
-                            {element.left.map((item, i) => renderFormElement({ ...item, id: `${element.id}_l_${i}` }, element))}
+                            {element.left.map((item, i) => renderFormElement({ ...item, id: item.id || `${element.id}_l_${i}` }, element))}
                         </div>
                         <div className="p-4 flex flex-col h-full">
-                            {element.right.map((item, i) => renderFormElement({ ...item, id: `${element.id}_r_${i}` }, element))}
+                            {element.right.map((item, i) => renderFormElement({ ...item, id: item.id || `${element.id}_r_${i}` }, element))}
                         </div>
                     </div>
                 );
@@ -250,15 +290,62 @@ const StudentCourseUnitRegistration = () => {
                         <div className="border border-black bg-white">
                             {[...Array(element.rows)].map((_, r) => (
                                 <div key={r} className="flex h-6 border-b border-black last:border-b-0">
-                                    {[...Array(element.cols)].map((_, c) => (
-                                        <input
-                                            key={c}
-                                            type="text"
-                                            maxLength={2}
-                                            className="flex-1 border-r border-black last:border-r-0 w-full text-center text-[10px] focus:bg-blue-50 outline-none uppercase"
-                                            onChange={(e) => handleInputChange(`${element.id}_${r}_${c}`, e.target.value)}
-                                        />
-                                    ))}
+                                    {[...Array(element.cols)].map((_, c) => {
+                                        const inputId = `${element.id}_${r}_${c}`;
+                                        return (
+                                            <input
+                                                key={c}
+                                                id={inputId}
+                                                type="text"
+                                                maxLength={1}
+                                                readOnly={isReadOnly}
+                                                value={formData[inputId] || ''}
+                                                className="flex-1 border-r border-black last:border-r-0 w-full text-center text-[10px] focus:bg-blue-50 outline-none uppercase"
+                                                onChange={(e) => handleInputChange(inputId, e.target.value)}
+                                                onKeyUp={(e) => {
+                                                    if (isReadOnly) return;
+                                                    // Auto-advance horizontally on 1 char typed
+                                                    if (e.target.value.length === 1 && e.key !== 'Enter') {
+                                                        const nextColId = `${element.id}_${r}_${c + 1}`;
+                                                        const nextRowId = `${element.id}_${r + 1}_0`;
+
+                                                        let nextEl = document.getElementById(nextColId);
+                                                        // If end of row, optionally jump to next row (decided to stick to horizontal as user mentioned next box, but if they hit enter it goes down)
+                                                        if (!nextEl && c + 1 === element.cols) {
+                                                            nextEl = document.getElementById(nextRowId);
+                                                        }
+                                                        if (nextEl) nextEl.focus();
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (isReadOnly) return;
+                                                    // Jump to next row vertically on Enter
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const nextRowId = `${element.id}_${r + 1}_0`;
+                                                        const nextEl = document.getElementById(nextRowId);
+                                                        if (nextEl) nextEl.focus();
+                                                    } else if (e.key === 'ArrowRight') {
+                                                        const nextEl = document.getElementById(`${element.id}_${r}_${c + 1}`);
+                                                        if (nextEl) nextEl.focus();
+                                                    } else if (e.key === 'ArrowLeft') {
+                                                        const prevEl = document.getElementById(`${element.id}_${r}_${c - 1}`);
+                                                        if (prevEl) prevEl.focus();
+                                                    } else if (e.key === 'ArrowDown') {
+                                                        const nextEl = document.getElementById(`${element.id}_${r + 1}_${c}`);
+                                                        if (nextEl) nextEl.focus();
+                                                    } else if (e.key === 'ArrowUp') {
+                                                        const prevEl = document.getElementById(`${element.id}_${r - 1}_${c}`);
+                                                        if (prevEl) prevEl.focus();
+                                                    } else if (e.key === 'Backspace' && !e.target.value) {
+                                                        // Optional: jumping back on backspace if empty
+                                                        const prevEl = document.getElementById(`${element.id}_${r}_${c - 1}`);
+                                                        if (prevEl) prevEl.focus();
+                                                    }
+                                                }}
+                                            />
+                                        );
+                                    })}
                                 </div>
                             ))}
                         </div>
@@ -271,12 +358,34 @@ const StudentCourseUnitRegistration = () => {
                         {element.labels.map((label, idx) => (
                             <div key={idx} className="flex-1 text-center">
                                 {label.includes('SIGNATURE') ? (
-                                    <div className="h-10 border-b border-black border-dashed mb-1 w-full bg-gray-50 flex items-end justify-center text-gray-400 text-xs italic">
-                                        (Digital Signature Placeholder)
+                                    <div className="border-b border-black border-dashed mb-1 w-full bg-white relative flex flex-col justify-end" style={{ height: '80px' }}>
+                                        {isReadOnly ? (
+                                            formData.signature && (
+                                                <img src={formData.signature} className="absolute inset-0 object-contain w-full h-full p-2" alt="Signature" />
+                                            )
+                                        ) : (
+                                            <>
+                                                <div className="absolute inset-0">
+                                                    <SignatureCanvas
+                                                        ref={sigCanvas}
+                                                        canvasProps={{ className: 'signature-canvas w-full h-full' }}
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => sigCanvas?.current?.clear()}
+                                                    className="absolute bottom-1 right-1 text-[8px] bg-gray-200 px-1 py-0.5 rounded hover:bg-gray-300 no-print z-10"
+                                                >
+                                                    Clear
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 ) : (
                                     <input
-                                        type="date"
+                                        type="text"
+                                        readOnly={isReadOnly}
+                                        value={formData[`sig_${idx}`] || (isReadOnly ? formData.dateSubmitted : '') || ''}
                                         className="h-8 border-b border-black border-dashed mb-1 w-full text-center focus:bg-blue-50 outline-none font-serif"
                                         onChange={(e) => handleInputChange(`sig_${idx}`, e.target.value)}
                                     />
@@ -317,23 +426,46 @@ const StudentCourseUnitRegistration = () => {
 
                 {field.type === 'box_input_prefilled' && (
                     <div className="flex gap-1 items-center">
-                        {field.value.map((val, i) => (
+                        {field.value?.map((val, i) => (
                             <div key={`p-${i}`} className="w-8 h-8 border border-gray-800 bg-gray-100 flex items-center justify-center font-bold text-xl">{val}</div>
                         ))}
                         {/* Dynamic Student ID Inputs */}
                         <div className="flex gap-1">
-                            {[...Array(field.count)].map((_, i) => (
-                                <input
-                                    key={i}
-                                    type="text"
-                                    maxLength={1}
-                                    className="w-8 h-8 border border-gray-800 text-center font-bold text-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase"
-                                    onChange={(e) => {
-                                        // Complex logic to stitch ID together could go here
-                                        handleInputChange(`${field.id}_${i}`, e.target.value)
-                                    }}
-                                />
-                            ))}
+                            {[...Array(field.count)].map((_, i) => {
+                                const boxId = `${field.id}_${i}`;
+                                return (
+                                    <input
+                                        key={i}
+                                        id={boxId}
+                                        type="text"
+                                        maxLength={1}
+                                        readOnly={isReadOnly}
+                                        value={formData[boxId] || ''}
+                                        className="w-8 h-8 border border-gray-800 text-center font-bold text-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase bg-white"
+                                        onChange={(e) => handleInputChange(boxId, e.target.value)}
+                                        onKeyUp={(e) => {
+                                            if (isReadOnly) return;
+                                            if (e.target.value.length === 1 && e.key !== 'Enter') {
+                                                const nextEl = document.getElementById(`${field.id}_${i + 1}`);
+                                                if (nextEl) nextEl.focus();
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (isReadOnly) return;
+                                            if (e.key === 'ArrowRight') {
+                                                const nextEl = document.getElementById(`${field.id}_${i + 1}`);
+                                                if (nextEl) nextEl.focus();
+                                            } else if (e.key === 'ArrowLeft') {
+                                                const prevEl = document.getElementById(`${field.id}_${i - 1}`);
+                                                if (prevEl) prevEl.focus();
+                                            } else if (e.key === 'Backspace' && !e.target.value) {
+                                                const prevEl = document.getElementById(`${field.id}_${i - 1}`);
+                                                if (prevEl) prevEl.focus();
+                                            }
+                                        }}
+                                    />
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -341,7 +473,8 @@ const StudentCourseUnitRegistration = () => {
                 {field.type === 'box_single' && (
                     <input
                         type="text"
-                        className="w-24 h-10 border border-gray-800 text-center px-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                        readOnly={isReadOnly}
+                        className="w-24 h-10 border border-gray-800 text-center px-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-bold"
                         value={formData[field.id] || ''}
                         onChange={(e) => handleInputChange(field.id, e.target.value)}
                     />
@@ -350,7 +483,8 @@ const StudentCourseUnitRegistration = () => {
                 {field.type === 'box_small' && (
                     <input
                         type="text"
-                        className="w-16 h-8 border border-gray-800 text-center px-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                        readOnly={isReadOnly}
+                        className="w-16 h-8 border border-gray-800 text-center px-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white font-bold"
                         value={formData[field.id] || ''}
                         onChange={(e) => handleInputChange(field.id, e.target.value)}
                     />
@@ -359,7 +493,8 @@ const StudentCourseUnitRegistration = () => {
                 {(field.type === 'line_input' || field.type === 'line_input_dotted' || field.type === 'dotted_line') && (
                     <input
                         type="text"
-                        className={`flex-1 border-b-2 border-gray-300 ${field.type.includes('dotted') ? 'border-dotted' : ''} h-8 px-2 focus:border-blue-500 outline-none min-w-[150px]`}
+                        readOnly={isReadOnly}
+                        className={`flex-1 border-b-2 border-gray-300 ${field.type.includes('dotted') ? 'border-dotted' : ''} h-8 px-2 focus:border-blue-500 outline-none min-w-[150px] bg-transparent font-medium`}
                         value={formData[field.id] || ''}
                         onChange={(e) => handleInputChange(field.id, e.target.value)}
                     />
@@ -369,14 +504,15 @@ const StudentCourseUnitRegistration = () => {
                     <div className="flex items-center gap-4 flex-1">
                         <div className="flex items-center gap-2">
                             <div
-                                onClick={() => handleInputChange(`${field.id}_mr`, !formData[`${field.id}_mr`])}
-                                className={`w-8 h-8 border border-gray-800 cursor-pointer flex items-center justify-center ${formData[`${field.id}_mr`] ? 'bg-black text-white' : 'bg-white'}`}
+                                onClick={() => !isReadOnly && handleInputChange(`${field.id}_mr`, !formData[`${field.id}_mr`])}
+                                className={`w-8 h-8 border border-gray-800 flex items-center justify-center ${!isReadOnly ? 'cursor-pointer' : ''} ${formData[`${field.id}_mr`] ? 'bg-black text-white' : 'bg-white'}`}
                             >
                                 {formData[`${field.id}_mr`] && '✓'}
                             </div>
                             <input
                                 type="text"
-                                className="flex-1 border-b border-gray-400 border-dotted h-8 px-2 outline-none min-w-[200px]"
+                                readOnly={isReadOnly}
+                                className="flex-1 border-b border-gray-400 border-dotted h-8 px-2 outline-none min-w-[200px] bg-transparent font-medium"
                                 placeholder="Name..."
                                 value={formData[field.id] || ''}
                                 onChange={(e) => handleInputChange(field.id, e.target.value)}
@@ -385,8 +521,8 @@ const StudentCourseUnitRegistration = () => {
                         <div className="flex items-center gap-2">
                             <span className="font-bold text-sm bg-gray-200 px-1">{field.secondaryLabel}</span>
                             <div
-                                onClick={() => handleInputChange(`${field.id}_ms`, !formData[`${field.id}_ms`])}
-                                className={`w-8 h-8 border border-gray-800 cursor-pointer flex items-center justify-center ${formData[`${field.id}_ms`] ? 'bg-black text-white' : 'bg-white'}`}
+                                onClick={() => !isReadOnly && handleInputChange(`${field.id}_ms`, !formData[`${field.id}_ms`])}
+                                className={`w-8 h-8 border border-gray-800 flex items-center justify-center ${!isReadOnly ? 'cursor-pointer' : ''} ${formData[`${field.id}_ms`] ? 'bg-black text-white' : 'bg-white'}`}
                             >
                                 {formData[`${field.id}_ms`] && '✓'}
                             </div>
@@ -398,8 +534,9 @@ const StudentCourseUnitRegistration = () => {
                     <div className="border border-black p-1 flex items-center gap-4 bg-white/50">
                         <span className="font-bold text-sm uppercase px-2">{field.label}</span>
                         <input
-                            type="number"
-                            className="w-20 h-10 border-l border-black pl-2 focus:bg-blue-50 outline-none"
+                            type="text"
+                            readOnly={isReadOnly}
+                            className="w-20 h-10 border-l border-black pl-2 focus:bg-blue-50 outline-none bg-transparent font-bold text-lg text-center"
                             value={formData[field.id] || ''}
                             onChange={(e) => handleInputChange(field.id, e.target.value)}
                         />
@@ -410,22 +547,24 @@ const StudentCourseUnitRegistration = () => {
     }
 
     return (
-        <div className="max-w-5xl mx-auto pb-20 animate-fade-in-up">
-            <div className="flex justify-between items-center mb-6 no-print">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-800">Academic Course Unit Registration</h2>
-                    <p className="text-gray-500 text-sm mt-1">Please fill the form below in block capitals.</p>
+        <div className={`mx-auto ${!isReadOnly ? 'max-w-5xl pb-20 animate-fade-in-up' : 'w-[210mm] relative'}`}>
+            {!isReadOnly && (
+                <div className="flex justify-between items-center mb-6 no-print">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800">Academic Course Unit Registration</h2>
+                        <p className="text-gray-500 text-sm mt-1">Please fill the form below in block capitals.</p>
+                    </div>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={submitted}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg flex items-center gap-2"
+                    >
+                        {submitted ? 'Submitting...' : 'Submit Registration'}
+                    </button>
                 </div>
-                <button
-                    onClick={handleSubmit}
-                    disabled={submitted}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg flex items-center gap-2"
-                >
-                    {submitted ? 'Submitting...' : 'Submit Registration'}
-                </button>
-            </div>
+            )}
 
-            <div className="bg-white p-16 shadow-2xl border border-gray-200 min-h-screen relative mx-auto w-full max-w-[210mm]">
+            <div className={`bg-white p-12 ${!isReadOnly ? 'shadow-2xl border border-gray-200 min-h-screen relative mx-auto' : ''} w-full max-w-[210mm]`}>
                 {/* Paper Form Container */}
                 {formStructure.map(element => renderFormElement(element))}
             </div>
