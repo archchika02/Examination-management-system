@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 
 const StudentExamCalendar = () => {
+    const { user } = useAuth();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedExam, setSelectedExam] = useState(null); // For modal
     const [courseCode, setCourseCode] = useState('');
     const [selectedDates, setSelectedDates] = useState([]);
-    const [selectedLevel, setSelectedLevel] = useState(1); // Default Level 1
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
 
@@ -47,16 +48,36 @@ const StudentExamCalendar = () => {
     // Fetch existing configurations on mount (Persistence)
     useEffect(() => {
         fetchSubmittedConfigs();
+        fetchAllowedDates();
     }, []);
+
+    const [allowedDates, setAllowedDates] = useState(new Set());
+
+    const fetchAllowedDates = async () => {
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/global-dates');
+            if (response.ok) {
+                const data = await response.json();
+                setAllowedDates(new Set(data.allowed_dates || []));
+            } else {
+                const storedDates = localStorage.getItem('allowed_exam_dates');
+                if (storedDates) setAllowedDates(new Set(JSON.parse(storedDates)));
+            }
+        } catch (e) {
+            console.error('Failed to fetch global dates:', e);
+            const storedDates = localStorage.getItem('allowed_exam_dates');
+            if (storedDates) setAllowedDates(new Set(JSON.parse(storedDates)));
+        }
+    };
 
     const fetchSubmittedConfigs = async () => {
         try {
             const response = await fetch('http://localhost:5000/api/configurations/list');
             if (response.ok) {
                 const data = await response.json();
-                // Ideally this endpoints filters by user_id on backend, or we filter here if needed.
-                // Assuming backend returns all for now, we might filter by batch_rep_id=1 effectively.
-                const myConfigs = data.filter(c => c.batch_rep_id === 1);
+                // Filter by the logged-in representative's user ID
+                const repId = user?.user_id || 1;
+                const myConfigs = data.filter(c => c.batch_rep_id === repId);
                 setSubmittedList(myConfigs);
             }
         } catch (error) {
@@ -67,10 +88,19 @@ const StudentExamCalendar = () => {
     const [examDeadline, setExamDeadline] = useState(null);
 
     useEffect(() => {
-        const deadline = localStorage.getItem('exam_deadline');
-        if (deadline) {
-            setExamDeadline(deadline);
-        }
+        const fetchDeadline = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/configurations/global-dates');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.deadline) setExamDeadline(data.deadline);
+                }
+            } catch (e) {
+                const deadline = localStorage.getItem('exam_deadline');
+                if (deadline) setExamDeadline(deadline);
+            }
+        };
+        fetchDeadline();
     }, []);
 
     const generateCalendarDays = () => {
@@ -111,6 +141,7 @@ const StudentExamCalendar = () => {
     const handleDateClick = (calendarDate) => {
         if (!calendarDate) return;
         const dateKey = formatDateKey(calendarDate);
+        if (!allowedDates.has(dateKey)) return; // Prevent clicking unallowed dates
 
         // Strict: ONLY ONE DATE ALLOWED
         if (selectedDates.includes(dateKey)) {
@@ -132,10 +163,10 @@ const StudentExamCalendar = () => {
 
         // Add to local draft
         const newItem = {
-            batch_rep_id: 1,
+            batch_rep_id: user?.user_id || 1,
             course_code: courseCode,
             preferred_dates: selectedDates,
-            level: selectedLevel, // Use manually selected level
+            level: user?.level || 1, // Automatically bound to logged-in user level
             status: 'DRAFT',
             tempId: Date.now() // temporary ID for UI
         };
@@ -233,18 +264,12 @@ const StudentExamCalendar = () => {
                         {/* Configuration Inputs */}
                         <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex flex-col gap-4">
                             <div className="flex gap-4 items-end flex-wrap">
-                                {/* Level Selector - RESTORED */}
+                                {/* Level Display (Auto-injected) */}
                                 <div className="w-full md:w-auto">
                                     <label className="block text-xs font-semibold text-indigo-800 uppercase mb-1">Level</label>
-                                    <select
-                                        value={selectedLevel}
-                                        onChange={(e) => setSelectedLevel(Number(e.target.value))}
-                                        className="w-full px-4 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white min-w-[100px]"
-                                    >
-                                        {[1, 2, 3, 4].map(l => (
-                                            <option key={l} value={l}>Lvl {l}</option>
-                                        ))}
-                                    </select>
+                                    <div className="px-4 py-2 border border-indigo-200 rounded-lg bg-indigo-100 text-indigo-900 font-bold min-w-[100px] text-center">
+                                        Lvl {user?.level || 1}
+                                    </div>
                                 </div>
 
                                 <div className="flex-1 min-w-[150px]">
@@ -315,6 +340,16 @@ const StudentExamCalendar = () => {
                                 const isSun = isSunday(date);
                                 const isPoy = isPoya(date);
                                 const isSelected = selectedDates.includes(dateKey);
+                                const isAllowed = allowedDates.has(dateKey);
+
+                                // Find drafted and submitted exams for this date
+                                const dayDrafts = draftList.filter(d => d.preferred_dates.includes(dateKey));
+                                const daySubmitted = submittedList.filter(s => {
+                                    if (Array.isArray(s.preferred_dates)) {
+                                        return s.preferred_dates.includes(dateKey);
+                                    }
+                                    return s.preferred_dates === dateKey;
+                                });
 
                                 let bgClass = "bg-white hover:border-indigo-300 border-gray-200";
                                 let cursorClass = "cursor-pointer";
@@ -323,11 +358,13 @@ const StudentExamCalendar = () => {
                                     bgClass = "bg-red-50/50 text-red-300 border-red-100 opacity-60 cursor-not-allowed";
                                 } else if (isPoy) {
                                     bgClass = "bg-yellow-50/50 text-yellow-600 border-yellow-100 opacity-60 cursor-not-allowed";
+                                } else if (!isAllowed) {
+                                    bgClass = "bg-gray-50 text-gray-400 border-gray-100 opacity-50 cursor-not-allowed";
                                 } else if (isSelected) {
                                     bgClass = "bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-[1.02]";
                                 }
 
-                                const canClick = !isSun && !isPoy;
+                                const canClick = !isSun && !isPoy && isAllowed;
 
                                 return (
                                     <div
@@ -338,12 +375,26 @@ const StudentExamCalendar = () => {
                                             ${bgClass} ${canClick ? cursorClass : ''} transition-all duration-200
                                         `}
                                     >
-                                        <div className="flex justify-between items-start">
+                                        <div className="flex justify-between items-start mb-2">
                                             <span className={`text-lg font-bold ${isSelected ? 'text-white' : 'text-gray-700'} ${isSun && !isSelected ? 'text-red-400' : ''}`}>
                                                 {date.getDate()}
                                             </span>
                                             {isSun && <span className="text-[10px] font-bold text-red-400 uppercase">Sun</span>}
                                             {isPoy && <span className="text-[10px] font-bold text-yellow-600 uppercase">Poya</span>}
+                                        </div>
+
+                                        {/* Render Draft and Submitted Exams on this day */}
+                                        <div className="flex-1 flex flex-col gap-1 overflow-y-auto no-scrollbar">
+                                            {daySubmitted.map((exam, i) => (
+                                                <div key={`sub-${i}`} className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-800 rounded font-medium truncate border border-green-200">
+                                                    {exam.course_code} (Lvl {exam.level || 1})
+                                                </div>
+                                            ))}
+                                            {dayDrafts.map((draft, i) => (
+                                                <div key={`draft-${draft.tempId}`} className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-800 rounded font-medium truncate border border-indigo-200">
+                                                    {draft.course_code} (Draft)
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 );
