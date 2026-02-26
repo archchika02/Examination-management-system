@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const MedicalRepeatFormsSection = () => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -8,65 +8,72 @@ const MedicalRepeatFormsSection = () => {
     const [selectedForm, setSelectedForm] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
 
-    // Mock Data
-    const [forms, setForms] = useState([
-        {
-            id: 'M001',
-            studentNo: 'IM/2022/025',
-            studentName: 'Alice Smith',
-            type: 'Medical',
-            subDate: '2026-01-20',
-            status: 'Pending',
-            receiptUrl: '#',
-            medicalUrl: '#'
-        },
-        {
-            id: 'R001',
-            studentNo: 'IM/2022/026',
-            studentName: 'Bob Johnson',
-            type: 'Repeat',
-            subDate: '2026-01-18',
-            status: 'Approved',
-            receiptUrl: '#',
-            medicalUrl: null
-        },
-        {
-            id: 'M002',
-            studentNo: 'IM/2022/027',
-            studentName: 'Charlie Brown',
-            type: 'Medical',
-            subDate: '2026-01-22',
-            status: 'Rejected',
-            receiptUrl: '#',
-            medicalUrl: '#',
-            rejectionReason: 'Invalid medical certificate'
-        },
-        {
-            id: 'R002',
-            studentNo: 'IM/2022/028',
-            studentName: 'Diana Prince',
-            type: 'Repeat',
-            subDate: '2026-01-24',
-            status: 'Pending',
-            receiptUrl: '#',
-            medicalUrl: null
-        },
-        {
-            id: 'M003',
-            studentNo: 'IM/2022/029',
-            studentName: 'Evan Wright',
-            type: 'Medical',
-            subDate: '2026-01-25',
-            status: 'Pending',
-            receiptUrl: '#',
-            medicalUrl: '#'
-        }
-    ]);
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [viewFormDetails, setViewFormDetails] = useState(null);
+    const [loadingDetails, setLoadingDetails] = useState(false);
 
-    const handleApprove = (id) => {
-        setForms(forms.map(form =>
-            form.id === id ? { ...form, status: 'Approved' } : form
-        ));
+    const [forms, setForms] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchForms = async () => {
+        try {
+            setLoading(true);
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const response = await fetch('http://localhost:5000/api/medical-repeat', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                const mappedForms = data.map(item => ({
+                    id: item.id,
+                    studentNo: item.student_number || '',
+                    studentName: item.student_name || '',
+                    type: item.form_type || 'Unknown',
+                    subDate: new Date(item.created_at).toLocaleDateString(),
+                    status: item.status || 'Pending',
+                    receiptUrl: item.payment_receipt_url || '#',
+                    medicalUrl: item.medical_certificate_url || '#',
+                    rejectionReason: item.reject_reason || ''
+                }));
+                setForms(mappedForms);
+            } else {
+                console.error("Failed to fetch forms");
+            }
+        } catch (error) {
+            console.error("Error fetching forms:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchForms();
+    }, []);
+
+    const handleApprove = async (id) => {
+        try {
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const response = await fetch(`http://localhost:5000/api/medical-repeat/${id}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: 'Approved' })
+            });
+
+            if (response.ok) {
+                setForms(forms.map(form =>
+                    form.id === id ? { ...form, status: 'Approved' } : form
+                ));
+            } else {
+                alert("Failed to approve form");
+            }
+        } catch (error) {
+            console.error("Error approving form:", error);
+        }
     };
 
     const handleRejectClick = (form) => {
@@ -75,26 +82,74 @@ const MedicalRepeatFormsSection = () => {
         setShowRejectModal(true);
     };
 
-    const confirmReject = () => {
-        if (!rejectReason.trim()) return; // Prevent empty reasons
-        setForms(forms.map(form =>
-            form.id === selectedForm.id ? { ...form, status: 'Rejected', rejectionReason: rejectReason } : form
-        ));
-        setShowRejectModal(false);
-        setSelectedForm(null);
+    const confirmReject = async () => {
+        if (!rejectReason.trim()) return;
+
+        try {
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const response = await fetch(`http://localhost:5000/api/medical-repeat/${selectedForm.id}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: 'Rejected', reject_reason: rejectReason })
+            });
+
+            if (response.ok) {
+                setForms(forms.map(form =>
+                    form.id === selectedForm.id ? { ...form, status: 'Rejected', rejectionReason: rejectReason } : form
+                ));
+                setShowRejectModal(false);
+                setSelectedForm(null);
+            } else {
+                alert("Failed to reject form");
+            }
+        } catch (error) {
+            console.error("Error rejecting form:", error);
+        }
     };
 
     const openDocument = (url, docName) => {
-        // In a real app, this would open the PDF. Here we'll just mock it.
-        alert(`Opening ${docName}... (Mock PDF Viewer)`);
+        if (url && url !== '#') {
+            // Prepend backend URL if it's a relative path from our uploads folder
+            const fullUrl = url.startsWith('/uploads') ? `http://localhost:5000${url}` : url;
+            window.open(fullUrl, '_blank');
+        } else {
+            alert(`No ${docName} attached.`);
+        }
+    };
+
+    const handleViewForm = async (id) => {
+        setLoadingDetails(true);
+        setShowViewModal(true);
+        try {
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const response = await fetch(`http://localhost:5000/api/medical-repeat/${id}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setViewFormDetails(data);
+            } else {
+                alert("Failed to load form details");
+                setShowViewModal(false);
+            }
+        } catch (error) {
+            console.error("Error fetching form details:", error);
+            alert("Error loading form details");
+            setShowViewModal(false);
+        } finally {
+            setLoadingDetails(false);
+        }
     };
 
     // Filter Logic
     const filteredForms = forms.filter(form => {
-        const matchesSearch = form.studentNo.includes(searchTerm) || form.studentName.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = form.studentNo.includes(searchTerm) || (form.studentName && form.studentName.toLowerCase().includes(searchTerm.toLowerCase()));
         const matchesStatus = statusFilter === 'All' || form.status === statusFilter;
-        const matchesType = typeFilter === 'All' || form.type === statusFilter; // Wait, type logic needs correction
-        // Fixed type filter:
         const matchesTypeFixed = typeFilter === 'All' || form.type === typeFilter;
 
         return matchesSearch && matchesStatus && matchesTypeFixed;
@@ -235,7 +290,7 @@ const MedicalRepeatFormsSection = () => {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end space-x-2">
                                                 <button
-                                                    onClick={() => openDocument('#', 'Full Application Form')}
+                                                    onClick={() => handleViewForm(form.id)}
                                                     className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
                                                     title="View Form"
                                                 >
@@ -346,6 +401,180 @@ const MedicalRepeatFormsSection = () => {
                                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium shadow-lg shadow-red-500/30 transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                             >
                                 Confirm Rejection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* View Form Modal */}
+            {showViewModal && (
+                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-scale-up">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                            <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                📄 Form Details
+                            </h3>
+                            <button
+                                onClick={() => { setShowViewModal(false); setViewFormDetails(null); }}
+                                className="text-gray-400 hover:text-gray-600 transition-colors text-2xl"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-6">
+                            {loadingDetails ? (
+                                <div className="flex justify-center items-center h-40">
+                                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                                </div>
+                            ) : viewFormDetails ? (
+                                <div className="space-y-8 animate-fade-in">
+                                    {/* Student Info Section */}
+                                    <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                                        <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">Student Information</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
+                                            <div>
+                                                <div className="text-xs text-gray-500 mb-1">Full Name</div>
+                                                <div className="font-semibold text-gray-900">{viewFormDetails.student_name}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs text-gray-500 mb-1">Student Number</div>
+                                                <div className="font-semibold text-gray-900">{viewFormDetails.student_number}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs text-gray-500 mb-1">Email</div>
+                                                <div className="font-semibold text-gray-900">{viewFormDetails.email}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs text-gray-500 mb-1">Contact Number</div>
+                                                <div className="font-semibold text-gray-900">{viewFormDetails.contact_number}</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs text-gray-500 mb-1">Form Type</div>
+                                                <div className="font-semibold text-gray-900">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${viewFormDetails.form_type === 'Medical' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                                                        {viewFormDetails.form_type}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="text-xs text-gray-500 mb-1">Status</div>
+                                                <div className="font-semibold text-gray-900">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border
+                                                    ${viewFormDetails.status === 'Approved' ? 'bg-green-50 text-green-700 border-green-200' :
+                                                            viewFormDetails.status === 'Rejected' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                                'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
+                                                        {viewFormDetails.status}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Courses Section */}
+                                    <div>
+                                        <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 border-b pb-2">Requested Courses</h4>
+                                        <div className="overflow-hidden border border-gray-200 rounded-lg">
+                                            <table className="min-w-full divide-y divide-gray-200">
+                                                <thead className="bg-gray-50">
+                                                    <tr>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course Code</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course Title</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Results Obtained</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Academic Year</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="bg-white divide-y divide-gray-200">
+                                                    {viewFormDetails.courses && viewFormDetails.courses.length > 0 ? (
+                                                        viewFormDetails.courses.map(course => (
+                                                            <tr key={course.id}>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{course.course_code}</td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{course.course_title}</td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{course.results_obtained || '-'}</td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{course.academic_year || '-'}</td>
+                                                            </tr>
+                                                        ))
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">No courses listed.</td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    {/* Documents Preview Section */}
+                                    <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-100">
+                                        <h4 className="text-sm font-bold text-blue-800 uppercase tracking-wider mb-4 border-b border-blue-200 pb-2">Attached Documents</h4>
+                                        <div className="flex gap-4">
+                                            <button
+                                                onClick={() => openDocument(viewFormDetails.payment_receipt_url, 'Payment Receipt')}
+                                                className="flex-1 flex flex-col items-center justify-center p-4 bg-white border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all group"
+                                            >
+                                                <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">📄</span>
+                                                <span className="text-sm font-semibold text-gray-700 group-hover:text-blue-600">Payment Receipt</span>
+                                                <span className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{viewFormDetails.payment_receipt_url || "Not Attached"}</span>
+                                            </button>
+
+                                            {viewFormDetails.form_type === 'Medical' && (
+                                                <button
+                                                    onClick={() => openDocument(viewFormDetails.medical_certificate_url, 'Medical Certificate')}
+                                                    className="flex-1 flex flex-col items-center justify-center p-4 bg-white border border-gray-200 rounded-lg hover:border-red-500 hover:shadow-md transition-all group"
+                                                >
+                                                    <span className="text-3xl mb-2 group-hover:scale-110 transition-transform">🏥</span>
+                                                    <span className="text-sm font-semibold text-gray-700 group-hover:text-red-600">Medical Certificate</span>
+                                                    <span className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">{viewFormDetails.medical_certificate_url || "Not Attached"}</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                </div>
+                            ) : (
+                                <div className="text-center text-gray-500 py-10">
+                                    Form details not found.
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+                            <div>
+                                {viewFormDetails?.status === 'Pending' && (
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => {
+                                                setShowViewModal(false);
+                                                handleRejectClick({
+                                                    id: viewFormDetails.id,
+                                                    studentName: viewFormDetails.student_name,
+                                                    studentNo: viewFormDetails.student_number,
+                                                    type: viewFormDetails.form_type,
+                                                    subDate: new Date(viewFormDetails.created_at).toLocaleDateString()
+                                                });
+                                            }}
+                                            className="px-6 py-2 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors font-medium shadow-sm flex items-center gap-2"
+                                        >
+                                            <span className="text-lg">🚫</span> Reject
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setShowViewModal(false);
+                                                handleApprove(viewFormDetails.id);
+                                            }}
+                                            className="px-6 py-2 bg-green-600 border border-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-sm flex items-center gap-2"
+                                        >
+                                            <span className="text-lg">✅</span> Approve
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => { setShowViewModal(false); setViewFormDetails(null); }}
+                                className="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors font-medium shadow-sm"
+                            >
+                                Close View
                             </button>
                         </div>
                     </div>
