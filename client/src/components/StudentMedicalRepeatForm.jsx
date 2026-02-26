@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const StudentMedicalRepeatForm = () => {
     const { user } = useAuth();
     const [formData, setFormData] = useState({});
     const [submitted, setSubmitted] = useState(false);
-    const [file, setFile] = useState(null);
+    const [medicalFiles, setMedicalFiles] = useState([]);
+    const [receiptFiles, setReceiptFiles] = useState([]);
 
     // Form Structure (Copied from EditFormsSection.jsx ID: 4)
     const formStructure = [
@@ -63,9 +64,14 @@ const StudentMedicalRepeatForm = () => {
             numberedRows: true
         },
         {
-            id: 'evidence_upload',
-            type: 'file_upload',
-            label: '06. Upload Evidence (Medical Certificate / Payment Receipt)',
+            id: 'medical_certificate_upload',
+            type: 'file_upload_medical',
+            label: '06. Upload Medical Certificate',
+        },
+        {
+            id: 'payment_receipt_upload',
+            type: 'file_upload_receipt',
+            label: '07. Upload Payment Receipt',
         },
         {
             id: 'signatures_rm',
@@ -93,15 +99,78 @@ const StudentMedicalRepeatForm = () => {
         }));
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         setSubmitted(true);
-        console.log("Medical/Repeat Form Data:", { ...formData, file: file?.name });
+        try {
+            // Extract courses from formData
+            const courses = [];
+            for (let i = 0; i < 5; i++) {
+                const code = formData[`course_apply_table_row${i}_col0`];
+                if (code && code.trim() !== '') {
+                    courses.push({
+                        course_code: code,
+                        course_title: formData[`course_apply_table_row${i}_col1`] || '',
+                        results_obtained: formData[`course_apply_table_row${i}_col2`] || '',
+                        academic_year: formData[`course_apply_table_row${i}_col3`] || ''
+                    });
+                }
+            }
 
-        // Mock successful submission
-        setTimeout(() => {
-            alert("Application Submitted Successfully!");
+            if (courses.length === 0) {
+                alert("Please add at least one course to apply for.");
+                setSubmitted(false);
+                return;
+            }
+
+            if (receiptFiles.length === 0) {
+                alert("Please upload the Payment Receipt. It is mandatory.");
+                setSubmitted(false);
+                return;
+            }
+
+            const formType = medicalFiles.length > 0 ? 'Medical' : 'Repeat';
+
+            const formDataPayload = new FormData();
+            formDataPayload.append('student_number', formData.st_num_spec);
+            formDataPayload.append('student_name', formData.full_name);
+            formDataPayload.append('contact_number', formData.tel_no || '');
+            formDataPayload.append('email', formData.email_rm || '');
+            // Form type determined by attachments: Medical if cert attached, Repeat otherwise
+            formDataPayload.append('form_type', formType);
+            formDataPayload.append('signature', formData.sig_0 || '');
+            formDataPayload.append('signature_date', formData.sig_1 || '');
+            formDataPayload.append('courses', JSON.stringify(courses));
+
+            if (medicalFiles[0]) {
+                formDataPayload.append('medical_certificate', medicalFiles[0]);
+            }
+            if (receiptFiles[0]) {
+                formDataPayload.append('payment_receipt', receiptFiles[0]);
+            }
+
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const response = await fetch('http://localhost:5000/api/medical-repeat/submit', {
+                method: 'POST',
+                headers: {
+                    // Do not set Content-Type here, browser will set it to multipart/form-data with boundary automatically
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formDataPayload
+            });
+
+            if (response.ok) {
+                alert("Application Submitted Successfully!");
+                // Optionally clear form here
+            } else {
+                const errorData = await response.json();
+                alert(`Error submitting application: ${errorData.message}`);
+            }
+        } catch (error) {
+            console.error("Error submitting form:", error);
+            alert(`An unexpected error occurred during submission: ${error.message}`);
+        } finally {
             setSubmitted(false);
-        }, 1500);
+        }
     };
 
     const renderFormElement = (element) => {
@@ -177,24 +246,44 @@ const StudentMedicalRepeatForm = () => {
                             ))}
                             {/* Rows */}
                             {[...Array(element.rows)].map((_, rIdx) => (
-                                <片 key={rIdx}>
+                                <Fragment key={rIdx}>
                                     {element.numberedRows && <div className="border-r border-black border-b border-black last:border-b-0 flex items-center justify-center font-bold text-xs">{rIdx + 1}</div>}
                                     {element.columns.map((col, cIdx) => (
                                         <div key={cIdx} className="border-r border-black last:border-r-0 border-b border-black last:border-b-0 h-10 p-0">
                                             <input
+                                                id={`input_${element.id}_row${rIdx}_col${cIdx}`}
                                                 type="text"
                                                 className="w-full h-full border-none focus:bg-blue-50 outline-none px-2 text-center text-sm"
+                                                value={formData[`${element.id}_row${rIdx}_col${cIdx}`] || ''}
                                                 onChange={(e) => handleInputChange(`${element.id}_row${rIdx}_col${cIdx}`, e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        let nextCIdx = cIdx + 1;
+                                                        let nextRIdx = rIdx;
+                                                        // Move to next row if at end of column
+                                                        if (nextCIdx >= element.columns.length) {
+                                                            nextCIdx = 0;
+                                                            nextRIdx = rIdx + 1;
+                                                        }
+                                                        if (nextRIdx < element.rows) {
+                                                            const nextInput = document.getElementById(`input_${element.id}_row${nextRIdx}_col${nextCIdx}`);
+                                                            if (nextInput) {
+                                                                nextInput.focus();
+                                                            }
+                                                        }
+                                                    }
+                                                }}
                                             />
                                         </div>
                                     ))}
-                                </片>
+                                </Fragment>
                             ))}
                         </div>
                     </div>
                 );
 
-            case 'file_upload':
+            case 'file_upload_medical':
                 return (
                     <div key={element.id} className="mb-8">
                         <div className="font-bold text-sm font-serif mb-2">{element.label}</div>
@@ -203,18 +292,63 @@ const StudentMedicalRepeatForm = () => {
                                 type="file"
                                 accept=".pdf,.jpg,.png"
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                onChange={(e) => setFile(e.target.files[0])}
+                                onChange={(e) => {
+                                    const selected = Array.from(e.target.files);
+                                    if (selected.length > 1) {
+                                        alert("You can only upload 1 Medical Certificate file.");
+                                        e.target.value = null; // reset
+                                    } else {
+                                        setMedicalFiles(selected);
+                                    }
+                                }}
                             />
                             <div className="space-y-3 pointer-events-none">
                                 <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
                                     <span className="text-xl text-blue-500">📎</span>
                                 </div>
                                 <p className="text-sm text-gray-500">
-                                    {file ? (
-                                        <span className="text-blue-600 font-semibold">{file.name}</span>
+                                    {medicalFiles.length > 0 ? (
+                                        <span className="text-blue-600 font-semibold">{medicalFiles[0].name}</span>
                                     ) : (
                                         <>
-                                            <span className="font-semibold text-blue-600">Click to upload</span> or drag and drop
+                                            <span className="font-semibold text-blue-600">Click to upload</span> or drag and drop (Max 1 file)
+                                        </>
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                );
+
+            case 'file_upload_receipt':
+                return (
+                    <div key={element.id} className="mb-8">
+                        <div className="font-bold text-sm font-serif mb-2">{element.label}</div>
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative group bg-white">
+                            <input
+                                type="file"
+                                accept=".pdf,.jpg,.png"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                onChange={(e) => {
+                                    const selected = Array.from(e.target.files);
+                                    if (selected.length > 1) {
+                                        alert("You can only upload 1 Payment Receipt file.");
+                                        e.target.value = null; // reset
+                                    } else {
+                                        setReceiptFiles(selected);
+                                    }
+                                }}
+                            />
+                            <div className="space-y-3 pointer-events-none">
+                                <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                                    <span className="text-xl text-blue-500">📎</span>
+                                </div>
+                                <p className="text-sm text-gray-500">
+                                    {receiptFiles.length > 0 ? (
+                                        <span className="text-blue-600 font-semibold">{receiptFiles[0].name}</span>
+                                    ) : (
+                                        <>
+                                            <span className="font-semibold text-blue-600">Click to upload</span> or drag and drop (Max 1 file)
                                         </>
                                     )}
                                 </p>
@@ -275,9 +409,6 @@ const StudentMedicalRepeatForm = () => {
             </div>
         )
     };
-
-    // Virtual React Fragment helper
-    const 片 = ({ children }) => <>{children}</>;
 
     return (
         <div className="max-w-5xl mx-auto pb-20 animate-fade-in-up">
