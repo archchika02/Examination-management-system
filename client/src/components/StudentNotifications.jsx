@@ -10,11 +10,24 @@ const StudentNotifications = () => {
         const fetchNotifications = async () => {
             if (!user?.user_id) return;
             try {
-                const res = await fetch(`http://localhost:5000/api/course-registration/student/${user.user_id}`);
-                const data = await res.json();
+                const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+                const headers = { 'Authorization': `Bearer ${token}` };
 
-                // Map database rows into structured notifications
-                const mappedNotifications = data.map((reg) => {
+                // Fetch all 3 endpoints concurrently
+                const [courseRes, addDropRes, medicalRes] = await Promise.all([
+                    fetch(`http://localhost:5000/api/course-registration/student/${user.user_id}`, { headers }),
+                    fetch(`http://localhost:5000/api/add-drop/list`, { headers }), // This naturally filters by user token
+                    fetch(`http://localhost:5000/api/medical-repeat/student/${user.user_id}`, { headers }),
+                ]);
+
+                const courseData = courseRes.ok ? await courseRes.json() : [];
+                const addDropData = addDropRes.ok ? await addDropRes.json() : [];
+                const medicalData = medicalRes.ok ? await medicalRes.json() : [];
+
+                let allNotifications = [];
+
+                // 1. Process Course Registration
+                const mappedCourses = courseData.map((reg) => {
                     let title, description, statusColor, icon;
 
                     if (reg.status === 'Approved') {
@@ -24,23 +37,22 @@ const StudentNotifications = () => {
                         icon = '🎉';
                     } else if (reg.status === 'Rejected') {
                         title = 'Course Registration Rejected ❌';
-                        description = `Your recent course registration form has been REJECTED by Faculty Staff. Reason: "${reg.reject_reason || 'No specific reason provided'}". Please revise and resubmit your form.`;
+                        description = `Your course registration form has been REJECTED. Reason: "${reg.reject_reason || 'No specific reason provided'}". Please revise and resubmit.`;
                         statusColor = 'red';
                         icon = '⚠️';
                     } else {
-                        // Pending
-                        title = 'Registration Under Review ⏳';
-                        description = 'Your course registration form has successfully been submitted. It is currently PENDING review by the Faculty Staff.';
+                        title = 'Course Registration Under Review ⏳';
+                        description = 'Your course registration form is currently PENDING review.';
                         statusColor = 'orange';
                         icon = '📝';
                     }
 
                     return {
-                        id: reg.id,
-                        type: 'Registration Update',
-                        category: 'Faculty Notifications',
+                        id: `course_${reg.id}`,
+                        type: 'Registration',
                         title,
                         description,
+                        dateObj: new Date(reg.created_at),
                         time: new Date(reg.created_at).toLocaleDateString(),
                         status: reg.status,
                         statusColor,
@@ -48,9 +60,82 @@ const StudentNotifications = () => {
                     };
                 });
 
-                setNotifications(mappedNotifications);
+                // 2. Process Add/Drop Forms
+                const mappedAddDrop = addDropData.map((reg) => {
+                    let title, description, statusColor, icon;
+
+                    if (reg.status === 'Approved') {
+                        title = 'Add/Drop Form Approved ✅';
+                        description = 'Your Add/Drop request has been thoroughly reviewed and APPROVED.';
+                        statusColor = 'green';
+                        icon = '✅';
+                    } else if (reg.status?.includes('Rejected')) {
+                        title = 'Add/Drop Form Rejected ❌';
+                        description = `Your Add/Drop request has been REJECTED. Reason: "${reg.reject_reason || 'No specific reason provided'}".`;
+                        statusColor = 'red';
+                        icon = '⚠️';
+                    } else {
+                        title = 'Add/Drop Form Under Review ⏳';
+                        description = `Your Add/Drop request is currently in review process (${reg.status}).`;
+                        statusColor = 'orange';
+                        icon = '🔄';
+                    }
+
+                    return {
+                        id: `adddrop_${reg.id}`,
+                        type: 'Add/Drop',
+                        title,
+                        description,
+                        dateObj: new Date(reg.created_at),
+                        time: new Date(reg.created_at).toLocaleDateString(),
+                        status: reg.status,
+                        statusColor,
+                        icon
+                    };
+                });
+
+                // 3. Process Medical/Repeat Forms
+                const mappedMedical = medicalData.map((reg) => {
+                    let title, description, statusColor, icon;
+                    const isMedical = reg.form_type === 'Medical';
+
+                    if (reg.status === 'Approved') {
+                        title = `REPEAT/MEDICAL EXAMINATIONS form Approved ✅`;
+                        description = `Your REPEAT/MEDICAL EXAMINATIONS form has been reviewed and APPROVED by the Faculty.`;
+                        statusColor = 'green';
+                        icon = isMedical ? '🏥' : '📑';
+                    } else if (reg.status === 'Rejected') {
+                        title = `REPEAT/MEDICAL EXAMINATIONS form Rejected ❌`;
+                        description = `Your REPEAT/MEDICAL EXAMINATIONS form has been REJECTED. Reason: "${reg.reject_reason || 'No specific reason provided'}".`;
+                        statusColor = 'red';
+                        icon = '⚠️';
+                    } else {
+                        title = `REPEAT/MEDICAL EXAMINATIONS form Under Review ⏳`;
+                        description = `Your REPEAT/MEDICAL EXAMINATIONS form is currently PENDING review by the Faculty Staff.`;
+                        statusColor = 'orange';
+                        icon = isMedical ? '🏥' : '📑';
+                    }
+
+                    return {
+                        id: `medrep_${reg.id}`,
+                        type: reg.form_type,
+                        title,
+                        description,
+                        dateObj: new Date(reg.created_at),
+                        time: new Date(reg.created_at).toLocaleDateString(),
+                        status: reg.status,
+                        statusColor,
+                        icon
+                    };
+                });
+
+                // Merge and Sort by Date (newest first)
+                allNotifications = [...mappedCourses, ...mappedAddDrop, ...mappedMedical];
+                allNotifications.sort((a, b) => b.dateObj - a.dateObj);
+
+                setNotifications(allNotifications);
             } catch (error) {
-                console.error("Error fetching notifications:", error);
+                console.error("Error fetching aggregated notifications:", error);
             } finally {
                 setIsLoading(false);
             }
