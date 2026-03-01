@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-
+import { useAuth } from '../context/AuthContext';
 // Removed RAW_DATA as we now use actual database entries
 
 const TimetableSection = () => {
@@ -9,6 +9,7 @@ const TimetableSection = () => {
     const [draggedExam, setDraggedExam] = useState(null);
     const [allowedDates, setAllowedDates] = useState(new Set());
     const [finalTimetables, setFinalTimetables] = useState([]);
+    const [courseEnrollments, setCourseEnrollments] = useState({});
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState(null);
 
@@ -68,8 +69,21 @@ const TimetableSection = () => {
             }
         };
 
+        const fetchCourseEnrollments = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/configurations/course-enrollments');
+                if (response.ok) {
+                    const data = await response.json();
+                    setCourseEnrollments(data);
+                }
+            } catch (e) {
+                console.error('Failed to fetch course enrollments', e);
+            }
+        };
+
         fetchAllowedDates();
         fetchFinalTimetables();
+        fetchCourseEnrollments();
     }, []);
 
     const handleDragStart = (e, exam) => {
@@ -144,22 +158,64 @@ const TimetableSection = () => {
     };
 
     // Conflict Detection Logic
-    // Conflict if same Date + same Time + same Student Year (from Course Code)
+    // Conflict if same Date + overlapping Time + intersecting Students
     const checkConflict = (exam) => {
-        const examYear = getYearFromCode(exam.code);
-        if (!examYear) return false;
+        if (!exam.time || !exam.endTime || !exam.date) return false;
 
-        // Find other exams at the same time on the same date
-        const sameTimeExams = editableExams.filter(e =>
-            e.date === exam.date &&
-            e.time === exam.time &&
-            e.id !== exam.id
-        );
+        // Convert "HH:MM" to minutes for reliable comparison
+        const timeToMins = (timeStr) => {
+            if (!timeStr) return 0;
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        };
 
-        // If any of those share the same Student Year, it's a conflict
-        const conflicters = sameTimeExams.filter(e => {
-            const otherYear = getYearFromCode(e.code);
-            return otherYear === examYear;
+        const examStartMins = timeToMins(exam.time);
+        const examEndMins = timeToMins(exam.endTime);
+
+        // Find other exams on the same date with overlapping times
+        const overlappingExams = editableExams.filter(e => {
+            if (e.id === exam.id || e.date !== exam.date || !e.time || !e.endTime) return false;
+            const eStartMins = timeToMins(e.time);
+            const eEndMins = timeToMins(e.endTime);
+            // Overlap condition: (StartA < EndB) and (EndA > StartB)
+            return (examStartMins < eEndMins) && (examEndMins > eStartMins);
+        });
+
+        if (overlappingExams.length === 0) return false;
+
+        // Convert lookup keys to uppercase and remove spaces for robust matching
+        const parseCode = (code) => code ? code.replace(/\s+/g, '').toUpperCase() : '';
+
+        // Ensure our dictionary lookup works case-insensitively by capitalizing the enrolled dictionary
+        const getStudents = (code) => {
+            const parsed = parseCode(code);
+            // Search all keys in courseEnrollments ignoring case
+            for (const key in courseEnrollments) {
+                if (key.toUpperCase() === parsed) {
+                    return courseEnrollments[key] || [];
+                }
+            }
+            return [];
+        };
+
+        const examStudents = getStudents(exam.code);
+
+        // If no students are known for this exam, we assume no precise conflict
+        if (examStudents.length === 0) return false;
+
+        // Check for student intersections
+        const conflicters = overlappingExams.filter(e => {
+            const otherStudents = getStudents(e.code);
+            // Only care about valid student IDs (not null)
+            const intersection = examStudents.filter(studentId =>
+                studentId && otherStudents.includes(studentId)
+            );
+
+            if (intersection.length > 0) {
+                console.log(`Conflict Detected between ${exam.code} and ${e.code}! Overlapping students:`, intersection);
+                return true;
+            }
+            return false;
         });
 
         return conflicters.length > 0;
@@ -177,6 +233,8 @@ const TimetableSection = () => {
         setEditableExams(prev => prev.map(e => e.id === id ? { ...e, [field]: value } : e));
     };
 
+    const { user } = useAuth(); // NEW: Grab user from auth context
+
     const handleSaveTimetable = async () => {
         setIsSaving(true);
         setSaveStatus('Saving...');
@@ -184,7 +242,10 @@ const TimetableSection = () => {
             const response = await fetch('http://localhost:5000/api/configurations/save-exam-slots', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ slots: editableExams })
+                body: JSON.stringify({
+                    slots: editableExams,
+                    userId: user?.id || user?.user_id // Pass the currently logged in user ID
+                })
             });
             if (response.ok) {
                 setSaveStatus('Exam slots saved successfully!');
@@ -197,7 +258,28 @@ const TimetableSection = () => {
             setSaveStatus('Error connecting to server.');
         } finally {
             setIsSaving(false);
-            setTimeout(() => setSaveStatus(null), 3000);
+            setTimeout(() => setSaveStatus(null), 8000);
+        }
+    };
+
+    const handleSubmitToDepartment = async () => {
+        if (!window.confirm("Are you sure you want to submit the timetable to the department? This action will make it visible to the Academic Supervisor.")) {
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/submit-timetable', {
+                method: 'POST'
+            });
+            if (response.ok) {
+                alert('Timetable successfully submitted to the department!');
+            } else {
+                const data = await response.json();
+                alert(`Failed to submit: ${data.message}`);
+            }
+        } catch (error) {
+            console.error('Error submitting timetable:', error);
+            alert('Error connecting to server.');
         }
     };
 
@@ -402,8 +484,8 @@ const TimetableSection = () => {
                                                     <input
                                                         type="number"
                                                         value={exam.stdNonRepeat}
-                                                        onChange={(e) => onStdChange(exam.id, 'stdNonRepeat', e.target.value)}
-                                                        className="w-full text-sm border-gray-200 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                                        disabled={true}
+                                                        className="w-full text-sm border-gray-200 rounded-md bg-gray-50 cursor-not-allowed text-gray-500"
                                                         placeholder="0"
                                                     />
                                                 </div>
@@ -412,8 +494,8 @@ const TimetableSection = () => {
                                                     <input
                                                         type="number"
                                                         value={exam.stdRepeat}
-                                                        onChange={(e) => onStdChange(exam.id, 'stdRepeat', e.target.value)}
-                                                        className="w-full text-sm border-gray-200 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                                        disabled={true}
+                                                        className="w-full text-sm border-gray-200 rounded-md bg-gray-50 cursor-not-allowed text-gray-500"
                                                         placeholder="0"
                                                     />
                                                 </div>
@@ -444,10 +526,7 @@ const TimetableSection = () => {
                 </div>
 
                 <button
-                    onClick={() => {
-                        // TODO: Implement submitting to department
-                        console.log('Submitting to department...');
-                    }}
+                    onClick={handleSubmitToDepartment}
                     className="bg-indigo-600 text-white px-8 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 hover:shadow-indigo-600/30 transition-all active:scale-95 flex items-center group"
                 >
                     <span>Submit to Department</span>

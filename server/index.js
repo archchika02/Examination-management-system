@@ -44,6 +44,10 @@ app.use('/api/add-drop', addDropRoutes);
 const medicalRepeatRoutes = require('./routes/medicalRepeatRoutes');
 app.use('/api/medical-repeat', medicalRepeatRoutes);
 
+const courseRoutes = require('./routes/courseRoutes');
+app.use('/api/courses', courseRoutes);
+
+
 // --- Background Jobs ---
 // Delete unverified accounts older than 24 hours. Runs every hour at minute 0.
 cron.schedule('0 * * * *', async () => {
