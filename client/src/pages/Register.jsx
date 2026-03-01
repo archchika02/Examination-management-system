@@ -48,7 +48,7 @@ const Register = () => {
         setFormData(prev => {
             const newData = { ...prev, [name]: value };
             if (name === 'email') {
-                if (value.endsWith('@stu.kln.ac.lk') || value === 'lihij13980@gamening.com' || value === 'hemoyev878@gamening.com') {
+                if (value.endsWith('@stu.kln.ac.lk') || value === 'lihij13980@gamening.com' || value === 'hemoyev878@gamening.com' || value === 'wixal14117@creteanu.com') {
                     setAvailableRoles(['Student', 'BatchRepresentative']);
                     if (!['Student', 'BatchRepresentative'].includes(newData.role)) {
                         newData.role = 'Student';
@@ -107,7 +107,7 @@ const Register = () => {
         }
 
         if (formData.role === 'Student' || formData.role === 'BatchRepresentative') {
-            if (!formData.email.endsWith('@stu.kln.ac.lk') && formData.email !== 'archchika27@gmail.com' && formData.email !== 'lihij13980@gamening.com' && formData.email !== 'hemoyev878@gamening.com') {
+            if (!formData.email.endsWith('@stu.kln.ac.lk') && formData.email !== 'archchika27@gmail.com' && formData.email !== 'lihij13980@gamening.com' && formData.email !== 'hemoyev878@gamening.com' && formData.email !== 'wixal14117@creteanu.com') {
                 setError('Student/BatchRepresentative must use @stu.kln.ac.lk email');
                 return;
             }

@@ -1,19 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
 
 const AddCourseUnit = () => {
-    // Mock Data for initial courses
-    const [courses, setCourses] = useState([
-        { id: 1, code: 'CSC101', title: 'Introduction to Computer Science', credits: 3, isNonWritten: 'No' },
-        { id: 2, code: 'CSC102', title: 'Data Structures and Algorithms', credits: 4, isNonWritten: 'No' },
-        { id: 3, code: 'ENG101', title: 'Technical Writing', credits: 2, isNonWritten: 'Yes' },
-    ]);
+    // State for existing courses
+    const [courses, setCourses] = useState([]);
 
     const [formData, setFormData] = useState({
         code: '',
         title: '',
-        credits: '',
+        academicYear: '',
         isNonWritten: 'No'
     });
+
+    useEffect(() => {
+        fetchCourses();
+    }, []);
+
+    const fetchCourses = async () => {
+        try {
+            const res = await fetch('http://localhost:5000/api/courses/list');
+            const data = await res.json();
+            setCourses(data);
+        } catch (error) {
+            console.error('Error fetching courses:', error);
+        }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -23,30 +34,50 @@ const AddCourseUnit = () => {
         }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         // Basic validation
-        if (!formData.code || !formData.title || !formData.credits) {
-            alert("Please fill in all fields."); // In a real app, use a nicer toast
+        if (!formData.code || !formData.title) {
+            alert("Please fill in course code and title.");
             return;
         }
 
-        const newCourse = {
-            id: Date.now(), // Simple unique ID generation
-            ...formData,
-            credits: parseInt(formData.credits)
-        };
+        try {
+            const res = await fetch('http://localhost:5000/api/courses/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    code: formData.code,
+                    title: formData.title,
+                    academicYear: formData.academicYear,
+                    isNonWritten: formData.isNonWritten
+                })
+            });
 
-        setCourses([...courses, newCourse]);
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.message || 'Failed to add course unit');
+            }
 
-        // Reset form
-        setFormData({
-            code: '',
-            title: '',
-            credits: '',
-            isNonWritten: 'No'
-        });
+            // Refresh course list
+            fetchCourses();
+
+            // Reset form
+            setFormData({
+                code: '',
+                title: '',
+                academicYear: '',
+                isNonWritten: 'No'
+            });
+
+            alert('Course Unit added successfully!');
+        } catch (error) {
+            console.error('Error adding course:', error);
+            alert(error.message || 'Failed to add course unit');
+        }
     };
 
     const handleRemove = (id) => {
@@ -97,14 +128,13 @@ const AddCourseUnit = () => {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Credits</label>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Academic Year</label>
                                     <input
-                                        type="number"
-                                        name="credits"
-                                        value={formData.credits}
+                                        type="text"
+                                        name="academicYear"
+                                        value={formData.academicYear}
                                         onChange={handleChange}
-                                        min="0"
-                                        placeholder="3"
+                                        placeholder="e.g. 2024/2025"
                                         className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-gray-400 text-sm"
                                     />
                                 </div>
@@ -154,7 +184,7 @@ const AddCourseUnit = () => {
                                     <tr>
                                         <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Code</th>
                                         <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Title</th>
-                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Credits</th>
+                                        <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Academic Year</th>
                                         <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-center">Non-Written</th>
                                         <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
                                     </tr>
@@ -170,14 +200,14 @@ const AddCourseUnit = () => {
                                                     {course.title}
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
-                                                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-700 font-bold text-xs ring-1 ring-gray-200">
-                                                        {course.credits}
+                                                    <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-gray-100 text-gray-700 font-bold text-xs ring-1 ring-gray-200">
+                                                        {course.academic_year || '-'}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${course.isNonWritten === 'Yes'
-                                                            ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                                                            : 'bg-gray-100 text-gray-600 border border-gray-200'
+                                                        ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                                                        : 'bg-gray-100 text-gray-600 border border-gray-200'
                                                         }`}>
                                                         {course.isNonWritten === 'Yes' ? 'Yes' : 'No'}
                                                     </span>

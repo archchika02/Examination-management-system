@@ -25,6 +25,8 @@ const validateEmail = (email, role) => {
 
     if (email === 'thavashikalaxi@gmail.com') return true;
 
+    if (email === 'wixal14117@creteanu.com') return true;
+
     if (email === 'archchika.t@gmail.com') return true;
 
     if (role === 'Student' || role === 'BatchRepresentative') {
