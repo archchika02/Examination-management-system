@@ -1,42 +1,36 @@
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { useAuth } from '../context/AuthContext';
 
 const PersonalizedTimetable = ({ enableConcerns = false }) => {
+    const { user } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [timetableData, setTimetableData] = useState([]);
-
-    // Mock Course Titles Dictionary (since Supervisor only enters code)
-    const courseTitles = {
-        'INTE 21213': 'Information system Modelling',
-        'INTE 21323': 'Web application Development',
-        'INTE 21333': 'Software Engineering Concepts',
-        'INTE 22253': 'Distributed Systems and Cloud Computing',
-        'INTE 22263': 'Embedded Systems Development',
-    };
-
-    const getCourseTitle = (code) => {
-        // Try to match exact or partial code
-        const safeCode = code?.trim() || '';
-        return courseTitles[safeCode] || 'Advanced Topics in Science'; // Default title if not found
-    };
+    const [loading, setLoading] = useState(true);
 
     // Load Data
     useEffect(() => {
-        const stored = localStorage.getItem('ems_timetable_data');
-        if (stored) {
-            setTimetableData(JSON.parse(stored));
-        } else {
-            // Fallback default data for demo
-            setTimetableData([
-                { id: 1, date: '2026-10-18', time: '09:00 - 11:00', courseUnit: 'INTE 21213', venue: 'A8 203' },
-                { id: 2, date: '2026-10-20', time: '13:00 - 15:00', courseUnit: 'INTE 21323', venue: 'A8 203' },
-                { id: 3, date: '2026-10-23', time: '09:00 - 12:00', courseUnit: 'INTE 21333', venue: 'A8 203' },
-                { id: 4, date: '2026-10-25', time: '10:00 - 12:00', courseUnit: 'INTE 22253', venue: 'A8 203' },
-                { id: 5, date: '2026-10-28', time: '09:00 - 11:00', courseUnit: 'INTE 22263', venue: 'A8 203' },
-            ]);
-        }
-    }, []);
+        const fetchPersonalizedTimetable = async () => {
+            if (!user) {
+                setLoading(false);
+                return;
+            }
+            try {
+                const response = await fetch(`http://localhost:5000/api/configurations/personalized-timetable/${user.user_id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setTimetableData(data);
+                }
+            } catch (error) {
+                console.error("Error fetching personalized timetable:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchPersonalizedTimetable();
+    }, [user]);
 
     const formatDate = (dateString) => {
         if (!dateString) return '';
@@ -51,7 +45,7 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
     const filteredData = timetableData.filter(exam => {
         const term = searchTerm.toLowerCase();
         const code = (exam.courseUnit || '').toLowerCase();
-        const title = getCourseTitle(exam.courseUnit).toLowerCase();
+        const title = (exam.courseTitle || '').toLowerCase();
         const venue = (exam.venue || '').toLowerCase();
         return code.includes(term) || title.includes(term) || venue.includes(term);
     });
@@ -68,13 +62,14 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
         doc.text('Examination Timetable 2023/2024', 105, 40, null, null, 'center');
 
         // Table
-        const tableColumn = ["Course Unit", "Course Title", "Date", "Time", "Venue"];
+        const tableColumn = ["Course Unit", "Course Title", "Date", "Time", "Venue", "Role"];
         const tableRows = filteredData.map(exam => [
             exam.courseUnit,
-            getCourseTitle(exam.courseUnit),
+            exam.courseTitle || 'Unknown Title',
             formatDate(exam.date),
             exam.time,
-            exam.venue
+            exam.venue,
+            exam.role
         ]);
 
         doc.autoTable({
@@ -182,10 +177,17 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
                                 <th className="px-6 py-4 font-bold">Date</th>
                                 <th className="px-6 py-4 font-bold">Time</th>
                                 <th className="px-6 py-4 font-bold">Venue</th>
+                                <th className="px-6 py-4 font-bold">Assigned Role</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 text-sm">
-                            {filteredData.length > 0 ? (
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={enableConcerns ? "7" : "6"} className="px-6 py-12 text-center text-gray-500">
+                                        Loading your timetable...
+                                    </td>
+                                </tr>
+                            ) : filteredData.length > 0 ? (
                                 filteredData.map((exam) => (
                                     <tr key={exam.id} className={`transition-colors ${selectedSessions.includes(exam.id) ? 'bg-blue-50/50' : 'hover:bg-blue-50/30'}`}>
                                         {enableConcerns && (
@@ -199,15 +201,23 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
                                             </td>
                                         )}
                                         <td className="px-6 py-4 font-bold text-gray-800">{exam.courseUnit}</td>
-                                        <td className="px-6 py-4 text-gray-700">{getCourseTitle(exam.courseUnit)}</td>
+                                        <td className="px-6 py-4 text-gray-700">{exam.courseTitle || 'Unknown Title'}</td>
                                         <td className="px-6 py-4 text-gray-600">{formatDate(exam.date)}</td>
                                         <td className="px-6 py-4 text-gray-600 font-mono bg-gray-50/50 rounded">{exam.time}</td>
                                         <td className="px-6 py-4 text-indigo-600 font-medium">{exam.venue}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
+                                                ${exam.role === 'Supervisor' ? 'bg-purple-100 text-purple-800' :
+                                                    exam.role === 'Invigilator' ? 'bg-blue-100 text-blue-800' :
+                                                        'bg-gray-100 text-gray-800'}`}>
+                                                {exam.role}
+                                            </span>
+                                        </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={enableConcerns ? "6" : "5"} className="px-6 py-12 text-center text-gray-400">
+                                    <td colSpan={enableConcerns ? "7" : "6"} className="px-6 py-12 text-center text-gray-400">
                                         <p className="text-lg mb-2">No exams found matching your search.</p>
                                         <button
                                             onClick={() => setSearchTerm('')}
@@ -271,7 +281,7 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
                                                     <div className="flex justify-between items-start">
                                                         <div>
                                                             <p className="text-sm font-bold text-gray-800">{session.courseUnit}</p>
-                                                            <p className="text-xs text-gray-500 mt-0.5">{getCourseTitle(session.courseUnit)}</p>
+                                                            <p className="text-xs text-gray-500 mt-0.5">{session.courseTitle || 'Unknown Title'}</p>
                                                             <p className="text-xs text-gray-500 mt-0.5">{formatDate(session.date)} • {session.time}</p>
                                                         </div>
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-white border border-gray-200 text-gray-600">

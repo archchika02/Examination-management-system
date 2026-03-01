@@ -2,32 +2,39 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 const AllocationsDashboard = () => {
-    // Mock Staff Database
-    const staffList = [
-        { id: 's1', name: 'Dr. Alan Smith', dept: 'CS' },
-        { id: 's2', name: 'Prof. Sarah Jones', dept: 'MATH' },
-        { id: 's3', name: 'Mr. James Doe', dept: 'CS' },
-        { id: 's4', name: 'Ms. Emily White', dept: 'ENG' },
-        { id: 's5', name: 'Dr. Robert Brown', dept: 'MATH' },
-    ];
-
-    const venuesList = [
-        { name: 'Main Hall', capacity: 120 },
-        { name: 'Room 201', capacity: 50 },
-        { name: 'Lab 1', capacity: 30 },
-    ];
+    const [staffList, setStaffList] = useState([]);
+    const [attendantList, setAttendantList] = useState([]);
 
     const [exams, setExams] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchAllocations = async () => {
+        const fetchAllocationsAndDrafts = async () => {
             try {
+                // Fetch staff
+                const staffRes = await fetch('http://localhost:5000/api/configurations/allocation-staff');
+                if (staffRes.ok) {
+                    const allStaff = await staffRes.json();
+
+                    // Split supervisors/invigilators from attendants
+                    const supervisors = allStaff.filter(s => s.dept === 'DeptStaff' || s.dept === 'AcademicSupervisor');
+                    const attendants = allStaff.filter(s => s.dept === 'HallAttendant');
+
+                    setStaffList(supervisors);
+                    setAttendantList(attendants);
+                }
+
                 const response = await fetch('http://localhost:5000/api/configurations/allocations-dashboard');
+                const draftsRes = await fetch('http://localhost:5000/api/configurations/allocation-drafts');
+
+                let drafts = [];
+                if (draftsRes.ok) {
+                    drafts = await draftsRes.json();
+                }
+
                 if (response.ok) {
                     const data = await response.json();
                     const formattedExams = data.map(exam => {
-                        // Formatter for time display
                         const endParts = exam.endTime ? exam.endTime.split(':') : [];
                         let endString = exam.endTime;
                         if (endParts.length >= 2) {
@@ -39,6 +46,31 @@ const AllocationsDashboard = () => {
                             endString = `${endHour}:${endMin} ${ampm}`;
                         }
 
+                        const examDrafts = drafts.filter(d => d.exam_id === exam.examId);
+
+                        let mappedAllocations = [];
+                        if (examDrafts.length > 0) {
+                            mappedAllocations = examDrafts.map(d => ({
+                                id: `alloc-${d.id}`,
+                                venue: d.venue,
+                                assignedNonRepeat: d.assignedNonRepeat,
+                                assignedRepeat: d.assignedRepeat,
+                                supervisor: d.supervisor ? String(d.supervisor) : '',
+                                invigilators: d.invigilators ? d.invigilators.map(String) : [],
+                                attendants: d.attendants ? d.attendants.map(String) : []
+                            }));
+                        } else {
+                            mappedAllocations = [{
+                                id: `alloc-${exam.allocId}`,
+                                venue: '',
+                                assignedNonRepeat: 0,
+                                assignedRepeat: 0,
+                                supervisor: '',
+                                invigilators: [],
+                                attendants: []
+                            }];
+                        }
+
                         return {
                             id: exam.examId,
                             date: exam.date,
@@ -46,31 +78,20 @@ const AllocationsDashboard = () => {
                             course: exam.course,
                             totalNonRepeat: exam.totalNonRepeat || 0,
                             totalRepeat: exam.totalRepeat || 0,
-                            allocations: [
-                                {
-                                    id: `alloc-${exam.allocId}`,
-                                    venue: '',
-                                    assignedNonRepeat: 0,
-                                    assignedRepeat: 0,
-                                    supervisor: '',
-                                    invigilator: '',
-                                    attendants: 'Not Assigned'
-                                }
-                            ]
+                            allocations: mappedAllocations
                         };
                     });
                     setExams(formattedExams);
                 }
             } catch (error) {
-                console.error("Failed to fetch allocations data:", error);
+                console.error("Failed to fetch data:", error);
             } finally {
                 setLoading(false);
             }
         };
-        fetchAllocations();
+        fetchAllocationsAndDrafts();
     }, []);
 
-    // Helper: Check for conflicts
     // Helper: Check for conflicts
     const checkConflict = (staffId, examDate, examTime, currentAllocationId, role, currentAlloc) => {
         if (!staffId) return false;
@@ -80,7 +101,8 @@ const AllocationsDashboard = () => {
             if (exam.date === examDate && exam.time === examTime) {
                 for (const alloc of exam.allocations) {
                     if (alloc.id !== currentAllocationId) {
-                        if (alloc.supervisor === staffId || alloc.invigilator === staffId) return 'Overlap';
+                        if (alloc.supervisor === staffId) return 'Overlap';
+                        if (alloc.invigilators && alloc.invigilators.includes(staffId)) return 'Overlap';
                     }
                 }
             }
@@ -89,29 +111,46 @@ const AllocationsDashboard = () => {
         // 2. Intra-Allocation Conflicts (Same Venue/Row)
         if (currentAlloc) {
             const supervisorId = role === 'supervisor' ? staffId : currentAlloc.supervisor;
-            const invigilatorId = role === 'invigilator' ? staffId : currentAlloc.invigilator;
+            const invigilatorIds = role === 'invigilators' ? [staffId] : (currentAlloc.invigilators || []);
 
-            if (supervisorId && invigilatorId) {
-                // Self-Conflict: Same person
-                if (supervisorId === invigilatorId) return 'Self';
+            if (supervisorId && invigilatorIds.includes(supervisorId)) {
+                return 'Self';
             }
         }
 
         return false;
     };
 
-    const handleSaveDraft = () => {
-        console.log("Saving draft:", exams);
+    const handleSaveDraft = async () => {
         const btn = document.getElementById('save-draft-btn');
         if (btn) {
-            const originalText = btn.innerText;
             btn.innerText = "Saving...";
-            setTimeout(() => {
-                btn.innerText = "Saved! ✓";
-                setTimeout(() => btn.innerText = originalText, 2000);
-            }, 800);
+            btn.disabled = true;
         }
-        localStorage.setItem('allocationDraft', JSON.stringify(exams));
+
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/save-allocation-draft', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ exams })
+            });
+
+            if (response.ok) {
+                if (btn) btn.innerText = "Saved! ✓";
+            } else {
+                if (btn) btn.innerText = "Error!";
+            }
+        } catch (err) {
+            console.error(err);
+            if (btn) btn.innerText = "Error!";
+        } finally {
+            if (btn) {
+                setTimeout(() => {
+                    btn.innerText = "Save Draft";
+                    btn.disabled = false;
+                }, 2000);
+            }
+        }
     };
 
     const handleAddVenue = (examId) => {
@@ -127,8 +166,8 @@ const AllocationsDashboard = () => {
                             assignedNonRepeat: 0,
                             assignedRepeat: 0,
                             supervisor: '',
-                            invigilator: '',
-                            attendants: 'Not Assigned', // Read-only from faculty
+                            invigilators: [],
+                            attendants: [],
                         }
                     ]
                 };
@@ -230,6 +269,29 @@ const AllocationsDashboard = () => {
         });
     };
 
+    const handlePublishTimetables = async () => {
+        if (!window.confirm("Are you sure you want to publish these allocations? This will make them visible to all assigned staff.")) {
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/publish-timetables', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (response.ok) {
+                alert("Timetables published successfully!");
+            } else {
+                const errorData = await response.json();
+                alert(`Failed to publish: ${errorData.message}`);
+            }
+        } catch (error) {
+            console.error("Error publishing timetables:", error);
+            alert("An error occurred while publishing timetables.");
+        }
+    };
+
     return (
         <>
             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 flex flex-col h-full overflow-hidden animate-fade-in-up">
@@ -240,7 +302,9 @@ const AllocationsDashboard = () => {
                         <p className="text-sm text-gray-500 mt-1">Manage exam venues and staff assignments.</p>
                     </div>
                     <div>
-                        <button className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-all text-sm flex items-center">
+                        <button
+                            onClick={handlePublishTimetables}
+                            className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-all text-sm flex items-center">
                             <span className="mr-2">🗓️</span> Publish Personalized Timetable
                         </button>
                     </div>
@@ -288,7 +352,17 @@ const AllocationsDashboard = () => {
                                             // Conflict Detection
                                             // Conflict Detection
                                             const supervisorConflict = checkConflict(alloc.supervisor, exam.date, exam.time, alloc.id, 'supervisor', alloc);
-                                            const invigilatorConflict = checkConflict(alloc.invigilator, exam.date, exam.time, alloc.id, 'invigilator', alloc);
+                                            // Array overlap detection for invigilators
+                                            let invigilatorConflict = false;
+                                            if (alloc.invigilators && alloc.invigilators.length > 0) {
+                                                for (const invigId of alloc.invigilators) {
+                                                    const conflict = checkConflict(invigId, exam.date, exam.time, alloc.id, 'invigilator', alloc);
+                                                    if (conflict) {
+                                                        invigilatorConflict = conflict;
+                                                        break;
+                                                    }
+                                                }
+                                            }
 
                                             const getConflictTitle = (code) => {
                                                 if (code === 'Overlap') return 'Staff is busy in another venue at this time';
@@ -327,16 +401,13 @@ const AllocationsDashboard = () => {
 
                                                     {/* Venue Logic */}
                                                     <td className="px-4 py-3 align-top">
-                                                        <select
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Enter Venue"
                                                             value={alloc.venue}
                                                             onChange={(e) => updateAllocation(exam.id, alloc.id, 'venue', e.target.value)}
                                                             className="w-full text-sm border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                                                        >
-                                                            <option value="">Select Venue...</option>
-                                                            {venuesList.map(v => (
-                                                                <option key={v.name} value={v.name}>{v.name} ({v.capacity})</option>
-                                                            ))}
-                                                        </select>
+                                                        />
                                                         {!isFirst && (
                                                             <button onClick={() => handleRemoveVenue(exam.id, alloc.id)} className="text-xs text-red-400 hover:text-red-600 mt-1 flex items-center">
                                                                 <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
@@ -382,29 +453,69 @@ const AllocationsDashboard = () => {
                                                         </div>
                                                     </td>
 
-                                                    {/* Staffing: Invigilator (Single Selection) */}
+                                                    {/* Staffing: Invigilator (Multiple Selection) */}
                                                     <td className="px-4 py-3 align-top relative">
                                                         <div className={`relative ${invigilatorConflict ? 'ring-2 ring-red-400 rounded-md' : ''}`}>
-                                                            <select
-                                                                value={alloc.invigilator}
-                                                                onChange={(e) => updateAllocation(exam.id, alloc.id, 'invigilator', e.target.value)}
-                                                                className="w-full text-xs border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                            >
-                                                                <option value="">None (or Select One)</option>
-                                                                {staffList.map(s => (
-                                                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                                            <div className="w-full max-h-24 overflow-y-auto border border-gray-200 rounded-md bg-white p-1">
+                                                                {staffList.length === 0 && <div className="text-xs text-gray-400 p-1">No staff</div>}
+                                                                {[...staffList].sort((a, b) => {
+                                                                    const aSelected = (alloc.invigilators || []).includes(String(a.id));
+                                                                    const bSelected = (alloc.invigilators || []).includes(String(b.id));
+                                                                    if (aSelected && !bSelected) return -1;
+                                                                    if (!aSelected && bSelected) return 1;
+                                                                    return a.name.localeCompare(b.name);
+                                                                }).map(s => (
+                                                                    <label key={s.id} className="flex items-center space-x-2 text-xs p-1 hover:bg-indigo-50 rounded cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-3 h-3"
+                                                                            checked={(alloc.invigilators || []).includes(String(s.id))}
+                                                                            onChange={(e) => {
+                                                                                const current = alloc.invigilators || [];
+                                                                                const newValues = e.target.checked
+                                                                                    ? [...current, String(s.id)]
+                                                                                    : current.filter(id => id !== String(s.id));
+                                                                                updateAllocation(exam.id, alloc.id, 'invigilators', newValues);
+                                                                            }}
+                                                                        />
+                                                                        <span>{s.name} <span className="text-gray-400">({s.dept})</span></span>
+                                                                    </label>
                                                                 ))}
-                                                            </select>
+                                                            </div>
                                                             {invigilatorConflict && (
                                                                 <div className="absolute top-0 right-0 -mt-2 -mr-2 text-red-500 bg-white rounded-full p-0.5 shadow-sm text-xs cursor-help" title={getConflictTitle(invigilatorConflict)}>⚠️</div>
                                                             )}
                                                         </div>
                                                     </td>
 
-                                                    <td className="px-4 py-3 align-top">
-                                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded block truncate" title={alloc.attendants}>
-                                                            {alloc.attendants}
-                                                        </span>
+                                                    {/* Staffing: Attendants (Multiple Selection) */}
+                                                    <td className="px-4 py-3 align-top relative">
+                                                        <div className="w-full max-h-24 overflow-y-auto border border-gray-200 rounded-md bg-white p-1">
+                                                            {attendantList.length === 0 && <div className="text-xs text-gray-400 p-1">No staff</div>}
+                                                            {[...attendantList].sort((a, b) => {
+                                                                const aSelected = (alloc.attendants || []).includes(String(a.id));
+                                                                const bSelected = (alloc.attendants || []).includes(String(b.id));
+                                                                if (aSelected && !bSelected) return -1;
+                                                                if (!aSelected && bSelected) return 1;
+                                                                return a.name.localeCompare(b.name);
+                                                            }).map(a => (
+                                                                <label key={a.id} className="flex items-center space-x-2 text-xs p-1 hover:bg-gray-50 rounded cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-3 h-3"
+                                                                        checked={(alloc.attendants || []).includes(String(a.id))}
+                                                                        onChange={(e) => {
+                                                                            const current = alloc.attendants || [];
+                                                                            const newValues = e.target.checked
+                                                                                ? [...current, String(a.id)]
+                                                                                : current.filter(id => id !== String(a.id));
+                                                                            updateAllocation(exam.id, alloc.id, 'attendants', newValues);
+                                                                        }}
+                                                                    />
+                                                                    <span>{a.name}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
                                                     </td>
 
                                                     <td className="px-1 py-3 align-middle text-center">

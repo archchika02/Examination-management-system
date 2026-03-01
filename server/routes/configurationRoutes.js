@@ -432,4 +432,239 @@ router.get('/allocations-dashboard', async (req, res) => {
     }
 });
 
+// Fetch Staff list for allocations
+router.get('/allocation-staff', async (req, res) => {
+    try {
+        const query = `
+            SELECT user_id as id, name, role as dept 
+            FROM users 
+            WHERE role IN ('DeptStaff', 'AcademicSupervisor') 
+            AND approval_status = 'Approved' 
+            AND is_verified = 1
+        `;
+        const [rows] = await pool.query(query);
+        res.json(rows);
+    } catch (err) {
+        console.error('Error fetching staff list:', err);
+        res.status(500).json({ message: 'Error fetching staff', error: err.message });
+    }
+});
+
+// Fetch Allocation Drafts
+router.get('/allocation-drafts', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                a.alloc_id as id,
+                a.exam_id,
+                a.venue,
+                a.assigned_non_repeat as assignedNonRepeat,
+                a.assigned_repeat as assignedRepeat,
+                CASE WHEN su.is_verified = 1 AND su.approval_status = 'Approved' THEN a.supervisor_id ELSE NULL END as supervisor,
+                (
+                    SELECT GROUP_CONCAT(i.invigilator_id) 
+                    FROM exam_draft_invigilators i 
+                    JOIN users u ON i.invigilator_id = u.user_id
+                    WHERE i.alloc_id = a.alloc_id 
+                    AND u.role IN ('DeptStaff', 'AcademicSupervisor') 
+                    AND u.approval_status = 'Approved' 
+                    AND u.is_verified = 1
+                ) as invigilators,
+                (
+                    SELECT GROUP_CONCAT(at.attendant_id) 
+                    FROM exam_draft_attendants at 
+                    JOIN users u ON at.attendant_id = u.user_id
+                    WHERE at.alloc_id = a.alloc_id 
+                    AND u.role IN ('HallAttendant') 
+                    AND u.approval_status = 'Approved' 
+                    AND u.is_verified = 1
+                ) as attendants
+            FROM exam_draft_allocations a
+            LEFT JOIN users su ON a.supervisor_id = su.user_id
+        `;
+        const [rows] = await pool.query(query);
+
+        // process array links
+        const drafts = rows.map(r => ({
+            ...r,
+            invigilators: r.invigilators ? r.invigilators.split(',').map(Number) : [],
+            attendants: r.attendants ? r.attendants.split(',').map(Number) : []
+        }));
+
+        res.json(drafts);
+    } catch (err) {
+        console.error('Error fetching drafts:', err);
+        res.status(500).json({ message: 'Error fetching drafts', error: err.message });
+    }
+});
+
+// Save Allocation Drafts
+router.post('/save-allocation-draft', async (req, res) => {
+    const { exams } = req.body;
+
+    if (!exams || !Array.isArray(exams)) {
+        return res.status(400).json({ message: 'Invalid payload' });
+    }
+
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        const examIds = exams.map(e => e.id);
+        if (examIds.length > 0) {
+            // Force wipe Old Invigilators associated with these exams first to avoid orphaned records
+            await connection.query(`
+                DELETE FROM exam_draft_invigilators 
+                WHERE alloc_id IN (
+                    SELECT alloc_id FROM exam_draft_allocations WHERE exam_id IN (?)
+                )
+            `, [examIds]);
+
+            // Force wipe Old Attendants
+            await connection.query(`
+                DELETE FROM exam_draft_attendants 
+                WHERE alloc_id IN (
+                    SELECT alloc_id FROM exam_draft_allocations WHERE exam_id IN (?)
+                )
+            `, [examIds]);
+
+            // Then wipe the old allocations
+            await connection.query('DELETE FROM exam_draft_allocations WHERE exam_id IN (?)', [examIds]);
+        }
+
+        // Fetch valid staff to filter out stale frontend payload drafts
+        const [validStaff] = await connection.query(`
+            SELECT user_id, role FROM users 
+            WHERE role IN ('DeptStaff', 'AcademicSupervisor', 'HallAttendant') 
+            AND approval_status = 'Approved' 
+            AND is_verified = 1
+        `);
+        const validSupervisors = new Set(validStaff.filter(s => ['DeptStaff', 'AcademicSupervisor'].includes(s.role)).map(u => Number(u.user_id)));
+        const validAttendants = new Set(validStaff.filter(s => s.role === 'HallAttendant').map(u => Number(u.user_id)));
+
+        for (const exam of exams) {
+            for (const alloc of exam.allocations) {
+                // Ensure supervisor is still valid
+                const supervisorId = (alloc.supervisor && validSupervisors.has(Number(alloc.supervisor)))
+                    ? alloc.supervisor
+                    : null;
+
+                const [result] = await connection.execute(
+                    `INSERT INTO exam_draft_allocations 
+                    (exam_id, venue, assigned_non_repeat, assigned_repeat, supervisor_id) 
+                    VALUES (?, ?, ?, ?, ?)`,
+                    [
+                        exam.id,
+                        alloc.venue || '',
+                        alloc.assignedNonRepeat || 0,
+                        alloc.assignedRepeat || 0,
+                        supervisorId
+                    ]
+                );
+
+                const newAllocId = result.insertId;
+
+                // Handle multiple invigilators explicitly validating each
+                if (alloc.invigilators && Array.isArray(alloc.invigilators)) {
+                    for (const invigId of alloc.invigilators) {
+                        if (invigId && validSupervisors.has(Number(invigId))) {
+                            await connection.execute(
+                                `INSERT INTO exam_draft_invigilators (alloc_id, invigilator_id) VALUES (?, ?)`,
+                                [newAllocId, invigId]
+                            );
+                        }
+                    }
+                }
+
+                // Handle multiple attendants explicitly validating each
+                if (alloc.attendants && Array.isArray(alloc.attendants)) {
+                    for (const attendantId of alloc.attendants) {
+                        if (attendantId && validAttendants.has(Number(attendantId))) {
+                            await connection.execute(
+                                `INSERT INTO exam_draft_attendants (alloc_id, attendant_id) VALUES (?, ?)`,
+                                [newAllocId, attendantId]
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        await connection.commit();
+        res.json({ message: 'Draft saved successfully' });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Error saving draft:', err);
+        res.status(500).json({ message: 'Error saving draft', error: err.message });
+    } finally {
+        connection.release();
+    }
+});
+
+// Publish All Specific Drafted Timetables
+router.post('/publish-timetables', async (req, res) => {
+    try {
+        await pool.query('UPDATE exam_draft_allocations SET is_published = 1');
+        res.json({ message: 'Timetables published successfully!' });
+    } catch (err) {
+        console.error('Error publishing timetables:', err);
+        res.status(500).json({ message: 'Error publishing timetables', error: err.message });
+    }
+});
+
+// Get Personalized Timetable for a specific User
+router.get('/personalized-timetable/:userId', async (req, res) => {
+    const userId = req.params.userId;
+    try {
+        const query = `
+            SELECT 
+                et.date,
+                DATE_FORMAT(s.start_time, '%l:%i %p') AS time,
+                et.course_code as courseUnit,
+                c.title as courseTitle,
+                a.venue,
+                CASE 
+                    WHEN a.supervisor_id = ? THEN 'Supervisor'
+                    WHEN (SELECT COUNT(*) FROM exam_draft_invigilators i WHERE i.alloc_id = a.alloc_id AND i.invigilator_id = ?) > 0 THEN 'Invigilator'
+                    WHEN (SELECT COUNT(*) FROM exam_draft_attendants at WHERE at.alloc_id = a.alloc_id AND at.attendant_id = ?) > 0 THEN 'Hall Attendant'
+                    ELSE 'Staff'
+                END as role
+            FROM exam_draft_allocations a
+            JOIN exam_timetables et ON a.exam_id = et.timetable_id
+            JOIN exam_slots s ON et.timetable_id = s.timetable_id
+            LEFT JOIN courses c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+            WHERE a.is_published = 1
+            AND (
+                a.supervisor_id = ? 
+                OR EXISTS (SELECT 1 FROM exam_draft_invigilators i WHERE i.alloc_id = a.alloc_id AND i.invigilator_id = ?)
+                OR EXISTS (SELECT 1 FROM exam_draft_attendants at WHERE at.alloc_id = a.alloc_id AND at.attendant_id = ?)
+            )
+            ORDER BY et.date ASC, s.start_time ASC
+        `;
+        const [rows] = await pool.query(query, [userId, userId, userId, userId, userId, userId]);
+
+        // Format dates just like the frontend expects 'YYYY-MM-DD'
+        const formattedRows = rows.map((r, index) => {
+            const dateObj = new Date(r.date);
+            // Adjust timezone offset to preserve local YYYY-MM-DD
+            const localDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000));
+            return {
+                id: index + 1,
+                date: localDate.toISOString().split('T')[0],
+                time: r.time,
+                courseUnit: r.courseUnit,
+                courseTitle: r.courseTitle,
+                venue: r.venue,
+                role: r.role
+            };
+        });
+
+        res.json(formattedRows);
+    } catch (err) {
+        console.error('Error fetching personalized timetable:', err);
+        res.status(500).json({ message: 'Error fetching personalized timetable', error: err.message });
+    }
+});
+
 module.exports = router;
