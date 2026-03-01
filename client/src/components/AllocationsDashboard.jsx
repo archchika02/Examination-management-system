@@ -78,6 +78,7 @@ const AllocationsDashboard = () => {
                             course: exam.course,
                             totalNonRepeat: exam.totalNonRepeat || 0,
                             totalRepeat: exam.totalRepeat || 0,
+                            examiner1Id: exam.examiner1Id || null,
                             allocations: mappedAllocations
                         };
                     });
@@ -349,7 +350,11 @@ const AllocationsDashboard = () => {
                                             const rowClass = isFirst ? "bg-white" : "bg-gray-50/30";
                                             const borderClass = index === exam.allocations.length - 1 ? "border-b-2 border-gray-200" : "border-b border-gray-100 dashed";
 
-                                            // Conflict Detection
+                                            // Examiner 1 Missing Conflict
+                                            const missingExaminer1 = isFirst && exam.examiner1Id && !exam.allocations.some(a =>
+                                                a.supervisor == exam.examiner1Id || (a.invigilators && a.invigilators.includes(String(exam.examiner1Id)))
+                                            );
+
                                             // Conflict Detection
                                             const supervisorConflict = checkConflict(alloc.supervisor, exam.date, exam.time, alloc.id, 'supervisor', alloc);
                                             // Array overlap detection for invigilators
@@ -371,165 +376,179 @@ const AllocationsDashboard = () => {
                                             };
 
                                             return (
-                                                <tr key={alloc.id} className={`${rowClass} ${borderClass} hover:bg-gray-50 transition-colors group`}>
-                                                    {/* Common Exam Info (Only show on first row) */}
-                                                    <td className="px-4 py-3 text-sm text-gray-900 font-medium align-top">
-                                                        {isFirst && exam.date}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm text-gray-500 align-top">
-                                                        {isFirst && exam.time}
-                                                    </td>
-                                                    <td className="px-4 py-3 align-top">
-                                                        {isFirst && (
-                                                            <div>
-                                                                <div className="text-sm font-bold text-gray-800">{exam.course.split(' - ')[0]}</div>
-                                                                <div className="text-xs text-gray-500">{exam.course.split(' - ')[1]}</div>
-                                                            </div>
-                                                        )}
-                                                    </td>
-
-                                                    {/* Fixed Totals */}
-                                                    <td className="px-4 py-3 text-sm text-gray-500 align-top bg-gray-50/50 border-r border-gray-200">
-                                                        {isFirst && exam.totalNonRepeat}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm text-gray-500 align-top bg-gray-50/50 border-r border-gray-200">
-                                                        {isFirst && exam.totalRepeat}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-sm font-bold text-gray-800 align-top bg-gray-50/50 border-r-2 border-gray-300">
-                                                        {isFirst && (exam.totalNonRepeat + exam.totalRepeat)}
-                                                    </td>
-
-                                                    {/* Venue Logic */}
-                                                    <td className="px-4 py-3 align-top">
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Enter Venue"
-                                                            value={alloc.venue}
-                                                            onChange={(e) => updateAllocation(exam.id, alloc.id, 'venue', e.target.value)}
-                                                            className="w-full text-sm border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-                                                        />
-                                                        {!isFirst && (
-                                                            <button onClick={() => handleRemoveVenue(exam.id, alloc.id)} className="text-xs text-red-400 hover:text-red-600 mt-1 flex items-center">
-                                                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                                Remove
-                                                            </button>
-                                                        )}
-                                                    </td>
-
-                                                    {/* Allocated Student Counts */}
-                                                    <td className="px-4 py-3 align-top">
-                                                        <input
-                                                            type="number"
-                                                            className="w-20 text-sm border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                            value={alloc.assignedNonRepeat}
-                                                            onChange={(e) => updateAllocation(exam.id, alloc.id, 'assignedNonRepeat', parseInt(e.target.value) || 0)}
-                                                        />
-                                                    </td>
-                                                    <td className="px-4 py-3 align-top">
-                                                        <input
-                                                            type="number"
-                                                            className="w-20 text-sm border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                            value={alloc.assignedRepeat}
-                                                            onChange={(e) => updateAllocation(exam.id, alloc.id, 'assignedRepeat', parseInt(e.target.value) || 0)}
-                                                        />
-                                                    </td>
-
-                                                    {/* Staffing: Supervisor */}
-                                                    <td className="px-4 py-3 align-top relative">
-                                                        <div className={`relative ${supervisorConflict ? 'ring-2 ring-red-400 rounded-md' : ''}`}>
-                                                            <select
-                                                                value={alloc.supervisor}
-                                                                onChange={(e) => updateAllocation(exam.id, alloc.id, 'supervisor', e.target.value)}
-                                                                className="w-full text-xs border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                            >
-                                                                <option value="">Select Supervisor...</option>
-                                                                {staffList.map(s => (
-                                                                    <option key={s.id} value={s.id}>{s.name}</option>
-                                                                ))}
-                                                            </select>
-                                                            {supervisorConflict && (
-                                                                <div className="absolute top-0 right-0 -mt-2 -mr-2 text-red-500 bg-white rounded-full p-0.5 shadow-sm text-xs cursor-help" title={getConflictTitle(supervisorConflict)}>⚠️</div>
+                                                <React.Fragment key={alloc.id}>
+                                                    {missingExaminer1 && (
+                                                        <tr>
+                                                            <td colSpan="11" className="px-4 py-2 bg-red-50 text-red-700 text-xs font-semibold border-b border-red-200 uppercase tracking-wide">
+                                                                ⚠️ Action Required: The assigned Examiner 1 for this course must be appointed as a Supervisor or Invigilator.
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                    <tr className={`${rowClass} ${borderClass} hover:bg-gray-50 transition-colors group`}>
+                                                        {/* Common Exam Info (Only show on first row) */}
+                                                        <td className="px-4 py-3 text-sm text-gray-900 font-medium align-top">
+                                                            {isFirst && exam.date}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-500 align-top">
+                                                            {isFirst && exam.time}
+                                                        </td>
+                                                        <td className="px-4 py-3 align-top">
+                                                            {isFirst && (
+                                                                <div>
+                                                                    <div className="text-sm font-bold text-gray-800">{exam.course.split(' - ')[0]}</div>
+                                                                    <div className="text-xs text-gray-500">{exam.course.split(' - ')[1]}</div>
+                                                                </div>
                                                             )}
-                                                        </div>
-                                                    </td>
+                                                        </td>
 
-                                                    {/* Staffing: Invigilator (Multiple Selection) */}
-                                                    <td className="px-4 py-3 align-top relative">
-                                                        <div className={`relative ${invigilatorConflict ? 'ring-2 ring-red-400 rounded-md' : ''}`}>
+                                                        {/* Fixed Totals */}
+                                                        <td className="px-4 py-3 text-sm text-gray-500 align-top bg-gray-50/50 border-r border-gray-200">
+                                                            {isFirst && exam.totalNonRepeat}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-500 align-top bg-gray-50/50 border-r border-gray-200">
+                                                            {isFirst && exam.totalRepeat}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm font-bold text-gray-800 align-top bg-gray-50/50 border-r-2 border-gray-300">
+                                                            {isFirst && (exam.totalNonRepeat + exam.totalRepeat)}
+                                                        </td>
+
+                                                        {/* Venue Logic */}
+                                                        <td className="px-4 py-3 align-top">
+                                                            <input
+                                                                type="text"
+                                                                placeholder="Enter Venue"
+                                                                value={alloc.venue}
+                                                                onChange={(e) => updateAllocation(exam.id, alloc.id, 'venue', e.target.value)}
+                                                                className="w-full text-sm border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                                                            />
+                                                            {!isFirst && (
+                                                                <button onClick={() => handleRemoveVenue(exam.id, alloc.id)} className="text-xs text-red-400 hover:text-red-600 mt-1 flex items-center">
+                                                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                                    Remove
+                                                                </button>
+                                                            )}
+                                                        </td>
+
+                                                        {/* Allocated Student Counts */}
+                                                        <td className="px-4 py-3 align-top">
+                                                            <input
+                                                                type="number"
+                                                                className="w-20 text-sm border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                                value={alloc.assignedNonRepeat}
+                                                                onChange={(e) => updateAllocation(exam.id, alloc.id, 'assignedNonRepeat', parseInt(e.target.value) || 0)}
+                                                            />
+                                                        </td>
+                                                        <td className="px-4 py-3 align-top">
+                                                            <input
+                                                                type="number"
+                                                                className="w-20 text-sm border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                                value={alloc.assignedRepeat}
+                                                                onChange={(e) => updateAllocation(exam.id, alloc.id, 'assignedRepeat', parseInt(e.target.value) || 0)}
+                                                            />
+                                                        </td>
+
+                                                        {/* Staffing: Supervisor */}
+                                                        <td className="px-4 py-3 align-top relative">
+                                                            <div className={`relative ${supervisorConflict ? 'ring-2 ring-red-400 rounded-md' : ''}`}>
+                                                                <select
+                                                                    value={alloc.supervisor}
+                                                                    onChange={(e) => updateAllocation(exam.id, alloc.id, 'supervisor', e.target.value)}
+                                                                    className="w-full text-xs border-gray-200 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                                >
+                                                                    <option value="">Select Supervisor...</option>
+                                                                    {staffList.map(s => (
+                                                                        <option key={s.id} value={s.id}>
+                                                                            {s.name} {s.id === exam.examiner1Id ? '⭐ (Examiner 1)' : ''}
+                                                                        </option>
+                                                                    ))}
+                                                                </select>
+                                                                {supervisorConflict && (
+                                                                    <div className="absolute top-0 right-0 -mt-2 -mr-2 text-red-500 bg-white rounded-full p-0.5 shadow-sm text-xs cursor-help" title={getConflictTitle(supervisorConflict)}>⚠️</div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        {/* Staffing: Invigilator (Multiple Selection) */}
+                                                        <td className="px-4 py-3 align-top relative">
+                                                            <div className={`relative ${invigilatorConflict ? 'ring-2 ring-red-400 rounded-md' : ''}`}>
+                                                                <div className="w-full max-h-24 overflow-y-auto border border-gray-200 rounded-md bg-white p-1">
+                                                                    {staffList.length === 0 && <div className="text-xs text-gray-400 p-1">No staff</div>}
+                                                                    {[...staffList].sort((a, b) => {
+                                                                        const aSelected = (alloc.invigilators || []).includes(String(a.id));
+                                                                        const bSelected = (alloc.invigilators || []).includes(String(b.id));
+                                                                        if (aSelected && !bSelected) return -1;
+                                                                        if (!aSelected && bSelected) return 1;
+                                                                        return a.name.localeCompare(b.name);
+                                                                    }).map(s => (
+                                                                        <label key={s.id} className={`flex items-center space-x-2 text-xs p-1 rounded cursor-pointer transition-colors ${s.id === exam.examiner1Id
+                                                                            ? 'bg-yellow-50 hover:bg-yellow-100 font-semibold border border-yellow-200 text-yellow-800'
+                                                                            : 'hover:bg-indigo-50 text-gray-700'
+                                                                            }`}>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-3 h-3"
+                                                                                checked={(alloc.invigilators || []).includes(String(s.id))}
+                                                                                onChange={(e) => {
+                                                                                    const current = alloc.invigilators || [];
+                                                                                    const newValues = e.target.checked
+                                                                                        ? [...current, String(s.id)]
+                                                                                        : current.filter(id => id !== String(s.id));
+                                                                                    updateAllocation(exam.id, alloc.id, 'invigilators', newValues);
+                                                                                }}
+                                                                            />
+                                                                            <span>{s.name} {s.id === exam.examiner1Id ? '⭐' : ''} <span className="text-gray-400 font-normal">({s.dept})</span></span>
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                                {invigilatorConflict && (
+                                                                    <div className="absolute top-0 right-0 -mt-2 -mr-2 text-red-500 bg-white rounded-full p-0.5 shadow-sm text-xs cursor-help" title={getConflictTitle(invigilatorConflict)}>⚠️</div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        {/* Staffing: Attendants (Multiple Selection) */}
+                                                        <td className="px-4 py-3 align-top relative">
                                                             <div className="w-full max-h-24 overflow-y-auto border border-gray-200 rounded-md bg-white p-1">
-                                                                {staffList.length === 0 && <div className="text-xs text-gray-400 p-1">No staff</div>}
-                                                                {[...staffList].sort((a, b) => {
-                                                                    const aSelected = (alloc.invigilators || []).includes(String(a.id));
-                                                                    const bSelected = (alloc.invigilators || []).includes(String(b.id));
+                                                                {attendantList.length === 0 && <div className="text-xs text-gray-400 p-1">No staff</div>}
+                                                                {[...attendantList].sort((a, b) => {
+                                                                    const aSelected = (alloc.attendants || []).includes(String(a.id));
+                                                                    const bSelected = (alloc.attendants || []).includes(String(b.id));
                                                                     if (aSelected && !bSelected) return -1;
                                                                     if (!aSelected && bSelected) return 1;
                                                                     return a.name.localeCompare(b.name);
-                                                                }).map(s => (
-                                                                    <label key={s.id} className="flex items-center space-x-2 text-xs p-1 hover:bg-indigo-50 rounded cursor-pointer">
+                                                                }).map(a => (
+                                                                    <label key={a.id} className="flex items-center space-x-2 text-xs p-1 hover:bg-gray-50 rounded cursor-pointer">
                                                                         <input
                                                                             type="checkbox"
-                                                                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-3 h-3"
-                                                                            checked={(alloc.invigilators || []).includes(String(s.id))}
+                                                                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-3 h-3"
+                                                                            checked={(alloc.attendants || []).includes(String(a.id))}
                                                                             onChange={(e) => {
-                                                                                const current = alloc.invigilators || [];
+                                                                                const current = alloc.attendants || [];
                                                                                 const newValues = e.target.checked
-                                                                                    ? [...current, String(s.id)]
-                                                                                    : current.filter(id => id !== String(s.id));
-                                                                                updateAllocation(exam.id, alloc.id, 'invigilators', newValues);
+                                                                                    ? [...current, String(a.id)]
+                                                                                    : current.filter(id => id !== String(a.id));
+                                                                                updateAllocation(exam.id, alloc.id, 'attendants', newValues);
                                                                             }}
                                                                         />
-                                                                        <span>{s.name} <span className="text-gray-400">({s.dept})</span></span>
+                                                                        <span>{a.name}</span>
                                                                     </label>
                                                                 ))}
                                                             </div>
-                                                            {invigilatorConflict && (
-                                                                <div className="absolute top-0 right-0 -mt-2 -mr-2 text-red-500 bg-white rounded-full p-0.5 shadow-sm text-xs cursor-help" title={getConflictTitle(invigilatorConflict)}>⚠️</div>
+                                                        </td>
+
+                                                        <td className="px-1 py-3 align-middle text-center">
+                                                            {isFirst && (
+                                                                <button
+                                                                    onClick={() => handleAddVenue(exam.id)}
+                                                                    className="p-1 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shadow-sm"
+                                                                    title="Add Venue Split"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                                                                </button>
                                                             )}
-                                                        </div>
-                                                    </td>
-
-                                                    {/* Staffing: Attendants (Multiple Selection) */}
-                                                    <td className="px-4 py-3 align-top relative">
-                                                        <div className="w-full max-h-24 overflow-y-auto border border-gray-200 rounded-md bg-white p-1">
-                                                            {attendantList.length === 0 && <div className="text-xs text-gray-400 p-1">No staff</div>}
-                                                            {[...attendantList].sort((a, b) => {
-                                                                const aSelected = (alloc.attendants || []).includes(String(a.id));
-                                                                const bSelected = (alloc.attendants || []).includes(String(b.id));
-                                                                if (aSelected && !bSelected) return -1;
-                                                                if (!aSelected && bSelected) return 1;
-                                                                return a.name.localeCompare(b.name);
-                                                            }).map(a => (
-                                                                <label key={a.id} className="flex items-center space-x-2 text-xs p-1 hover:bg-gray-50 rounded cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-3 h-3"
-                                                                        checked={(alloc.attendants || []).includes(String(a.id))}
-                                                                        onChange={(e) => {
-                                                                            const current = alloc.attendants || [];
-                                                                            const newValues = e.target.checked
-                                                                                ? [...current, String(a.id)]
-                                                                                : current.filter(id => id !== String(a.id));
-                                                                            updateAllocation(exam.id, alloc.id, 'attendants', newValues);
-                                                                        }}
-                                                                    />
-                                                                    <span>{a.name}</span>
-                                                                </label>
-                                                            ))}
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="px-1 py-3 align-middle text-center">
-                                                        {isFirst && (
-                                                            <button
-                                                                onClick={() => handleAddVenue(exam.id)}
-                                                                className="p-1 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shadow-sm"
-                                                                title="Add Venue Split"
-                                                            >
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-                                                            </button>
-                                                        )}
-                                                    </td>
-                                                </tr>
+                                                        </td>
+                                                    </tr>
+                                                </React.Fragment>
                                             );
                                         })}
                                     </React.Fragment>

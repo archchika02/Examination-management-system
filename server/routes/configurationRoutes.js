@@ -417,10 +417,16 @@ router.get('/allocations-dashboard', async (req, res) => {
                 s.end_time AS endTime, 
                 CONCAT(t.course_code, COALESCE(CONCAT(' - ', c.title), '')) AS course,
                 s.std_non_repeat AS totalNonRepeat, 
-                s.std_repeat AS totalRepeat
+                s.std_repeat AS totalRepeat,
+                ea.user_id AS examiner1Id
             FROM exam_timetables t
             JOIN exam_slots s ON t.timetable_id = s.timetable_id
             LEFT JOIN courses c ON REPLACE(t.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+            LEFT JOIN examiner_appointments ea 
+                ON REPLACE(t.course_code, ' ', '') = REPLACE(ea.course_code, ' ', '') 
+                AND t.academic_year = ea.academic_year 
+                AND ea.examiner_role = 'Examiner 1' 
+                AND ea.status = 'Active'
             WHERE t.is_submitted = TRUE AND s.start_time IS NOT NULL AND s.end_time IS NOT NULL
             ORDER BY t.date ASC, s.start_time ASC
         `;
@@ -664,6 +670,124 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
     } catch (err) {
         console.error('Error fetching personalized timetable:', err);
         res.status(500).json({ message: 'Error fetching personalized timetable', error: err.message });
+    }
+});
+
+// ==========================================
+// EXAMINER ASSIGNMENTS
+// ==========================================
+
+// Get eligible staff for Examiner Assignments
+router.get('/examiner-staff', async (req, res) => {
+    try {
+        const query = `
+            SELECT user_id as id, name, email
+            FROM users 
+            WHERE role IN ('DeptStaff', 'AcademicSupervisor') 
+            AND approval_status = 'Approved' 
+            AND is_verified = 1
+            ORDER BY name ASC
+        `;
+        const [rows] = await pool.query(query);
+        res.json(rows);
+    } catch (err) {
+        console.error('Error fetching examiner staff:', err);
+        res.status(500).json({ message: 'Error fetching examiner staff', error: err.message });
+    }
+});
+
+// Get available courses for Examiner Assignments
+router.get('/examiner-courses', async (req, res) => {
+    try {
+        const query = `
+            SELECT course_code, title 
+            FROM courses
+            ORDER BY course_code ASC
+        `;
+        const [rows] = await pool.query(query);
+        // Format to "CODE - TITLE" for the dropdown
+        const formatted = rows.map(r => `${r.course_code} - ${r.title}`);
+        res.json(formatted);
+    } catch (err) {
+        console.error('Error fetching examiner courses:', err);
+        res.status(500).json({ message: 'Error fetching examiner courses', error: err.message });
+    }
+});
+
+// Get all current examiner appointments
+router.get('/examiner-appointments', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                a.appointment_id as id,
+                a.user_id,
+                a.course_code as courseCode,
+                a.academic_year as academicYear,
+                a.examiner_role as type,
+                a.status,
+                c.title as courseTitle
+            FROM examiner_appointments a
+            LEFT JOIN courses c ON a.course_code = c.course_code
+        `;
+        const [rows] = await pool.query(query);
+        const formatted = rows.map(row => ({
+            id: row.id,
+            userId: row.user_id,
+            course: row.courseTitle ? `${row.courseCode} - ${row.courseTitle}` : row.courseCode,
+            academicYear: row.academicYear,
+            type: row.type,
+            status: row.status === 'Active' ? 'Appointed' : row.status
+        }));
+        res.json(formatted);
+    } catch (err) {
+        console.error('Error fetching appointments:', err);
+        res.status(500).json({ message: 'Error fetching appointments', error: err.message });
+    }
+});
+
+// Save or Update an Examiner Appointment
+router.post('/examiner-appointments', async (req, res) => {
+    const { userId, appointmentId, course, academicYear, type } = req.body;
+
+    if (!userId || !course || !academicYear || !type) {
+        return res.status(400).json({ message: 'Missing required configuration data' });
+    }
+
+    // Extract the raw course_code from "CODE - TITLE"
+    const courseCode = course.split(' - ')[0];
+
+    try {
+        // Check for existing appointment for the same course, academic year, and role
+        const [existing] = await pool.query(
+            'SELECT * FROM examiner_appointments WHERE course_code = ? AND academic_year = ? AND examiner_role = ?',
+            [courseCode, academicYear, type]
+        );
+
+        if (existing.length > 0) {
+            // Already an appointment for this slot
+            // If it doesn't match the ID we're currently editing, it's a conflict
+            if (existing[0].appointment_id !== appointmentId) {
+                return res.status(409).json({ message: `Conflict: Another examiner is already appointed as ${type} for ${course}` });
+            }
+        }
+
+        if (appointmentId) {
+            // Explicitly updating an existing row you clicked 'Edit' on
+            await pool.query(
+                'UPDATE examiner_appointments SET course_code = ?, examiner_role = ?, status = "Active" WHERE appointment_id = ?',
+                [courseCode, type, appointmentId]
+            );
+        } else {
+            // Insert new appointment (First time appointing for this academic year)
+            await pool.query(
+                'INSERT INTO examiner_appointments (course_code, user_id, examiner_role, academic_year, status) VALUES (?, ?, ?, ?, "Active")',
+                [courseCode, userId, type, academicYear]
+            );
+        }
+        res.json({ message: 'Examiner successfully appointed' });
+    } catch (err) {
+        console.error('Error saving appointment:', err);
+        res.status(500).json({ message: 'Error assigning examiner', error: err.message });
     }
 });
 

@@ -1,57 +1,124 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const AssignExaminer = () => {
-    // Mock Data
-    const [examiners, setExaminers] = useState([
-        { id: 1, name: "Dr. Alan Grant", email: "a.grant@uni.edu", type: "Examiner 1", course: "CSC101 - Intro to CS", academicYear: "2024/2025", status: "Appointed" },
-        { id: 2, name: "Dr. Ellie Sattler", email: "e.sattler@uni.edu", type: "Examiner 2", course: "CSC102 - Data Structures", academicYear: "2024/2025", status: "Available" },
-        { id: 3, name: "Dr. Ian Malcolm", email: "i.malcolm@uni.edu", type: "", course: "", academicYear: "2024/2025", status: "Available" },
-    ]);
-
+    const [examiners, setExaminers] = useState([]);
+    const [courses, setCourses] = useState([]);
     const [academicYear, setAcademicYear] = useState("2024/2025");
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("All");
+    const [loading, setLoading] = useState(true);
+    const [editingId, setEditingId] = useState(null);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-    // Mock Options
-    const courses = [
-        "CSC101 - Intro to CS",
-        "CSC102 - Data Structures",
-        "CSC103 - Algorithms",
-        "CSC104 - Databases"
-    ];
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [staffRes, coursesRes, apptRes] = await Promise.all([
+                    fetch('http://localhost:5000/api/configurations/examiner-staff'),
+                    fetch('http://localhost:5000/api/configurations/examiner-courses'),
+                    fetch('http://localhost:5000/api/configurations/examiner-appointments')
+                ]);
 
-    const handleAppoint = (id) => {
+                if (staffRes.ok && coursesRes.ok && apptRes.ok) {
+                    const staffData = await staffRes.json();
+                    const coursesData = await coursesRes.json();
+                    const apptData = await apptRes.json();
+
+                    setCourses(coursesData);
+
+                    // Merge staff with appointments if they exist
+                    const mergedExaminers = staffData.map(staff => {
+                        // Find if this staff member has an appointment for the currently viewed academicYear
+                        const existingAppt = apptData.find(a => a.userId === staff.id && a.academicYear === academicYear);
+
+                        if (existingAppt) {
+                            return {
+                                id: staff.id,
+                                appointmentId: existingAppt.id,
+                                name: staff.name,
+                                email: staff.email,
+                                type: existingAppt.type,
+                                course: existingAppt.course,
+                                academicYear: existingAppt.academicYear,
+                                status: existingAppt.status
+                            };
+                        } else {
+                            // If no current appointment, see if there is ANY appointment we can copy the type/course from
+                            const previousAppt = apptData.find(a => a.userId === staff.id);
+
+                            return {
+                                id: staff.id,
+                                appointmentId: null, // No active appointment for THIS academic year yet
+                                name: staff.name,
+                                email: staff.email,
+                                type: previousAppt ? previousAppt.type : "",
+                                course: previousAppt ? previousAppt.course : "",
+                                academicYear: academicYear,
+                                status: "Available"
+                            };
+                        }
+                    });
+
+                    setExaminers(mergedExaminers);
+                }
+            } catch (error) {
+                console.error("Error fetching examiner data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [academicYear, refreshTrigger]); // Re-fetch if academic year changes or data refreshed
+
+    const handleAppoint = async (id) => {
         const examinerToAppoint = examiners.find(ex => ex.id === id);
         if (!examinerToAppoint) return;
 
-        // Validation: Check if another examiner is already appointed as the same type for the same course
-        const duplicateAssignment = examiners.find(ex =>
-            ex.id !== id &&
-            ex.status === "Appointed" &&
-            ex.course === examinerToAppoint.course &&
-            ex.type === examinerToAppoint.type
-            // Note: In a real scenario, we'd also check academicYear, but our mock data has consistent years.
-        );
-
-        if (duplicateAssignment) {
-            alert(`Action Blocked: ${duplicateAssignment.name} is already appointed as ${examinerToAppoint.type} for ${examinerToAppoint.course}.`);
+        // Visual Validation first
+        if (!examinerToAppoint.type || !examinerToAppoint.course) {
+            alert("Please select both an Examiner Type and a Course.");
             return;
         }
 
-        setExaminers(examiners.map(ex =>
-            ex.id === id ? { ...ex, status: "Appointed" } : ex
-        ));
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/examiner-appointments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: examinerToAppoint.id,
+                    appointmentId: examinerToAppoint.appointmentId,
+                    course: examinerToAppoint.course,
+                    academicYear: examinerToAppoint.academicYear,
+                    type: examinerToAppoint.type
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setRefreshTrigger(r => r + 1);
+                setEditingId(null); // Clear edit mode on success
+            } else if (response.status === 409) {
+                alert(data.message);
+            } else {
+                alert("Error assigning examiner: " + data.message);
+            }
+        } catch (error) {
+            console.error("Failed to appoint", error);
+            alert("Server connection failed.");
+        }
     };
 
     const handleTypeChange = (id, newType) => {
         setExaminers(examiners.map(ex =>
-            ex.id === id ? { ...ex, type: newType } : ex
+            ex.id === id ? { ...ex, type: newType, status: "Available" } : ex
         ));
     };
 
     const handleCourseChange = (id, newCourse) => {
         setExaminers(examiners.map(ex =>
-            ex.id === id ? { ...ex, course: newCourse } : ex
+            ex.id === id ? { ...ex, course: newCourse, status: "Available" } : ex
         ));
     };
 
@@ -152,10 +219,10 @@ const AssignExaminer = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                         <select
-                                            className="w-full bg-transparent border-none focus:ring-0 text-gray-700 text-sm p-0 cursor-pointer hover:text-indigo-600 transition-colors"
+                                            className="w-full bg-transparent border-none focus:ring-0 text-gray-700 text-sm p-0 cursor-pointer hover:text-indigo-600 transition-colors disabled:cursor-not-allowed disabled:hover:text-gray-700"
                                             value={examiner.type}
                                             onChange={(e) => handleTypeChange(examiner.id, e.target.value)}
-                                            disabled={examiner.status === "Appointed"}
+                                            disabled={examiner.status === "Appointed" && editingId !== examiner.id}
                                         >
                                             <option value="" disabled>Select Type</option>
                                             <option value="Examiner 1">Examiner 1</option>
@@ -164,10 +231,10 @@ const AssignExaminer = () => {
                                     </td>
                                     <td className="px-6 py-4">
                                         <select
-                                            className="w-full bg-transparent border-none focus:ring-0 text-gray-700 text-sm p-0 cursor-pointer hover:text-indigo-600 transition-colors"
+                                            className="w-full bg-transparent border-none focus:ring-0 text-gray-700 text-sm p-0 cursor-pointer hover:text-indigo-600 transition-colors disabled:cursor-not-allowed disabled:hover:text-gray-700"
                                             value={examiner.course}
                                             onChange={(e) => handleCourseChange(examiner.id, e.target.value)}
-                                            disabled={examiner.status === "Appointed"}
+                                            disabled={examiner.status === "Appointed" && editingId !== examiner.id}
                                         >
                                             <option value="" disabled>Select Course</option>
                                             {courses.map(course => (
@@ -190,17 +257,36 @@ const AssignExaminer = () => {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <button
-                                            onClick={() => handleAppoint(examiner.id)}
-                                            disabled={examiner.status === "Appointed" || !examiner.type || !examiner.course}
-                                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all
-                                                ${examiner.status === "Appointed"
-                                                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                                    : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md"
-                                                }`}
-                                        >
-                                            {examiner.status === "Appointed" ? "Appointed" : "Appoint"}
-                                        </button>
+                                        {examiner.status === "Appointed" && editingId !== examiner.id ? (
+                                            <button
+                                                onClick={() => setEditingId(examiner.id)}
+                                                className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                                            >
+                                                Edit
+                                            </button>
+                                        ) : (
+                                            <div className="flex justify-end gap-2">
+                                                {editingId === examiner.id && (
+                                                    <button
+                                                        onClick={() => setEditingId(null)}
+                                                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleAppoint(examiner.id)}
+                                                    disabled={!examiner.type || !examiner.course}
+                                                    className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all
+                                                        ${(!examiner.type || !examiner.course)
+                                                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                                                            : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md"
+                                                        }`}
+                                                >
+                                                    {editingId === examiner.id ? "Save" : "Appoint"}
+                                                </button>
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
