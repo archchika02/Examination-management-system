@@ -91,6 +91,7 @@ const AllocationsDashboard = () => {
             }
         };
         fetchAllocationsAndDrafts();
+        fetchConcerns();
     }, []);
 
     // Helper: Check for conflicts
@@ -206,31 +207,19 @@ const AllocationsDashboard = () => {
     const [isConcernsModalOpen, setIsConcernsModalOpen] = useState(false);
     const [replacementSelections, setReplacementSelections] = useState({});
 
-    // Linked to actual Exam IDs and Allocations for demonstration
-    const [departmentConcerns, setDepartmentConcerns] = useState([
-        {
-            id: 1,
-            examId: 1,
-            allocId: 'a1',
-            role: 'supervisor',
-            requestBy: 'Dr. Alan Smith',
-            type: 'Scheduling Conflict',
-            description: 'I have a overlapping lecture with the exam time.',
-            status: 'Pending',
-            date: '2025-01-10'
-        },
-        {
-            id: 2,
-            examId: 2,
-            allocId: 'a2',
-            role: 'supervisor',
-            requestBy: 'Prof. Sarah Jones',
-            type: 'Personal Emergency',
-            description: 'Cannot attend due to medical appointment.',
-            status: 'Pending',
-            date: '2025-01-08'
-        },
-    ]);
+    const [departmentConcerns, setDepartmentConcerns] = useState([]);
+
+    const fetchConcerns = async () => {
+        try {
+            const res = await fetch('http://localhost:5000/api/configurations/staff-concerns?target=AcademicSupervisor');
+            if (res.ok) {
+                const data = await res.json();
+                setDepartmentConcerns(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch concerns:", error);
+        }
+    };
 
     const handleOpenConcerns = () => setIsConcernsModalOpen(true);
     const handleCloseConcerns = () => setIsConcernsModalOpen(false);
@@ -239,35 +228,69 @@ const AllocationsDashboard = () => {
         setReplacementSelections(prev => ({ ...prev, [concernId]: staffId }));
     };
 
-    const handleApplyResolution = (concern) => {
+    const [isResolving, setIsResolving] = useState(false);
+
+    const handleApplyResolution = async (concern) => {
         const newStaffId = replacementSelections[concern.id];
+        if (!newStaffId) return;
 
-        // 1. If a replacement is selected, update the exam allocation
-        if (newStaffId) {
-            setExams(prev => prev.map(exam => {
-                if (exam.id === concern.examId) {
-                    return {
-                        ...exam,
-                        allocations: exam.allocations.map(alloc =>
-                            alloc.id === concern.allocId ? { ...alloc, [concern.role]: newStaffId } : alloc
-                        )
-                    };
-                }
-                return exam;
-            }));
+        setIsResolving(true);
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/resolve-concern', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    concernId: concern.id,
+                    allocId: concern.allocId,
+                    role: concern.role,
+                    newStaffId: newStaffId
+                })
+            });
+
+            if (response.ok) {
+                // 1. Update the exam allocation locally
+                setExams(prev => prev.map(exam => {
+                    if (exam.id === concern.examId) {
+                        return {
+                            ...exam,
+                            allocations: exam.allocations.map(alloc => {
+                                if (alloc.id === concern.allocId) {
+                                    if (concern.role === 'supervisor') {
+                                        return { ...alloc, supervisor: String(newStaffId) };
+                                    } else if (concern.role === 'invigilator') {
+                                        return { ...alloc, invigilators: [...(alloc.invigilators || []), String(newStaffId)] };
+                                    } else if (concern.role === 'attendant') {
+                                        return { ...alloc, attendants: [...(alloc.attendants || []), String(newStaffId)] };
+                                    }
+                                }
+                                return alloc;
+                            })
+                        };
+                    }
+                    return exam;
+                }));
+
+                // 2. Refresh concerns from server to get updated status and accurate list
+                await fetchConcerns();
+
+                // Clear selection
+                setReplacementSelections(prev => {
+                    const newState = { ...prev };
+                    delete newState[concern.id];
+                    return newState;
+                });
+
+                alert('Staff replaced and concern resolved successfully.');
+            } else {
+                const data = await response.json();
+                alert(`Failed to resolve concern: ${data.message}`);
+            }
+        } catch (error) {
+            console.error("Error resolving concern:", error);
+            alert("Error resolving concern.");
+        } finally {
+            setIsResolving(false);
         }
-
-        // 2. Mark as Resolved
-        setDepartmentConcerns(prev => prev.map(c =>
-            c.id === concern.id ? { ...c, status: 'Resolved' } : c
-        ));
-
-        // Clear selection
-        setReplacementSelections(prev => {
-            const newState = { ...prev };
-            delete newState[concern.id];
-            return newState;
-        });
     };
 
     const handlePublishTimetables = async () => {
@@ -290,6 +313,40 @@ const AllocationsDashboard = () => {
         } catch (error) {
             console.error("Error publishing timetables:", error);
             alert("An error occurred while publishing timetables.");
+        }
+    };
+
+    const handleSubmitToFaculty = async () => {
+        if (!window.confirm("Are you sure you want to submit these published allocations to the faculty?")) {
+            return;
+        }
+
+        const btn = document.getElementById('submit-to-faculty-btn');
+        if (btn) {
+            btn.innerText = "Submitting...";
+            btn.disabled = true;
+        }
+
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/submit-to-faculty', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (response.ok) {
+                alert("Allocations submitted to faculty successfully!");
+            } else {
+                const errorData = await response.json();
+                alert(`Failed to submit: ${errorData.message}`);
+            }
+        } catch (error) {
+            console.error("Error submitting to faculty:", error);
+            alert("An error occurred while submitting to faculty.");
+        } finally {
+            if (btn) {
+                btn.innerText = "Submit to Faculty";
+                btn.disabled = false;
+            }
         }
     };
 
@@ -570,17 +627,23 @@ const AllocationsDashboard = () => {
                         </button>
                         <button
                             onClick={handleOpenConcerns}
-                            className="px-6 py-2 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-colors flex items-center"
+                            className="px-6 py-2 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-colors flex flex-col items-center justify-center"
                         >
-                            <span className="mr-2">💬</span> Department Staff Concerns
+                            <div className="flex items-center">
+                                <span className="mr-2">💬</span> Department Staff Concerns
+                            </div>
                             {departmentConcerns.filter(c => c.status === 'Pending').length > 0 && (
-                                <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                                    {departmentConcerns.filter(c => c.status === 'Pending').length}
+                                <span className="mt-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    {departmentConcerns.filter(c => c.status === 'Pending').length} Request slots to be changed
                                 </span>
                             )}
                         </button>
                     </div>
-                    <button className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 transform transition-all hover:-translate-y-0.5 active:translate-y-0 text-sm">
+                    <button
+                        id="submit-to-faculty-btn"
+                        onClick={handleSubmitToFaculty}
+                        className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 transform transition-all hover:-translate-y-0.5 active:translate-y-0 text-sm"
+                    >
                         Submit to Faculty
                     </button>
                 </div>
@@ -616,7 +679,7 @@ const AllocationsDashboard = () => {
                                         departmentConcerns.map((concern) => {
                                             // Find related exam data
                                             const relatedExam = exams.find(e => e.id === concern.examId);
-                                            const relatedAlloc = relatedExam?.allocations.find(a => a.id === concern.allocId);
+                                            const relatedAlloc = relatedExam?.allocations.find(a => a.id === concern.allocId || a.id === `alloc-${concern.allocId}`);
 
                                             return (
                                                 <div key={concern.id} className={`p-5 rounded-xl border-l-4 shadow-sm ${concern.status === 'Resolved' ? 'bg-gray-50 border-green-500' : 'bg-white border-amber-500 ring-1 ring-gray-100'}`}>
@@ -663,20 +726,34 @@ const AllocationsDashboard = () => {
                                                                             onChange={(e) => handleSelectReplacement(concern.id, e.target.value)}
                                                                         >
                                                                             <option value="">Select Replacement...</option>
-                                                                            {staffList.filter(s => s.name !== concern.requestBy).map(s => (
-                                                                                <option key={s.id} value={s.id}>{s.name} ({s.dept})</option>
-                                                                            ))}
+                                                                            {(concern.role === 'attendant' ? attendantList : staffList)
+                                                                                .filter(s => s.name !== concern.requestBy)
+                                                                                .filter(s => {
+                                                                                    if (!relatedExam || !relatedAlloc) return true;
+                                                                                    const conflict = checkConflict(
+                                                                                        String(s.id),
+                                                                                        relatedExam.date,
+                                                                                        relatedExam.time,
+                                                                                        relatedAlloc.id,
+                                                                                        concern.role === 'invigilator' ? 'invigilators' : concern.role,
+                                                                                        relatedAlloc
+                                                                                    );
+                                                                                    return !conflict;
+                                                                                })
+                                                                                .map(s => (
+                                                                                    <option key={s.id} value={s.id}>{s.name} ({s.dept || 'Attendant'})</option>
+                                                                                ))}
                                                                         </select>
                                                                     </div>
                                                                     <button
                                                                         onClick={() => handleApplyResolution(concern)}
-                                                                        disabled={!replacementSelections[concern.id]}
+                                                                        disabled={!replacementSelections[concern.id] || isResolving}
                                                                         className={`w-full py-2 px-4 rounded-lg text-sm font-bold text-white shadow-sm transition-all
-                                                                            ${replacementSelections[concern.id]
+                                                                            ${replacementSelections[concern.id] && !isResolving
                                                                                 ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transform hover:-translate-y-0.5'
                                                                                 : 'bg-gray-300 cursor-not-allowed'}`}
                                                                     >
-                                                                        ✓ Assign & Resolve
+                                                                        {isResolving ? 'Resolving...' : '✓ Assign & Resolve'}
                                                                     </button>
                                                                 </div>
                                                             ) : (
@@ -685,6 +762,9 @@ const AllocationsDashboard = () => {
                                                                         <span className="text-xl">✅</span>
                                                                     </div>
                                                                     <p className="text-sm">Resolved</p>
+                                                                    {concern.replacementName && (
+                                                                        <p className="text-xs text-green-700 mt-2 font-medium bg-green-50 p-2 rounded">Reassigned to: <br />{concern.replacementName}</p>
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -701,7 +781,7 @@ const AllocationsDashboard = () => {
                             </div>
                         </div>
                     </div>
-                </div>,
+                </div >,
                 document.body
             )}
         </>

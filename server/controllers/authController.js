@@ -104,9 +104,13 @@ exports.register = async (req, res) => {
         await connection.beginTransaction();
 
         try {
+            // Determine default approval status
+            const autoApprovedRoles = ['Student', 'BatchRep', 'Dean', 'AcademicSupervisor', 'HallAttendant'];
+            const approvalStatus = autoApprovedRoles.includes(role) ? 'Approved' : 'Pending';
+
             const [userResult] = await connection.execute(
-                'INSERT INTO users (email, password_hash, role, name, mobile) VALUES (?, ?, ?, ?, ?)',
-                [email, hashedPassword, role, name, mobile]
+                'INSERT INTO users (email, password_hash, role, name, mobile, approval_status) VALUES (?, ?, ?, ?, ?, ?)',
+                [email, hashedPassword, role, name, mobile, approvalStatus]
             );
             const userId = userResult.insertId;
 

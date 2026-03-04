@@ -47,6 +47,9 @@ app.use('/api/medical-repeat', medicalRepeatRoutes);
 const courseRoutes = require('./routes/courseRoutes');
 app.use('/api/courses', courseRoutes);
 
+const userRoutes = require('./routes/userRoutes');
+app.use('/api/users', userRoutes);
+
 
 // --- Background Jobs ---
 // Delete unverified accounts older than 24 hours. Runs every hour at minute 0.

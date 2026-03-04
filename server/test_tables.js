@@ -8,8 +8,8 @@ async function test() {
         database: 'ems_database'
     });
 
-    const [rows, fields] = await connection.query("SHOW CREATE TABLE allocation_drafts");
-    console.log(rows[0]['Create Table']);
+    const [rows] = await connection.query("SHOW TABLES");
+    console.log(rows);
 
     connection.end();
 }

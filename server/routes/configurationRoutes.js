@@ -625,7 +625,10 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
     try {
         const query = `
             SELECT 
+                a.alloc_id,
+                a.exam_id,
                 et.date,
+                et.academic_year,
                 DATE_FORMAT(s.start_time, '%l:%i %p') AS time,
                 et.course_code as courseUnit,
                 c.title as courseTitle,
@@ -635,7 +638,8 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                     WHEN (SELECT COUNT(*) FROM exam_draft_invigilators i WHERE i.alloc_id = a.alloc_id AND i.invigilator_id = ?) > 0 THEN 'Invigilator'
                     WHEN (SELECT COUNT(*) FROM exam_draft_attendants at WHERE at.alloc_id = a.alloc_id AND at.attendant_id = ?) > 0 THEN 'Hall Attendant'
                     ELSE 'Staff'
-                END as role
+                END as role,
+                (SELECT examiner_role FROM examiner_appointments ea WHERE REPLACE(ea.course_code, ' ', '') = REPLACE(et.course_code, ' ', '') AND ea.user_id = ? AND ea.status = 'Active' LIMIT 1) as examinerRole
             FROM exam_draft_allocations a
             JOIN exam_timetables et ON a.exam_id = et.timetable_id
             JOIN exam_slots s ON et.timetable_id = s.timetable_id
@@ -648,7 +652,7 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
             )
             ORDER BY et.date ASC, s.start_time ASC
         `;
-        const [rows] = await pool.query(query, [userId, userId, userId, userId, userId, userId]);
+        const [rows] = await pool.query(query, [userId, userId, userId, userId, userId, userId, userId]);
 
         // Format dates just like the frontend expects 'YYYY-MM-DD'
         const formattedRows = rows.map((r, index) => {
@@ -656,13 +660,17 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
             // Adjust timezone offset to preserve local YYYY-MM-DD
             const localDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000));
             return {
-                id: index + 1,
+                id: r.alloc_id,
+                allocId: r.alloc_id,
+                examId: r.exam_id,
                 date: localDate.toISOString().split('T')[0],
                 time: r.time,
+                academicYear: r.academic_year,
                 courseUnit: r.courseUnit,
                 courseTitle: r.courseTitle,
                 venue: r.venue,
-                role: r.role
+                role: r.role,
+                examinerRole: r.examinerRole
             };
         });
 
@@ -670,6 +678,261 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
     } catch (err) {
         console.error('Error fetching personalized timetable:', err);
         res.status(500).json({ message: 'Error fetching personalized timetable', error: err.message });
+    }
+});
+
+// ==========================================
+// STAFF CONCERNS
+// ==========================================
+
+// Report a new concern
+router.post('/report-concern', async (req, res) => {
+    let { concerns, userId, role, allocId, examId, reason } = req.body;
+
+    // Normalize to an array of concerns
+    let reportList = [];
+    if (concerns && Array.isArray(concerns)) {
+        reportList = concerns;
+    } else if (userId && role && allocId && reason) {
+        reportList = [{ staffId: userId, role, allocId, examId, reason }];
+    }
+
+    if (reportList.length === 0) {
+        return res.status(400).json({ message: 'Invalid payload or missing fields' });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // Role mapping to match user requirements
+        const roleMap = {
+            'AcademicSupervisor': 'Academic Supervisor',
+            'Supervisor': 'Supervisor',
+            'HallAttendant': 'Hall Attendant',
+            'Invigilator': 'Invigilator'
+        };
+
+        for (const c of reportList) {
+            let sId = c.staffId || userId;
+            let aId = c.allocId || allocId;
+            let eId = c.examId || examId;
+            let rsn = c.reason || reason;
+            let rle = roleMap[c.role] || c.role;
+
+            // Prevention: Check for existing pending concern for this staff and allocation
+            const [existing] = await connection.execute(
+                'SELECT concern_id FROM staff_concerns WHERE alloc_id = ? AND staff_id = ? AND status = ?',
+                [aId, sId, 'Pending']
+            );
+
+            if (existing.length > 0) {
+                // Skip if already reported
+                continue;
+            }
+
+            // Fetch exam_id if missing or to ensure correctness (as requested)
+            if (!eId) {
+                const [allocRows] = await connection.execute('SELECT exam_id FROM exam_draft_allocations WHERE alloc_id = ?', [aId]);
+                if (allocRows.length > 0) {
+                    eId = allocRows[0].exam_id;
+                } else {
+                    throw new Error(`Allocation ${aId} not found`);
+                }
+            }
+
+            await connection.execute(
+                `INSERT INTO staff_concerns (alloc_id, exam_id, staff_id, role, reason, status) VALUES (?, ?, ?, ?, ?, ?)`,
+                [aId, eId, sId, rle, rsn, 'Pending']
+            );
+        }
+        await connection.commit();
+        res.json({ message: 'Concerns reported successfully' });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Error reporting concerns:', err);
+        res.status(500).json({ message: 'Error reporting concerns', error: err.message });
+    } finally {
+        connection.release();
+    }
+});
+
+// Fetch all concerns (with details and optional target filtering)
+router.get('/staff-concerns', async (req, res) => {
+    const { target } = req.query; // Optional: 'Faculty' or 'AcademicSupervisor'
+    try {
+        let whereClause = '';
+        const params = [];
+
+        if (target === 'Faculty') {
+            whereClause = "WHERE c.role IN ('Hall Attendant', 'attendant')";
+        } else if (target === 'AcademicSupervisor') {
+            whereClause = "WHERE c.role IN ('Supervisor', 'Invigilator', 'Academic Supervisor', 'supervisor', 'invigilator')";
+        }
+
+        const query = `
+            SELECT 
+                c.concern_id as id,
+                c.exam_id as examId,
+                c.alloc_id as allocId,
+                c.role as displayRole,
+                CASE 
+                    WHEN c.role = 'Supervisor' THEN 'supervisor'
+                    WHEN c.role = 'Invigilator' THEN 'invigilator'
+                    WHEN c.role = 'Hall Attendant' THEN 'attendant'
+                    ELSE c.role
+                END as role,
+                u.name as requestBy,
+                u2.name as replacementName,
+                'Schedule Reassignment' as type,
+                c.reason as description,
+                c.reason as reason,
+                c.status,
+                DATE_FORMAT(c.created_at, '%d/%m/%Y') as reportDate,
+                DATE_FORMAT(c.created_at, '%d/%m/%Y') as date,
+                et.course_code as course,
+                et.course_code as courseUnit,
+                c2.title as courseTitle,
+                DATE_FORMAT(et.date, '%d/%m/%Y') as examDate,
+                CONCAT(DATE_FORMAT(s.start_time, '%l:%i %p'), ' - ', DATE_FORMAT(s.end_time, '%l:%i %p')) AS time,
+                a.venue
+            FROM staff_concerns c
+            JOIN users u ON c.staff_id = u.user_id
+            LEFT JOIN users u2 ON c.replacement_staff_id = u2.user_id
+            JOIN exam_draft_allocations a ON c.alloc_id = a.alloc_id
+            JOIN exam_timetables et ON a.exam_id = et.timetable_id
+            JOIN (
+                SELECT timetable_id, MIN(start_time) as start_time, MIN(end_time) as end_time
+                FROM exam_slots
+                GROUP BY timetable_id
+            ) s ON et.timetable_id = s.timetable_id
+            LEFT JOIN courses c2 ON REPLACE(et.course_code, ' ', '') = REPLACE(c2.course_code, ' ', '')
+            ${whereClause}
+            ORDER BY c.created_at DESC
+        `;
+        const [rows] = await pool.query(query, params);
+        res.json(rows);
+    } catch (err) {
+        console.error('Error fetching concerns:', err);
+        res.status(500).json({ message: 'Error fetching concerns', error: err.message });
+    }
+});
+
+// Resolve a concern / Replace staff
+router.post('/resolve-concern', async (req, res) => {
+    const { concernId, status, replacementStaffId, allocId, role, newStaffId } = req.body;
+
+    // Resolve inputs from both old and new frontend formats
+    const actualStatus = status || 'Resolved';
+    const actualConcernId = concernId;
+    const actualReplacementId = replacementStaffId || newStaffId;
+
+    if (!actualConcernId || !actualStatus) {
+        return res.status(400).json({ message: 'Missing required fields (concernId or status)' });
+    }
+
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        // 1. Find the basic data from the concern if not provided
+        const [concerns] = await connection.execute('SELECT staff_id, alloc_id, role as dbRole FROM staff_concerns WHERE concern_id = ?', [actualConcernId]);
+        if (concerns.length === 0) throw new Error('Concern not found');
+
+        const oldStaffId = concerns[0].staff_id;
+        const aId = allocId || concerns[0].alloc_id;
+        const rawRole = role || concerns[0].dbRole;
+        const normRole = (rawRole === 'Hall Attendant' || rawRole === 'attendant') ? 'attendant' :
+            (rawRole === 'Invigilator' || rawRole === 'invigilator') ? 'invigilator' :
+                (rawRole === 'Supervisor' || rawRole === 'supervisor') ? 'supervisor' : rawRole;
+
+        // 2. Perform replacement in draft tables only if Approved/Resolved
+        if (actualStatus === 'Approved' || actualStatus === 'Resolved') {
+            if (actualReplacementId) {
+                if (normRole === 'supervisor') {
+                    await connection.execute(
+                        'UPDATE exam_draft_allocations SET supervisor_id = ? WHERE alloc_id = ?',
+                        [actualReplacementId, aId]
+                    );
+                } else if (normRole === 'invigilator') {
+                    await connection.execute(
+                        'DELETE FROM exam_draft_invigilators WHERE alloc_id = ? AND invigilator_id = ?',
+                        [aId, oldStaffId]
+                    );
+                    await connection.execute(
+                        'INSERT INTO exam_draft_invigilators (alloc_id, invigilator_id) VALUES (?, ?)',
+                        [aId, actualReplacementId]
+                    );
+                } else if (normRole === 'attendant') {
+                    await connection.execute(
+                        'DELETE FROM exam_draft_attendants WHERE alloc_id = ? AND attendant_id = ?',
+                        [aId, oldStaffId]
+                    );
+                    await connection.execute(
+                        'INSERT INTO exam_draft_attendants (alloc_id, attendant_id, is_published) VALUES (?, ?, 1)',
+                        [aId, actualReplacementId]
+                    );
+                }
+            }
+        }
+
+        // 3. Mark concern as resolved and store replacement staff
+        await connection.execute(
+            'UPDATE staff_concerns SET status = ?, replacement_staff_id = ? WHERE concern_id = ?',
+            [actualStatus, actualReplacementId || null, actualConcernId]
+        );
+
+        await connection.commit();
+        res.json({ message: `Concern ${actualStatus} successfully` });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Error resolving concern:', err);
+        res.status(500).json({ message: 'Error resolving concern', error: err.message });
+    } finally {
+        connection.release();
+    }
+});
+
+// Fetch my concerns
+router.get('/my-concerns/:userId', async (req, res) => {
+    const userId = req.params.userId;
+    try {
+        const query = `
+            SELECT 
+                c.concern_id as id,
+                c.exam_id as examId,
+                c.alloc_id as allocId,
+                CASE 
+                    WHEN c.role = 'Supervisor' THEN 'supervisor'
+                    WHEN c.role = 'Invigilator' THEN 'invigilator'
+                    WHEN c.role = 'Hall Attendant' THEN 'attendant'
+                    ELSE c.role
+                END as role,
+                c.reason as description,
+                c.reason as reason,
+                c.status,
+                DATE_FORMAT(c.created_at, '%Y-%m-%d') as date,
+                et.course_code as course,
+                et.course_code as courseUnit,
+                c2.title as courseTitle,
+                DATE_FORMAT(et.date, '%Y-%m-%d') as examDate,
+                DATE_FORMAT(s.start_time, '%l:%i %p') AS time,
+                a.venue,
+                u2.name as replacementName
+            FROM staff_concerns c
+            JOIN exam_draft_allocations a ON c.alloc_id = a.alloc_id
+            JOIN exam_timetables et ON a.exam_id = et.timetable_id
+            JOIN exam_slots s ON et.timetable_id = s.timetable_id
+            LEFT JOIN courses c2 ON REPLACE(et.course_code, ' ', '') = REPLACE(c2.course_code, ' ', '')
+            LEFT JOIN users u2 ON c.replacement_staff_id = u2.user_id
+            WHERE c.staff_id = ?
+            ORDER BY c.created_at DESC
+        `;
+        const [rows] = await pool.query(query, [userId]);
+        res.json(rows);
+    } catch (err) {
+        console.error('Error fetching my concerns:', err);
+        res.status(500).json({ message: 'Error fetching my concerns', error: err.message });
     }
 });
 
@@ -788,6 +1051,196 @@ router.post('/examiner-appointments', async (req, res) => {
     } catch (err) {
         console.error('Error saving appointment:', err);
         res.status(500).json({ message: 'Error assigning examiner', error: err.message });
+    }
+});
+
+// Submit all published draft allocations to Faculty Staff
+router.post('/submit-to-faculty', async (req, res) => {
+    try {
+        await pool.query('UPDATE exam_draft_allocations SET is_submitted_to_faculty = 1 WHERE is_published = 1');
+        res.json({ message: 'Allocations submitted to faculty successfully' });
+    } catch (err) {
+        console.error('Error submitting to faculty:', err);
+        res.status(500).json({ message: 'Error submitting to faculty', error: err.message });
+    }
+});
+
+// GET Allocations for Faculty Staff (Hall Attendant Configuration)
+router.get('/faculty-attendant-allocations', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                a.alloc_id,
+                a.exam_id,
+                et.date,
+                et.academic_year,
+                s.start_time as raw_start_time,
+                CONCAT(DATE_FORMAT(s.start_time, '%l:%i %p'), ' - ', DATE_FORMAT(s.end_time, '%l:%i %p')) AS time,
+                et.course_code,
+                c.title as course_title,
+                s.std_non_repeat as total_non_repeat,
+                s.std_repeat as total_repeat,
+                a.venue,
+                a.assigned_non_repeat,
+                a.assigned_repeat,
+                u_sup.name as supervisor_name
+            FROM exam_draft_allocations a
+            JOIN exam_timetables et ON a.exam_id = et.timetable_id
+            JOIN exam_slots s ON et.timetable_id = s.timetable_id
+            LEFT JOIN courses c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+            LEFT JOIN users u_sup ON a.supervisor_id = u_sup.user_id
+            WHERE a.is_submitted_to_faculty = 1
+            ORDER BY et.date ASC, s.start_time ASC
+        `;
+        const [rows] = await pool.query(query);
+
+        // Group by exam_id like the frontend expects
+        const examsMap = {};
+        for (const r of rows) {
+            if (!examsMap[r.exam_id]) {
+                examsMap[r.exam_id] = {
+                    id: r.exam_id,
+                    date: r.date,
+                    time: r.time,
+                    course: `${r.course_code} - ${r.course_title || 'No Title'}`,
+                    totalNonRepeat: r.total_non_repeat,
+                    totalRepeat: r.total_repeat,
+                    allocations: []
+                };
+            }
+
+            // Get invigilators for this allocation
+            const [invigilators] = await pool.query(
+                `SELECT u.name FROM exam_draft_invigilators ei JOIN users u ON ei.invigilator_id = u.user_id WHERE ei.alloc_id = ?`,
+                [r.alloc_id]
+            );
+
+            // Get attendants for this allocation
+            const [attendants] = await pool.query(
+                `SELECT ea.attendant_id, u.name FROM exam_draft_attendants ea JOIN users u ON ea.attendant_id = u.user_id WHERE ea.alloc_id = ?`,
+                [r.alloc_id]
+            );
+
+            examsMap[r.exam_id].allocations.push({
+                id: r.alloc_id,
+                venue: r.venue,
+                assignedNonRepeat: r.assigned_non_repeat,
+                assignedRepeat: r.assigned_repeat,
+                supervisor: r.supervisor_name,
+                invigilator: invigilators.length > 0 ? invigilators.map(i => i.name).join(', ') : 'None',
+                attendants: attendants.length > 0 ? attendants.map(a => a.name).join(', ') : 'None',
+                attendantIds: attendants.map(a => a.attendant_id)
+            });
+
+            // Keep track of raw start time for sorting the grouped object later
+            if (!examsMap[r.exam_id].rawStartTime) {
+                examsMap[r.exam_id].rawStartTime = r.raw_start_time;
+            }
+        }
+
+        const sortedExams = Object.values(examsMap).sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            if (dateA - dateB !== 0) return dateA - dateB;
+
+            // If same date, sort by raw start time
+            return a.rawStartTime.localeCompare(b.rawStartTime);
+        });
+
+        res.json(sortedExams);
+    } catch (err) {
+        console.error('Error fetching faculty allocations:', err);
+        res.status(500).json({ message: 'Error fetching faculty allocations', error: err.message });
+    }
+});
+
+// Save Hall Attendant Draft
+router.post('/save-hall-attendant-draft', async (req, res) => {
+    const { assignments } = req.body; // Expecting [{ alloc_id, attendantIds: [] }, ...]
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+
+        for (const item of assignments) {
+            const { alloc_id, attendantIds } = item;
+
+            // 1. Delete existing attendants for this allocation
+            await connection.query('DELETE FROM exam_draft_attendants WHERE alloc_id = ?', [alloc_id]);
+
+            // 2. Insert new attendants
+            if (attendantIds && attendantIds.length > 0) {
+                // Ensure unique IDs to prevent DB duplication
+                const uniqueIds = [...new Set(attendantIds)];
+                const values = uniqueIds.map(id => [alloc_id, id]);
+                await connection.query('INSERT INTO exam_draft_attendants (alloc_id, attendant_id) VALUES ?', [values]);
+            }
+        }
+
+        await connection.commit();
+        res.json({ message: 'Hall attendant draft saved successfully!' });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Error saving hall attendant draft:', err);
+        res.status(500).json({ message: 'Error saving hall attendant draft', error: err.message });
+    } finally {
+        connection.release();
+    }
+});
+
+// Publish Hall Attendant Timetable
+router.post('/publish-attendant-timetable', async (req, res) => {
+    try {
+        // Set is_published = 1 for all attendant assignments
+        // We could also refine this to only publish for specific exams if needed, 
+        // but the prompt says "publish personalized timetable" which usually means the whole set.
+        await pool.query('UPDATE exam_draft_attendants SET is_published = 1');
+        res.json({ message: 'Personalized timetables published successfully!' });
+    } catch (err) {
+        console.error('Error publishing hall attendant timetable:', err);
+        res.status(500).json({ message: 'Error publishing hall attendant timetable', error: err.message });
+    }
+});
+
+// Get Published Exams for a specific Hall Attendant
+router.get('/attendant-published-exams', async (req, res) => {
+    const { attendantId } = req.query; // Expecting attendantId
+    if (!attendantId) {
+        return res.status(400).json({ message: 'Attendant ID is required' });
+    }
+
+    try {
+        const query = `
+            SELECT 
+                a.alloc_id as id,
+                a.exam_id,
+                DATE_FORMAT(et.date, '%d/%m/%Y') as date,
+                CONCAT(DATE_FORMAT(s.start_time, '%l:%i %p'), ' - ', DATE_FORMAT(s.end_time, '%l:%i %p')) AS time,
+                CONCAT(et.course_code, ' - ', IFNULL(c.title, 'No Title')) as courseUnit,
+                a.venue,
+                MAX(eda.is_published) as is_published,
+                (SELECT COUNT(*) FROM staff_concerns sc 
+                 WHERE sc.alloc_id = a.alloc_id 
+                 AND sc.staff_id = ? 
+                 AND sc.status = 'Pending'
+                 LIMIT 1) as has_pending_concern
+            FROM exam_draft_attendants eda
+            JOIN exam_draft_allocations a ON eda.alloc_id = a.alloc_id
+            JOIN exam_timetables et ON a.exam_id = et.timetable_id
+            JOIN (
+                SELECT timetable_id, MIN(start_time) as start_time, MIN(end_time) as end_time
+                FROM exam_slots
+                GROUP BY timetable_id
+            ) s ON et.timetable_id = s.timetable_id
+            LEFT JOIN courses c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+            WHERE eda.attendant_id = ? AND eda.is_published = 1
+            GROUP BY a.alloc_id, a.exam_id, et.date, s.start_time, s.end_time, et.course_code, c.title, a.venue
+            ORDER BY et.date ASC, s.start_time ASC
+        `;
+        const [rows] = await pool.query(query, [attendantId, attendantId]);
+        res.json(rows);
+    } catch (err) {
+        console.error('Error fetching attendant published exams:', err);
+        res.status(500).json({ message: 'Error fetching attendant published exams', error: err.message });
     }
 });
 
