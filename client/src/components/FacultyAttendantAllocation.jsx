@@ -1,94 +1,146 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const FacultyAttendantAllocation = () => {
-    // Mock Staff Database (Read-only reference)
-    const staffList = [
-        { id: 's1', name: 'Dr. Alan Smith', dept: 'CS' },
-        { id: 's2', name: 'Prof. Sarah Jones', dept: 'MATH' },
-        { id: 's3', name: 'Mr. James Doe', dept: 'CS' },
-        { id: 's4', name: 'Ms. Emily White', dept: 'ENG' },
-        { id: 's5', name: 'Dr. Robert Brown', dept: 'MATH' },
-    ];
+    const [loading, setLoading] = useState(true);
+    const [exams, setExams] = useState([]);
+    const [staffList, setStaffList] = useState([]);
+    const [hallAttendantsList, setHallAttendantsList] = useState([]);
 
-    // Dedicated Hall Attendants List (Mock Database)
-    const hallAttendantsList = [
-        { id: 'ha1', name: 'Staff A' },
-        { id: 'ha2', name: 'Staff B' },
-        { id: 'ha3', name: 'Staff C' },
-        { id: 'ha4', name: 'Staff D' },
-        { id: 'ha5', name: 'Staff E' },
-        { id: 'ha6', name: 'Staff F' },
-    ];
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                // Fetch submitted allocations
+                const allocationsRes = await fetch('http://localhost:5000/api/configurations/faculty-attendant-allocations');
+                if (allocationsRes.ok) {
+                    const data = await allocationsRes.json();
+                    setExams(data);
+                }
 
-    const venuesList = [
-        { name: 'Main Hall', capacity: 120 },
-        { name: 'Room 201', capacity: 50 },
-        { name: 'Lab 1', capacity: 30 },
-    ];
+                // Fetch staff and attendants for replacement lookups (if needed by requests logic)
+                const staffRes = await fetch('http://localhost:5000/api/users/role/Invigilator');
+                if (staffRes.ok) {
+                    const data = await staffRes.json();
+                    setStaffList(data.map(u => ({ id: u.user_id, name: u.name, dept: u.department || 'N/A' })));
+                }
 
-    // Initial Data with nested allocations
-    const [exams, setExams] = useState([
-        {
-            id: 1,
-            date: '2025-01-15',
-            time: '09:00 AM',
-            course: 'INTE 22253 - Distributed Systems and Cloud Computing',
-            totalNonRepeat: 100,
-            totalRepeat: 10,
-            allocations: [
-                { id: 'a1', venue: 'Main Hall', assignedNonRepeat: 100, assignedRepeat: 10, supervisor: 'Dr. Alan Smith', invigilator: 'Mr. James Doe', attendants: 'Staff A, Staff B' }
-            ]
-        },
-        {
-            id: 2,
-            date: '2025-01-16',
-            time: '01:00 PM',
-            course: 'INTE 22263 - Embedded Systems Development',
-            totalNonRepeat: 45,
-            totalRepeat: 5,
-            allocations: [
-                { id: 'a2', venue: 'Room 201', assignedNonRepeat: 45, assignedRepeat: 5, supervisor: 'Prof. Sarah Jones', invigilator: 'None', attendants: 'Staff C' }
-            ]
-        }
-    ]);
+                const attendantRes = await fetch('http://localhost:5000/api/users/role/HallAttendant');
+                if (attendantRes.ok) {
+                    const data = await attendantRes.json();
+                    setHallAttendantsList(data.map(u => ({ id: u.user_id, name: u.name })));
+                }
 
-    // Mock Reschedule Requests Data
-    const [requests, setRequests] = useState([
-        { id: 101, attendant: 'Staff A', course: 'INTE 21323 - Web Application Development', currentSession: '2025-01-15 09:00 AM', reason: 'Medical Appointment', status: 'Pending', examId: 1, allocId: 'a1' },
-        { id: 102, attendant: 'Staff C', course: 'INTE 21333 - Event Driven Programming', currentSession: '2025-01-16 01:00 PM', reason: 'Family Emergency', status: 'Pending', examId: 2, allocId: 'a2' }
-    ]);
+                // Fetch real pending concerns for Hall Attendants (target=Faculty)
+                const concernsRes = await fetch('http://localhost:5000/api/configurations/staff-concerns?target=Faculty');
+                if (concernsRes.ok) {
+                    const data = await concernsRes.json();
+                    setRequests(data.filter(r => r.status === 'Pending').map(r => ({
+                        id: r.id,
+                        attendant: r.requestBy,
+                        course: r.course || r.description, // Fallback if course field differs
+                        currentSession: (r.examDate || r.date) + ' ' + (r.time || ''),
+                        reason: r.description,
+                        allocId: r.allocId,
+                        examId: r.examId
+                    })));
+                }
+            } catch (err) {
+                console.error("Error fetching data:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    // Real Concerns State
+    const [requests, setRequests] = useState([]);
 
     // Approval Modal State
     const [approvalModal, setApprovalModal] = useState({ open: false, requestId: null, examId: null, allocId: null, currentAttendant: '' });
     const [selectedReplacement, setSelectedReplacement] = useState('');
 
-    const handleSaveDraft = () => {
-        console.log("Saving draft:", exams);
-        const btn = document.getElementById('save-draft-btn');
-        if (btn) {
-            const originalText = btn.innerText;
-            btn.innerText = "Saving...";
-            setTimeout(() => {
-                btn.innerText = "Saved! ✓";
-                setTimeout(() => btn.innerText = originalText, 2000);
-            }, 800);
-        }
-        localStorage.setItem('facultyAttendantDraft', JSON.stringify(exams));
-    };
+    const [openDropdown, setOpenDropdown] = useState(null); // Track which allocation's dropdown is open
 
-    const updateAttendants = (examId, allocId, value) => {
+    const toggleAttendant = (examId, allocId, attendantId) => {
         setExams(prev => prev.map(exam => {
             if (exam.id === examId) {
                 return {
                     ...exam,
-                    allocations: exam.allocations.map(alloc =>
-                        alloc.id === allocId ? { ...alloc, attendants: value } : alloc
-                    )
+                    allocations: exam.allocations.map(alloc => {
+                        if (alloc.id === allocId) {
+                            const currentIds = alloc.attendantIds || [];
+                            const newIds = currentIds.includes(attendantId)
+                                ? currentIds.filter(id => id !== attendantId)
+                                : [...currentIds, attendantId];
+                            return { ...alloc, attendantIds: newIds };
+                        }
+                        return alloc;
+                    })
                 };
             }
             return exam;
         }));
+    };
+
+    const handleSaveDraft = async () => {
+        const assignments = [];
+        exams.forEach(exam => {
+            exam.allocations.forEach(alloc => {
+                assignments.push({
+                    alloc_id: alloc.id,
+                    attendantIds: alloc.attendantIds || []
+                });
+            });
+        });
+
+        const btn = document.getElementById('save-draft-btn');
+        if (btn) btn.innerText = "Saving...";
+
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/save-hall-attendant-draft', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assignments })
+            });
+
+            if (response.ok) {
+                if (btn) btn.innerText = "Saved! ✓";
+                setTimeout(() => { if (btn) btn.innerText = "Save Draft"; }, 2000);
+            } else {
+                alert("Failed to save draft.");
+                if (btn) btn.innerText = "Save Draft";
+            }
+        } catch (err) {
+            console.error("Error saving draft:", err);
+            alert("Error saving draft.");
+            if (btn) btn.innerText = "Save Draft";
+        }
+    };
+
+    const handlePublish = async () => {
+        const btn = document.getElementById('publish-btn');
+        if (btn) btn.innerText = "Publishing...";
+
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/publish-attendant-timetable', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (response.ok) {
+                if (btn) btn.innerText = "Published! ✓";
+                setTimeout(() => { if (btn) btn.innerText = "Publish Personalized Timetable"; }, 2000);
+                alert("Personalized timetables published to Hall Attendants successfully!");
+            } else {
+                alert("Failed to publish timetables.");
+                if (btn) btn.innerText = "Publish Personalized Timetable";
+            }
+        } catch (err) {
+            console.error("Error publishing:", err);
+            alert("An error occurred while publishing.");
+            if (btn) btn.innerText = "Publish Personalized Timetable";
+        }
     };
 
     const handleSubmit = () => {
@@ -97,7 +149,7 @@ const FacultyAttendantAllocation = () => {
         alert("Configuration submitted to Academic Supervisor successfully!");
     };
 
-    const handleRequestAction = (req, action) => {
+    const handleRequestAction = async (req, action) => {
         if (action === 'Approve') {
             setApprovalModal({
                 open: true,
@@ -109,45 +161,88 @@ const FacultyAttendantAllocation = () => {
             setSelectedReplacement('');
         } else {
             if (window.confirm(`Are you sure you want to reject this request from ${req.attendant}?`)) {
-                setRequests(requests.filter(r => r.id !== req.id));
+                try {
+                    const response = await fetch('http://localhost:5000/api/configurations/resolve-concern', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ concernId: req.id, status: 'Rejected' })
+                    });
+                    if (response.ok) {
+                        setRequests(requests.filter(r => r.id !== req.id));
+                        alert("Request rejected successfully.");
+                    }
+                } catch (err) {
+                    console.error("Error rejecting concern:", err);
+                    alert("Failed to reject request.");
+                }
             }
         }
     };
 
-    const confirmApproval = () => {
+    const confirmApproval = async () => {
         if (!selectedReplacement) {
             alert("Please select a replacement Hall Attendant.");
             return;
         }
 
-        // 1. Update the allocation in the main table
-        setExams(prev => prev.map(exam => {
-            if (exam.id === approvalModal.examId) {
-                return {
-                    ...exam,
-                    allocations: exam.allocations.map(alloc => {
-                        if (alloc.id === approvalModal.allocId) {
-                            // Simple string replacement for demo purposes. In a real app, this would handle array logic.
-                            const updatedAttendants = alloc.attendants.replace(approvalModal.currentAttendant, selectedReplacement);
-                            return { ...alloc, attendants: updatedAttendants };
-                        }
-                        return alloc;
-                    })
-                };
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/resolve-concern', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    concernId: approvalModal.requestId,
+                    status: 'Approved',
+                    replacementStaffId: selectedReplacement
+                })
+            });
+
+            if (response.ok) {
+                // Update the local exams state to show the replacement
+                setExams(prev => prev.map(exam => {
+                    if (exam.id === approvalModal.examId) {
+                        return {
+                            ...exam,
+                            allocations: exam.allocations.map(alloc => {
+                                // Match both allocId and alloc-allocId formats
+                                if (alloc.id === approvalModal.allocId || alloc.id === `alloc-${approvalModal.allocId}`) {
+                                    const oldAttendantId = hallAttendantsList.find(ha => ha.name === approvalModal.currentAttendant)?.id;
+                                    const newAttendantId = parseInt(selectedReplacement);
+
+                                    // Filter out the old attendant and add the new one
+                                    const currentIds = alloc.attendantIds || [];
+                                    const filteredIds = currentIds.filter(id => id !== oldAttendantId);
+                                    const updatedIds = [...filteredIds, newAttendantId];
+
+                                    return { ...alloc, attendantIds: updatedIds };
+                                }
+                                return alloc;
+                            })
+                        };
+                    }
+                    return exam;
+                }));
+
+                // Remove the request from the list
+                setRequests(requests.filter(r => r.id !== approvalModal.requestId));
+                // Close modal
+                setApprovalModal({ open: false, requestId: null, examId: null, allocId: null, currentAttendant: '' });
+                alert(`Request Approved and Attendant Reassigned!`);
             }
-            return exam;
-        }));
-
-        // 2. Remove the request
-        setRequests(requests.filter(r => r.id !== approvalModal.requestId));
-
-        // 3. Close modal
-        setApprovalModal({ open: false, requestId: null, examId: null, allocId: null, currentAttendant: '' });
-        alert(`Request Approved! ${approvalModal.currentAttendant} has been replaced by ${selectedReplacement}.`);
+        } catch (err) {
+            console.error("Error approving concern:", err);
+            alert("Failed to approve request.");
+        }
     };
 
     // Filter attendants to exclude the one being replaced
     const availableSuccessors = hallAttendantsList.filter(ha => ha.name !== approvalModal.currentAttendant);
+
+    // Close dropdowns on outside click
+    useEffect(() => {
+        const handleClickOutside = () => setOpenDropdown(null);
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, []);
 
     return (
         <div className="flex flex-col space-y-6 animate-fade-in-up relative">
@@ -223,89 +318,159 @@ const FacultyAttendantAllocation = () => {
                 </div>
 
                 {/* Table Content */}
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-gray-50/50 sticky top-0 z-20">
-                            <tr>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">Date</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">Time</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 w-40">Course</th>
+                <div className="overflow-x-auto min-h-[400px]">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center p-20 text-gray-500">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+                            <p className="font-medium">Loading submitted allocations...</p>
+                        </div>
+                    ) : exams.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center p-20 text-gray-500 text-center">
+                            <span className="text-5xl mb-4">📥</span>
+                            <h3 className="text-xl font-bold text-gray-800">No Allocations Submitted Yet</h3>
+                            <p className="max-w-md mt-2">When the Academic Supervisor submits the final allocations for the faculty, they will appear here for hall attendant configuration.</p>
+                        </div>
+                    ) : (
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-gray-50/50 sticky top-0 z-20">
+                                <tr>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">Date</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200">Time</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 w-40">Course</th>
 
-                                {/* Read-only Allocation Info */}
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-indigo-50/30 w-48">Venue</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-indigo-50/30 w-24">Alloc NR</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-indigo-50/30 w-24">Alloc Rep</th>
+                                    {/* Read-only Allocation Info */}
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-indigo-50/30 w-48">Venue</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-indigo-50/30 w-24">Alloc NR</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-indigo-50/30 w-24">Alloc Rep</th>
 
-                                {/* Read-only Staff Columns */}
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-green-50/30 w-48">Supervisor</th>
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-green-50/30 w-48">Invigilator</th>
+                                    {/* Read-only Staff Columns */}
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-green-50/30 w-48">Supervisor</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-green-50/30 w-48">Invigilator</th>
 
-                                {/* Editable Column */}
-                                <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-yellow-50/30 w-48">Hall Attendants (Edit)</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {exams.map((exam) => (
-                                <React.Fragment key={exam.id}>
-                                    {exam.allocations.map((alloc, index) => {
-                                        const isFirst = index === 0;
-                                        const rowClass = isFirst ? "bg-white" : "bg-gray-50/30";
-                                        const borderClass = index === exam.allocations.length - 1 ? "border-b-2 border-gray-200" : "border-b border-gray-100 dashed";
+                                    {/* Editable Column */}
+                                    <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase border-b border-gray-200 bg-yellow-50/30 w-48">Hall Attendants</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {exams.map((exam) => (
+                                    <React.Fragment key={exam.id}>
+                                        {exam.allocations.map((alloc, index) => {
+                                            const isFirst = index === 0;
+                                            const rowClass = isFirst ? "bg-white" : "bg-gray-50/30";
+                                            const borderClass = index === exam.allocations.length - 1 ? "border-b-2 border-gray-200" : "border-b border-gray-100 dashed";
 
-                                        return (
-                                            <tr key={alloc.id} className={`${rowClass} ${borderClass} hover:bg-gray-50 transition-colors group`}>
-                                                {/* Common Exam Info */}
-                                                <td className="px-4 py-3 text-sm text-gray-900 font-medium align-top">
-                                                    {isFirst && exam.date}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-500 align-top">
-                                                    {isFirst && exam.time}
-                                                </td>
-                                                <td className="px-4 py-3 align-top">
-                                                    {isFirst && (
-                                                        <div>
-                                                            <div className="text-sm font-bold text-gray-800">{exam.course.split(' - ')[0]}</div>
-                                                            <div className="text-xs text-gray-500">{exam.course.split(' - ')[1]}</div>
+                                            return (
+                                                <tr key={alloc.id} className={`${rowClass} ${borderClass} hover:bg-gray-50 transition-colors group`}>
+                                                    {/* Common Exam Info */}
+                                                    <td className="px-4 py-3 text-sm text-gray-900 font-medium align-top">
+                                                        {isFirst && new Date(exam.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-500 align-top">
+                                                        {isFirst && exam.time}
+                                                    </td>
+                                                    <td className="px-4 py-3 align-top">
+                                                        {isFirst && (
+                                                            <div>
+                                                                <div className="text-sm font-bold text-gray-800">{exam.course.split(' - ')[0]}</div>
+                                                                <div className="text-xs text-gray-500">{exam.course.split(' - ')[1]}</div>
+                                                            </div>
+                                                        )}
+                                                    </td>
+
+                                                    {/* Read-only Venue Info */}
+                                                    <td className="px-4 py-3 text-sm text-gray-700 align-top">
+                                                        {alloc.venue}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-500 align-top">
+                                                        {alloc.assignedNonRepeat}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-500 align-top">
+                                                        {alloc.assignedRepeat}
+                                                    </td>
+
+                                                    {/* Read-only Staff Info */}
+                                                    <td className="px-4 py-3 text-sm text-gray-700 align-top">
+                                                        {alloc.supervisor}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-700 align-top">
+                                                        {alloc.invigilator || 'None'}
+                                                    </td>
+
+                                                    {/* Editable Hall Attendants Selection */}
+                                                    <td className="px-4 py-3 align-top relative min-w-[200px]">
+                                                        <div className="relative">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setOpenDropdown(openDropdown === alloc.id ? null : alloc.id);
+                                                                }}
+                                                                className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg shadow-sm hover:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+                                                            >
+                                                                <span className="truncate text-gray-700 font-medium">
+                                                                    {(alloc.attendantIds || []).length > 0
+                                                                        ? `${(alloc.attendantIds || []).length} Selected`
+                                                                        : "Select Attendants..."}
+                                                                </span>
+                                                                <span className={`transition-transform duration-200 ${openDropdown === alloc.id ? 'rotate-180' : ''}`}>
+                                                                    ▼
+                                                                </span>
+                                                            </button>
+
+                                                            {openDropdown === alloc.id && (
+                                                                <div
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden animate-fade-in origin-top"
+                                                                >
+                                                                    <div className="max-h-48 overflow-y-auto p-1 bg-gray-50/50">
+                                                                        {hallAttendantsList.length > 0 ? (
+                                                                            hallAttendantsList.map(ha => (
+                                                                                <label
+                                                                                    key={ha.id}
+                                                                                    className="flex items-center space-x-3 px-3 py-2 hover:bg-white cursor-pointer rounded-md transition-colors group"
+                                                                                >
+                                                                                    <div className="relative flex items-center">
+                                                                                        <input
+                                                                                            type="checkbox"
+                                                                                            className="peer h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
+                                                                                            checked={(alloc.attendantIds || []).includes(ha.id)}
+                                                                                            onChange={() => toggleAttendant(exam.id, alloc.id, ha.id)}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <span className={`text-sm transition-colors ${(alloc.attendantIds || []).includes(ha.id) ? 'text-indigo-600 font-bold' : 'text-gray-600 font-medium group-hover:text-gray-900'}`}>
+                                                                                        {ha.name}
+                                                                                    </span>
+                                                                                </label>
+                                                                            ))
+                                                                        ) : (
+                                                                            <div className="p-3 text-xs text-gray-500 text-center italic">
+                                                                                No Hall Attendants available.
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                </td>
-
-                                                {/* Read-only Venue Info */}
-                                                <td className="px-4 py-3 text-sm text-gray-700 align-top">
-                                                    {alloc.venue}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-500 align-top">
-                                                    {alloc.assignedNonRepeat}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-500 align-top">
-                                                    {alloc.assignedRepeat}
-                                                </td>
-
-                                                {/* Read-only Staff Info */}
-                                                <td className="px-4 py-3 text-sm text-gray-700 align-top">
-                                                    {alloc.supervisor}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-700 align-top">
-                                                    {alloc.invigilator || 'None'}
-                                                </td>
-
-                                                {/* Editable Hall Attendants */}
-                                                <td className="px-4 py-3 align-top">
-                                                    <input
-                                                        type="text"
-                                                        value={alloc.attendants}
-                                                        onChange={(e) => updateAttendants(exam.id, alloc.id, e.target.value)}
-                                                        className="w-full text-sm border-gray-200 rounded-md focus:ring-yellow-500 focus:border-yellow-500 bg-white"
-                                                        placeholder="Enter Staff Names..."
-                                                    />
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </React.Fragment>
-                            ))}
-                        </tbody>
-                    </table>
+                                                        {(alloc.attendantIds || []).length > 0 && (
+                                                            <div className="mt-2 flex flex-wrap gap-1">
+                                                                {(alloc.attendantIds || []).map(id => {
+                                                                    const name = hallAttendantsList.find(ha => ha.id === id)?.name;
+                                                                    return name ? (
+                                                                        <span key={id} className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200 animate-fade-in">
+                                                                            {name}
+                                                                        </span>
+                                                                    ) : null;
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </React.Fragment>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
 
                 {/* Footer Actions */}
@@ -317,6 +482,13 @@ const FacultyAttendantAllocation = () => {
                             className="px-6 py-2 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors w-32"
                         >
                             Save Draft
+                        </button>
+                        <button
+                            id="publish-btn"
+                            onClick={handlePublish}
+                            className="px-6 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all shadow-sm"
+                        >
+                            Publish Personalized Timetable
                         </button>
                     </div>
                     <button
@@ -360,7 +532,7 @@ const FacultyAttendantAllocation = () => {
                                                 >
                                                     <option value="" disabled>-- Select a replacement --</option>
                                                     {availableSuccessors.map(staff => (
-                                                        <option key={staff.id} value={staff.name}>
+                                                        <option key={staff.id} value={staff.id}>
                                                             {staff.name}
                                                         </option>
                                                     ))}

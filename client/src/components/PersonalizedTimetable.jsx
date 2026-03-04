@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { useAuth } from '../context/AuthContext';
 
 const PersonalizedTimetable = ({ enableConcerns = false }) => {
@@ -21,6 +21,13 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
                 if (response.ok) {
                     const data = await response.json();
                     setTimetableData(data);
+                }
+
+                // Fetch My Concerns
+                const concernsRes = await fetch(`http://localhost:5000/api/configurations/my-concerns/${user.user_id}`);
+                if (concernsRes.ok) {
+                    const concernsData = await concernsRes.json();
+                    setMyConcerns(concernsData);
                 }
             } catch (error) {
                 console.error("Error fetching personalized timetable:", error);
@@ -59,23 +66,30 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
         doc.setFontSize(14);
         doc.text('Faculty of Science', 105, 30, null, null, 'center');
         doc.setFontSize(12);
-        doc.text('Examination Timetable 2023/2024', 105, 40, null, null, 'center');
+        doc.text('Department of Industrial Management', 105, 40, null, null, 'center');
+        doc.setFontSize(12);
+
+        const academicYear = filteredData.length > 0 && filteredData[0].academicYear
+            ? filteredData[0].academicYear
+            : '2023/2024';
+
+        doc.text(`Examination Timetable ${academicYear}`, 105, 50, null, null, 'center');
 
         // Table
-        const tableColumn = ["Course Unit", "Course Title", "Date", "Time", "Venue", "Role"];
+        const tableColumn = ["Course Unit", "Course Title", "Date", "Time", "Venue", "Assigned Role"];
         const tableRows = filteredData.map(exam => [
             exam.courseUnit,
             exam.courseTitle || 'Unknown Title',
             formatDate(exam.date),
             exam.time,
             exam.venue,
-            exam.role
+            exam.examinerRole ? `${exam.role}\n(${exam.examinerRole})` : exam.role
         ]);
 
-        doc.autoTable({
+        autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
-            startY: 50,
+            startY: 60,
         });
 
         doc.save('Personalized_Timetable.pdf');
@@ -84,6 +98,8 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
 
     const [selectedSessions, setSelectedSessions] = useState([]);
     const [isConcernModalOpen, setIsConcernModalOpen] = useState(false);
+    const [isMyConcernsModalOpen, setIsMyConcernsModalOpen] = useState(false);
+    const [myConcerns, setMyConcerns] = useState([]);
     const [concernReason, setConcernReason] = useState('');
 
     const handleCheckboxChange = (id) => {
@@ -103,16 +119,45 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
         setConcernReason('');
     };
 
-    const handleSubmitConcern = () => {
-        if (!concernReason.trim()) return;
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-        // Mock submission logic
-        alert(`Concern reported for ${selectedSessions.length} session(s).\nReason: ${concernReason}`);
+    const handleSubmitConcern = async () => {
+        if (!concernReason.trim() || !user) return;
 
-        // Reset selection and close modal
-        setSelectedSessions([]);
-        setIsConcernModalOpen(false);
-        setConcernReason('');
+        setIsSubmitting(true);
+        try {
+            const concernsToReport = selectedSessions.map(allocId => {
+                const sessionData = timetableData.find(s => s.allocId === allocId);
+                return {
+                    allocId: allocId,
+                    examId: sessionData.examId,
+                    staffId: user.user_id,
+                    role: sessionData.role,
+                    reason: concernReason
+                };
+            });
+
+            const response = await fetch('http://localhost:5000/api/configurations/report-concern', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ concerns: concernsToReport })
+            });
+
+            if (response.ok) {
+                alert('Concerns successfully reported to the Academic Supervisor.');
+                setSelectedSessions([]);
+                setIsConcernModalOpen(false);
+                setConcernReason('');
+            } else {
+                const data = await response.json();
+                alert(`Failed to report concern: ${data.message || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error("Error reporting concerns:", error);
+            alert('An error occurred while reporting concerns.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -140,6 +185,20 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
                 </div>
 
                 <div className="flex gap-3 w-full md:w-auto">
+                    {enableConcerns && (
+                        <button
+                            onClick={() => setIsMyConcernsModalOpen(true)}
+                            className="w-full md:w-auto px-4 py-3 rounded-xl font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all flex items-center justify-center gap-2 transform active:scale-95 border border-gray-200"
+                        >
+                            <span className="text-xl">👁️</span>
+                            View My Concerns
+                            {myConcerns.length > 0 && (
+                                <span className="ml-1 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
+                                    {myConcerns.length}
+                                </span>
+                            )}
+                        </button>
+                    )}
                     {enableConcerns && (
                         <button
                             onClick={openConcernModal}
@@ -188,33 +247,49 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
                                     </td>
                                 </tr>
                             ) : filteredData.length > 0 ? (
-                                filteredData.map((exam) => (
-                                    <tr key={exam.id} className={`transition-colors ${selectedSessions.includes(exam.id) ? 'bg-blue-50/50' : 'hover:bg-blue-50/30'}`}>
-                                        {enableConcerns && (
+                                filteredData.map((exam) => {
+                                    const reportedConcern = myConcerns.find(c => c.allocId === exam.id);
+                                    return (
+                                        <tr key={exam.id} className={`transition-colors ${selectedSessions.includes(exam.id) ? 'bg-blue-50/50' : 'hover:bg-blue-50/30'}`}>
+                                            {enableConcerns && (
+                                                <td className="px-6 py-4">
+                                                    {reportedConcern ? (
+                                                        <div className="flex flex-col items-start gap-1">
+                                                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Reported</span>
+                                                        </div>
+                                                    ) : (
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedSessions.includes(exam.id)}
+                                                            onChange={() => handleCheckboxChange(exam.id)}
+                                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                                                        />
+                                                    )}
+                                                </td>
+                                            )}
+                                            <td className="px-6 py-4 font-bold text-gray-800">{exam.courseUnit}</td>
+                                            <td className="px-6 py-4 text-gray-700">{exam.courseTitle || 'Unknown Title'}</td>
+                                            <td className="px-6 py-4 text-gray-600">{formatDate(exam.date)}</td>
+                                            <td className="px-6 py-4 text-gray-600 font-mono bg-gray-50/50 rounded">{exam.time}</td>
+                                            <td className="px-6 py-4 text-indigo-600 font-medium">{exam.venue}</td>
                                             <td className="px-6 py-4">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedSessions.includes(exam.id)}
-                                                    onChange={() => handleCheckboxChange(exam.id)}
-                                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
-                                                />
-                                            </td>
-                                        )}
-                                        <td className="px-6 py-4 font-bold text-gray-800">{exam.courseUnit}</td>
-                                        <td className="px-6 py-4 text-gray-700">{exam.courseTitle || 'Unknown Title'}</td>
-                                        <td className="px-6 py-4 text-gray-600">{formatDate(exam.date)}</td>
-                                        <td className="px-6 py-4 text-gray-600 font-mono bg-gray-50/50 rounded">{exam.time}</td>
-                                        <td className="px-6 py-4 text-indigo-600 font-medium">{exam.venue}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
                                                 ${exam.role === 'Supervisor' ? 'bg-purple-100 text-purple-800' :
-                                                    exam.role === 'Invigilator' ? 'bg-blue-100 text-blue-800' :
-                                                        'bg-gray-100 text-gray-800'}`}>
-                                                {exam.role}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))
+                                                        exam.role === 'Invigilator' ? 'bg-blue-100 text-blue-800' :
+                                                            'bg-gray-100 text-gray-800'}`}>
+                                                    {exam.role}
+                                                </span>
+                                                {exam.examinerRole && (
+                                                    <div className="mt-1">
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                                                            {exam.examinerRole}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             ) : (
                                 <tr>
                                     <td colSpan={enableConcerns ? "7" : "6"} className="px-6 py-12 text-center text-gray-400">
@@ -313,12 +388,12 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
                             <div className="bg-gray-50 px-6 py-4 sm:flex sm:flex-row-reverse border-t border-gray-100">
                                 <button
                                     type="button"
-                                    disabled={!concernReason.trim()}
+                                    disabled={!concernReason.trim() || isSubmitting}
                                     className={`w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors
-                                        ${concernReason.trim() ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-300 cursor-not-allowed'}`}
+                                        ${concernReason.trim() && !isSubmitting ? 'bg-orange-600 hover:bg-orange-700' : 'bg-orange-300 cursor-not-allowed'}`}
                                     onClick={handleSubmitConcern}
                                 >
-                                    Submit Request ({selectedSessions.length})
+                                    {isSubmitting ? 'Submitting...' : `Submit Request (${selectedSessions.length})`}
                                 </button>
                                 <button
                                     type="button"
@@ -326,6 +401,75 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
                                     onClick={() => setIsConcernModalOpen(false)}
                                 >
                                     Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* My Concerns Summary Modal */}
+            {isMyConcernsModalOpen && (
+                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                    {/* Background overlay */}
+                    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-blur-sm" onClick={() => setIsMyConcernsModalOpen(false)}></div>
+
+                    {/* Modal Panel Container */}
+                    <div className="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
+                        <div className="relative bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:max-w-2xl w-full z-50">
+                            <div className="bg-white px-6 pt-6 pb-6">
+                                <div className="flex justify-between items-center mb-6">
+                                    <h3 className="text-xl leading-6 font-bold text-gray-900 flex items-center">
+                                        <span className="mr-2">📝</span> My Reported Concerns
+                                    </h3>
+                                    <button onClick={() => setIsMyConcernsModalOpen(false)} className="text-gray-400 hover:text-gray-500 transition-colors">
+                                        <span className="text-2xl">×</span>
+                                    </button>
+                                </div>
+
+                                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                                    {myConcerns.length > 0 ? (
+                                        myConcerns.map((concern) => (
+                                            <div key={concern.id} className={`p-4 rounded-xl border-l-4 shadow-sm ${concern.status === 'Resolved' ? 'bg-gray-50 border-green-500' : 'bg-white border-amber-500 ring-1 ring-gray-100'}`}>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <h4 className="text-sm font-bold text-gray-900">{concern.course}</h4>
+                                                        <p className="text-xs text-gray-500">{concern.courseTitle}</p>
+                                                    </div>
+                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${concern.status === 'Resolved' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                        {concern.status}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-gray-600 mb-3">
+                                                    <span className="inline-block mr-4">📅 {concern.examDate}</span>
+                                                    <span className="inline-block">⏰ {concern.time}</span>
+                                                    <span className="inline-block ml-4 text-indigo-600 font-medium">🎭 Role: {concern.role}</span>
+                                                </div>
+                                                <div className="bg-amber-50 rounded p-3 text-sm text-gray-700 border border-amber-100">
+                                                    <p className="font-semibold text-xs text-amber-800 mb-1">Reason for concern:</p>
+                                                    {concern.description}
+                                                </div>
+                                                {concern.status === 'Resolved' && concern.replacementName && (
+                                                    <div className="mt-3 text-sm text-green-700 font-medium flex items-center bg-green-50/50 p-2 rounded">
+                                                        <span className="mr-2">✅</span> Reassigned to: {concern.replacementName}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <p>You haven't reported any concerns yet.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="bg-gray-50 px-6 py-4 flex justify-end">
+                                <button
+                                    type="button"
+                                    className="px-6 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+                                    onClick={() => setIsMyConcernsModalOpen(false)}
+                                >
+                                    Close
                                 </button>
                             </div>
                         </div>
