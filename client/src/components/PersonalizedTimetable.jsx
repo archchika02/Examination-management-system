@@ -71,9 +71,13 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
 
         const academicYear = filteredData.length > 0 && filteredData[0].academicYear
             ? filteredData[0].academicYear
-            : '2023/2024';
+            : '202X/202X';
 
         doc.text(`Examination Timetable ${academicYear}`, 105, 50, null, null, 'center');
+
+        // Downloader Info
+        doc.setFontSize(10);
+        doc.text(`Schedule for: ${user?.name || 'Department Staff'}`, 105, 60, null, null, 'center');
 
         // Table
         const tableColumn = ["Course Unit", "Course Title", "Date", "Time", "Venue", "Assigned Role"];
@@ -89,7 +93,7 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
         autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
-            startY: 60,
+            startY: 70,
         });
 
         doc.save('Personalized_Timetable.pdf');
