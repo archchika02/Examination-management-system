@@ -110,6 +110,89 @@ const HallAttendantDashboard = () => {
         doc.save(`${user?.name || 'Hall_Attendant'}_Timetable.pdf`);
     };
 
+    const handleGenerateSummaryReport = () => {
+        if (upcomingSessions.length === 0) return;
+
+        const doc = new jsPDF('landscape');
+
+        // Format today's date (DD/MM/YYYY)
+        const now = new Date();
+        const today = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
+
+        const firstSession = upcomingSessions[0];
+        const academicYearDisplay = firstSession?.academicYear || 'N/A';
+
+        // Add University Logo in top left
+        // Note: Using the logo moved to public folder.
+        // For jspdf in browser context, /uni-logo.png should be accessible
+        doc.addImage('/uni-logo.png', 'PNG', 15, 10, 25, 25);
+
+        // Heading
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "bold");
+        doc.text("UNIVERSITY OF KELANIYA", 148, 15, { align: 'center' });
+        doc.setFontSize(14);
+        doc.text("Faculty of Science", 148, 22, { align: 'center' });
+        doc.setFontSize(12);
+        doc.text("Department of Industrial Management", 148, 29, { align: 'center' });
+
+        doc.setFontSize(14);
+        doc.text(`Duty Schedule Summary Report - Academic Year: ${academicYearDisplay}`, 148, 38, { align: 'center' });
+
+        // Hall Attendant Name
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Hall Attendant Name: ${user?.name || 'N/A'}`, 15, 43);
+
+        // Table headers: No Date Venue Course Unit Start Time End Time Duration Supervisor Name Supervisor Signature
+        const tableColumn = [
+            "No", "Date", "Venue", "Course Unit", "Start Time", "End Time", "Duration", "Supervisor Name", "Supervisor Signature"
+        ];
+
+        const tableRows = upcomingSessions.map((session, index) => {
+            let durationStr = 'N/A';
+            if (session.durationMinutes !== null && session.durationMinutes !== undefined) {
+                const h = Math.floor(session.durationMinutes / 60);
+                const m = session.durationMinutes % 60;
+                durationStr = `${h}h ${m}m`;
+            }
+            return [
+                index + 1,
+                session.date || 'N/A',
+                session.venue || 'N/A',
+                session.courseUnit || 'N/A',
+                session.startTime || 'N/A',
+                session.endTime || 'N/A',
+                durationStr,
+                session.supervisorName || 'N/A',
+                "" // Placeholder for signature
+            ];
+        });
+
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 45,
+            theme: 'grid',
+            headStyles: { fillColor: [241, 245, 249], textColor: [0, 0, 0], lineWidth: 0.1 },
+            styles: { fontSize: 9, cellPadding: 3 },
+            columnStyles: {
+                8: { cellWidth: 40 } // Give more space for signature
+            }
+        });
+
+        // Bottom left: date generated
+        const finalY = doc.lastAutoTable.finalY || 150;
+        doc.setFontSize(10);
+        doc.text(`Report Generated Date: ${today}`, 25, finalY + 20);
+
+        // Bottom right: signature of hall attendants
+        doc.text('..................................................', 230, finalY + 20);
+        doc.text('Signature of Hall Attendant', 235, finalY + 25);
+
+        doc.save(`Duty_Schedule_Summary_${user?.name || 'HA'}.pdf`);
+    };
+
     const openRescheduleModal = () => {
         if (selectedSessions.length === 0) {
             alert("Please select at least one session to reschedule.");
@@ -298,13 +381,27 @@ const HallAttendantDashboard = () => {
                 </section>
 
                 <div className="flex justify-between items-center">
-                    <button
-                        onClick={() => setIsMyConcernsModalOpen(true)}
-                        className="flex items-center space-x-2 px-4 py-2 bg-orange-50 text-orange-700 border border-orange-200 rounded-lg text-sm font-bold hover:bg-orange-100 transition-all shadow-sm"
-                    >
-                        <span>📝</span>
-                        <span>View My Concerns</span>
-                    </button>
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => setIsMyConcernsModalOpen(true)}
+                            className="flex items-center space-x-2 px-4 py-2 bg-orange-50 text-orange-700 border border-orange-200 rounded-lg text-sm font-bold hover:bg-orange-100 transition-all shadow-sm"
+                        >
+                            <span>📝</span>
+                            <span>View My Concerns</span>
+                        </button>
+
+                        <button
+                            onClick={handleGenerateSummaryReport}
+                            disabled={upcomingSessions.length === 0}
+                            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm border
+                                ${upcomingSessions.length > 0
+                                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                    : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'}`}
+                        >
+                            <span>📊</span>
+                            <span>Report</span>
+                        </button>
+                    </div>
 
                     <button
                         onClick={openRescheduleModal}
