@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import RoleNotificationsPanel from '../components/RoleNotificationsPanel';
 
 const HallAttendantDashboard = () => {
     const { user, logout } = useAuth();
@@ -15,6 +16,27 @@ const HallAttendantDashboard = () => {
     const [loadingConcerns, setLoadingConcerns] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [isMyConcernsModalOpen, setIsMyConcernsModalOpen] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    // Poll unread count from API per user
+    useEffect(() => {
+        const refresh = async () => {
+            if (!user?.user_id) return;
+            try {
+                const res = await fetch(
+                    `http://localhost:5000/api/deadlines/unread-count?userId=${user.user_id}&role=${encodeURIComponent('Hall Attendant')}`
+                );
+                if (res.ok) {
+                    const { count } = await res.json();
+                    setUnreadCount(count);
+                }
+            } catch { /* ignore */ }
+        };
+        refresh();
+        const interval = setInterval(refresh, 10000);
+        return () => clearInterval(interval);
+    }, [user?.user_id]);
 
     const fetchData = async () => {
         if (!user?.user_id) return;
@@ -264,9 +286,17 @@ const HallAttendantDashboard = () => {
                     </div>
 
                     <div className="flex items-center space-x-6">
-                        <button className="relative p-2 text-gray-500 hover:text-blue-600 transition-colors">
+                        <button
+                            className="relative p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                            onClick={() => setShowNotifications(prev => !prev)}
+                            title="Notifications & Alerts"
+                        >
                             <span className="text-xl">🔔</span>
-                            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+                            {unreadCount > 0 && (
+                                <span className="absolute top-0.5 right-0.5 h-4 w-4 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
                         </button>
 
                         <div className="flex items-center space-x-3">
@@ -289,6 +319,22 @@ const HallAttendantDashboard = () => {
                     </div>
                 </div>
             </header>
+
+            {/* Notifications Slide-Down Panel */}
+            {showNotifications && (
+                <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)}>
+                    <div
+                        className="absolute top-16 right-4 w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-y-auto max-h-[80vh] p-6 z-50"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-bold text-gray-800">Notifications &amp; Alerts</h2>
+                            <button onClick={() => setShowNotifications(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+                        </div>
+                        <RoleNotificationsPanel roleName="Hall Attendant" />
+                    </div>
+                </div>
+            )}
 
             {/* Main Content */}
             <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">

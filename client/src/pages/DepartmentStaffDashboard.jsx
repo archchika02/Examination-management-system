@@ -1,14 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import PersonalizedTimetable from '../components/PersonalizedTimetable';
 import GenerateMarkingSheet from '../components/GenerateMarkingSheet';
+import DepartmentStaffNotifications from '../components/DepartmentStaffNotifications';
 
 const DepartmentStaffDashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [sidebarExpanded, setSidebarExpanded] = useState(false);
     const [activeSection, setActiveSection] = useState('Home');
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    // Count unread notifications for this specific user from DB
+    useEffect(() => {
+        const refresh = async () => {
+            if (!user?.user_id) return;
+            try {
+                const res = await fetch(
+                    `http://localhost:5000/api/deadlines/unread-count?userId=${user.user_id}&role=${encodeURIComponent('Department Staff')}`
+                );
+                if (res.ok) {
+                    const { count } = await res.json();
+                    setUnreadCount(count);
+                }
+            } catch { /* ignore */ }
+        };
+        refresh();
+        const interval = setInterval(refresh, 10000); // poll every 10s
+        return () => clearInterval(interval);
+    }, [user?.user_id]);
 
     // Mock Data for Department Staff Dashboard
     const stats = {
@@ -39,6 +60,7 @@ const DepartmentStaffDashboard = () => {
         { name: 'Home', icon: '🏠' },
         { name: 'Personalized Timetable', icon: '📅' },
         { name: 'Generate Marking Sheet', icon: '📊' },
+        { name: 'Notifications & Alerts', icon: '🔔' },
     ];
 
     const renderContent = () => {
@@ -48,6 +70,10 @@ const DepartmentStaffDashboard = () => {
 
         if (activeSection === 'Generate Marking Sheet') {
             return <GenerateMarkingSheet />;
+        }
+
+        if (activeSection === 'Notifications & Alerts') {
+            return <DepartmentStaffNotifications />;
         }
 
         if (activeSection !== 'Home') {
@@ -252,9 +278,17 @@ const DepartmentStaffDashboard = () => {
                     </div>
                     <div className="flex items-center space-x-6">
                         {/* Notification Icon */}
-                        <div className="relative cursor-pointer text-gray-500 hover:text-gray-700 transition-colors">
+                        <div
+                            className="relative cursor-pointer text-gray-500 hover:text-gray-700 transition-colors"
+                            onClick={() => setActiveSection('Notifications & Alerts')}
+                            title="Notifications & Alerts"
+                        >
                             <span className="text-xl">🔔</span>
-                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">3</span>
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
                         </div>
 
                         <div className="flex flex-col items-end mr-2 hidden md:block">

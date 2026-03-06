@@ -29,6 +29,10 @@ const validateEmail = (email, role) => {
 
     if (email === 'archchika.t@gmail.com') return true;
 
+    if (email === 'mawik46348@cslua.com') return true;
+
+    if (email === 'yibiko1642@cslua.com') return true;
+
     if (role === 'Student' || role === 'BatchRepresentative') {
         return email.endsWith('@stu.kln.ac.lk');
     }
