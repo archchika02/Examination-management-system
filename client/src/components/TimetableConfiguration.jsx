@@ -8,18 +8,9 @@ const TimetableConfiguration = () => {
     const [isDragging, setIsDragging] = useState(false);
     const [isAdding, setIsAdding] = useState(true); // true = adding, false = removing
 
-    // Mock Poya days for 2026 (Example dates)
-    const poyaDays2026 = [
-        '2026-01-03', '2026-02-01', '2026-03-03', '2026-04-02',
-        '2026-05-01', '2026-05-31', '2026-06-29', '2026-07-28',
-        '2026-08-27', '2026-09-25', '2026-10-24', '2026-11-23', '2026-12-23'
-    ];
-
-    // Mock National Holidays for 2026
-    const holidays2026 = [
-        '2026-01-14', '2026-02-04', '2026-04-13', '2026-04-14',
-        '2026-05-01', '2026-12-25'
-    ];
+    const [poyaDays, setPoyaDays] = useState([]);
+    const [nationalHolidays, setNationalHolidays] = useState([]);
+    const [loadingHolidays, setLoadingHolidays] = useState(false);
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -65,13 +56,13 @@ const TimetableConfiguration = () => {
     const isPoya = (date) => {
         if (!date) return false;
         const key = formatDateKey(date);
-        return poyaDays2026.includes(key);
+        return poyaDays.includes(key);
     };
 
     const isHoliday = (date) => {
         if (!date) return false;
         const key = formatDateKey(date);
-        return holidays2026.includes(key);
+        return nationalHolidays.includes(key);
     };
 
     const isUnavailable = (date) => isSunday(date) || isPoya(date) || isHoliday(date);
@@ -121,6 +112,46 @@ const TimetableConfiguration = () => {
     const handleMouseUp = () => {
         setIsDragging(false);
     };
+
+    // Fetch holidays dynamically
+    useEffect(() => {
+        const fetchHolidays = async () => {
+            setLoadingHolidays(true);
+            try {
+                // Tallyfy API provides reliable data for Sri Lanka including future years like 2027/2028
+                const url = `https://tallyfy.com/national-holidays/api/LK/${year}.json`;
+                const response = await fetch(url);
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const holidayList = data.holidays || [];
+
+                    // Filter Poya days (based on name)
+                    const poya = holidayList
+                        .filter(h => h.name.toLowerCase().includes('poya'))
+                        .map(h => h.date);
+
+                    // Filter other national holidays (excluding Poya for distinct categories)
+                    const otherHolidays = holidayList
+                        .filter(h => !h.name.toLowerCase().includes('poya'))
+                        .map(h => h.date);
+
+                    setPoyaDays(poya);
+                    setNationalHolidays(otherHolidays);
+                } else {
+                    console.error("Failed to fetch holidays from Tallyfy:", response.statusText);
+                    setPoyaDays([]);
+                    setNationalHolidays([]);
+                }
+            } catch (error) {
+                console.error("Error fetching holidays:", error);
+            } finally {
+                setLoadingHolidays(false);
+            }
+        };
+
+        fetchHolidays();
+    }, [year]);
 
     // Attach global mouse up to stop dragging if cursor leaves the calendar
     useEffect(() => {
@@ -174,8 +205,8 @@ const TimetableConfiguration = () => {
         setCurrentDate(new Date(year, parseInt(e.target.value), 1));
     };
 
-    const handleYearChange = (e) => {
-        setCurrentDate(new Date(parseInt(e.target.value), month, 1));
+    const handleYearChange = (newYear) => {
+        setCurrentDate(new Date(newYear, month, 1));
     };
 
     const markAllAvailable = () => {
@@ -250,15 +281,29 @@ const TimetableConfiguration = () => {
                                 <option key={m} value={idx}>{m}</option>
                             ))}
                         </select>
-                        <select
-                            value={year}
-                            onChange={handleYearChange}
-                            className="px-4 py-2 border rounded-lg bg-gray-50 text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        >
-                            {[2025, 2026, 2027].map(y => (
-                                <option key={y} value={y}>{y}</option>
-                            ))}
-                        </select>
+                        <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                            <button
+                                onClick={() => handleYearChange(year - 1)}
+                                className="p-2 hover:bg-gray-100 text-gray-600 transition-all active:scale-95 border-r border-gray-200"
+                                title="Previous Year"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+                            <span className="px-5 py-2 font-bold text-indigo-600 min-w-[80px] text-center select-none text-lg">
+                                {year}
+                            </span>
+                            <button
+                                onClick={() => handleYearChange(year + 1)}
+                                className="p-2 hover:bg-gray-100 text-gray-600 transition-all active:scale-95 border-l border-gray-200"
+                                title="Next Year"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -355,13 +400,25 @@ const TimetableConfiguration = () => {
                             <span className="text-red-700 font-medium">Total Sundays</span>
                             <span className="text-xl font-bold text-red-700">{exactStats.sun}</span>
                         </div>
-                        <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                        <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg relative overflow-hidden">
                             <span className="text-yellow-700 font-medium">Total Poya Days</span>
-                            <span className="text-xl font-bold text-yellow-700">{exactStats.poy}</span>
+                            {loadingHolidays ? (
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                            ) : (
+                                <span className="text-xl font-bold text-yellow-700">{exactStats.poy}</span>
+                            )}
                         </div>
-                        <div className="flex justify-between items-center p-3 bg-pink-50 rounded-lg animate-fade-in">
+                        <div className="flex justify-between items-center p-3 bg-pink-50 rounded-lg animate-fade-in relative overflow-hidden">
                             <span className="text-pink-700 font-medium">National Holidays</span>
-                            <span className="text-xl font-bold text-pink-700">{exactStats.hol}</span>
+                            {loadingHolidays ? (
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-pink-400 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                            ) : (
+                                <span className="text-xl font-bold text-pink-700">{exactStats.hol}</span>
+                            )}
                         </div>
                         <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                             <span className="text-green-700 font-medium">Available Days</span>
