@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import PersonalizedTimetable from '../components/PersonalizedTimetable';
-import UploadResults from '../components/UploadResults';
+import GenerateMarkingSheet from '../components/GenerateMarkingSheet';
 
 const DepartmentStaffDashboard = () => {
     const { user, logout } = useAuth();
@@ -38,7 +38,7 @@ const DepartmentStaffDashboard = () => {
     const menuItems = [
         { name: 'Home', icon: '🏠' },
         { name: 'Personalized Timetable', icon: '📅' },
-        { name: 'Upload Results', icon: '📤' },
+        { name: 'Generate Marking Sheet', icon: '📊' },
     ];
 
     const renderContent = () => {
@@ -46,8 +46,8 @@ const DepartmentStaffDashboard = () => {
             return <PersonalizedTimetable enableConcerns={true} />;
         }
 
-        if (activeSection === 'Upload Results') {
-            return <UploadResults />;
+        if (activeSection === 'Generate Marking Sheet') {
+            return <GenerateMarkingSheet />;
         }
 
         if (activeSection !== 'Home') {
@@ -92,7 +92,7 @@ const DepartmentStaffDashboard = () => {
 
                     {/* Pending Results Card */}
                     <div
-                        onClick={() => setActiveSection('Upload Results')}
+                        onClick={() => setActiveSection('Generate Marking Sheet')}
                         className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all cursor-pointer group hover:-translate-y-1"
                     >
                         <div className="flex justify-between items-start mb-4">

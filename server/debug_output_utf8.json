@@ -1,0 +1,256 @@
+--- examiner_appointments table structure ---
+[
+  {
+    "Field": "appointment_id",
+    "Type": "int",
+    "Null": "NO",
+    "Key": "PRI",
+    "Default": null,
+    "Extra": "auto_increment"
+  },
+  {
+    "Field": "course_code",
+    "Type": "varchar(20)",
+    "Null": "NO",
+    "Key": "MUL",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "user_id",
+    "Type": "int",
+    "Null": "NO",
+    "Key": "MUL",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "examiner_role",
+    "Type": "enum('Examiner 1','Examiner 2')",
+    "Null": "NO",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "academic_year",
+    "Type": "varchar(10)",
+    "Null": "NO",
+    "Key": "",
+    "Default": null,
+    "Extra": ""
+  },
+  {
+    "Field": "status",
+    "Type": "enum('Pending','Active','Completed')",
+    "Null": "YES",
+    "Key": "",
+    "Default": "Active",
+    "Extra": ""
+  },
+  {
+    "Field": "created_at",
+    "Type": "timestamp",
+    "Null": "YES",
+    "Key": "",
+    "Default": "CURRENT_TIMESTAMP",
+    "Extra": "DEFAULT_GENERATED"
+  }
+]
+
+--- Sample data from examiner_appointments ---
+[
+  {
+    "appointment_id": 1,
+    "course_code": "INTE 21313",
+    "user_id": 18,
+    "examiner_role": "Examiner 1",
+    "academic_year": "2024/2025",
+    "status": "Active",
+    "created_at": "2026-03-01T19:35:21.000Z"
+  },
+  {
+    "appointment_id": 2,
+    "course_code": "INTE 21213",
+    "user_id": 8,
+    "examiner_role": "Examiner 1",
+    "academic_year": "2024/2025",
+    "status": "Active",
+    "created_at": "2026-03-01T19:35:46.000Z"
+  },
+  {
+    "appointment_id": 3,
+    "course_code": "INTE  21333",
+    "user_id": 18,
+    "examiner_role": "Examiner 1",
+    "academic_year": "2025/2026",
+    "status": "Active",
+    "created_at": "2026-03-01T19:37:03.000Z"
+  },
+  {
+    "appointment_id": 4,
+    "course_code": "INTE 21213",
+    "user_id": 8,
+    "examiner_role": "Examiner 2",
+    "academic_year": "2025/2026",
+    "status": "Active",
+    "created_at": "2026-03-01T19:37:13.000Z"
+  },
+  {
+    "appointment_id": 6,
+    "course_code": "INTE  21333",
+    "user_id": 14,
+    "examiner_role": "Examiner 2",
+    "academic_year": "2024/2025",
+    "status": "Active",
+    "created_at": "2026-03-01T19:52:13.000Z"
+  },
+  {
+    "appointment_id": 7,
+    "course_code": "INTE 21313",
+    "user_id": 18,
+    "examiner_role": "Examiner 1",
+    "academic_year": "2023/2024",
+    "status": "Active",
+    "created_at": "2026-03-01T20:07:38.000Z"
+  },
+  {
+    "appointment_id": 8,
+    "course_code": "INTE 21213",
+    "user_id": 8,
+    "examiner_role": "Examiner 1",
+    "academic_year": "2023/2024",
+    "status": "Active",
+    "created_at": "2026-03-01T20:07:39.000Z"
+  },
+  {
+    "appointment_id": 9,
+    "course_code": "INTE  21333",
+    "user_id": 14,
+    "examiner_role": "Examiner 1",
+    "academic_year": "2023/2024",
+    "status": "Active",
+    "created_at": "2026-03-01T20:07:40.000Z"
+  }
+]
+
+--- examiner_roles in table ---
+[
+  {
+    "examiner_role": "Examiner 1"
+  },
+  {
+    "examiner_role": "Examiner 2"
+  }
+]
+
+--- status in table ---
+[
+  {
+    "status": "Active"
+  }
+]
+
+--- users table sample ---
+[
+  {
+    "user_id": 1,
+    "name": "Admin User",
+    "role": "Admin"
+  },
+  {
+    "user_id": 2,
+    "name": "Dr Perera",
+    "role": "Faculty"
+  },
+  {
+    "user_id": 3,
+    "name": "Dr Silva",
+    "role": "Faculty"
+  },
+  {
+    "user_id": 4,
+    "name": "Kamal",
+    "role": "Student"
+  },
+  {
+    "user_id": 5,
+    "name": "student...",
+    "role": "Student"
+  },
+  {
+    "user_id": 7,
+    "name": "dean....",
+    "role": "Dean"
+  },
+  {
+    "user_id": 8,
+    "name": "department staff...",
+    "role": "DeptStaff"
+  },
+  {
+    "user_id": 9,
+    "name": "faculty staf..",
+    "role": "FacultyStaff"
+  },
+  {
+    "user_id": 12,
+    "name": "batch rep",
+    "role": "BatchRep"
+  },
+  {
+    "user_id": 14,
+    "name": "deprt staf......",
+    "role": "DeptStaff"
+  },
+  {
+    "user_id": 15,
+    "name": "faculty staff",
+    "role": "FacultyStaff"
+  },
+  {
+    "user_id": 16,
+    "name": "hall atta",
+    "role": "HallAttendant"
+  },
+  {
+    "user_id": 18,
+    "name": "as",
+    "role": "AcademicSupervisor"
+  },
+  {
+    "user_id": 19,
+    "name": "faculty staff",
+    "role": "FacultyStaff"
+  },
+  {
+    "user_id": 21,
+    "name": "Test Student",
+    "role": "FacultyStaff"
+  },
+  {
+    "user_id": 22,
+    "name": "Test Student",
+    "role": "Student"
+  },
+  {
+    "user_id": 23,
+    "name": "New Test Student",
+    "role": "Student"
+  },
+  {
+    "user_id": 24,
+    "name": "Test Batch Rep",
+    "role": "BatchRep"
+  },
+  {
+    "user_id": 25,
+    "name": "Batch rep 2",
+    "role": "BatchRep"
+  },
+  {
+    "user_id": 27,
+    "name": "hall Atta 02",
+    "role": "HallAttendant"
+  }
+]

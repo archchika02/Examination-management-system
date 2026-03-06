@@ -369,7 +369,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import PreferredTimetable from '../components/PreferredTimetable';
 import PersonalizedTimetable from '../components/PersonalizedTimetable';
-import UploadResults from '../components/UploadResults';
+import GenerateMarkingSheet from '../components/GenerateMarkingSheet';
 import AllocationsDashboard from '../components/AllocationsDashboard';
 import AddDropApproval from '../components/AddDropApproval';
 import AddCourseUnit from '../components/AddCourseUnit';
@@ -459,7 +459,7 @@ const AcademicSupervisorDashboard = () => {
         { name: 'Assign Examiner', icon: '👨‍🏫' },
         { name: 'Allocations Dashboard', icon: '📊' },
         { name: 'Personalized Timetable', icon: '📅' },
-        { name: 'Upload Results', icon: '📤' },
+        { name: 'Generate Marking Sheet', icon: '📊' },
         { name: 'Add/Drop Form Approval', icon: '📝' },
         { name: 'Department Staff Registrations', icon: '👥' },
         { name: 'Add Course Unit', icon: '➕' },
@@ -474,8 +474,8 @@ const AcademicSupervisorDashboard = () => {
                 return <AllocationsDashboard />;
             case 'Personalized Timetable':
                 return <PersonalizedTimetable enableConcerns={false} />;
-            case 'Upload Results':
-                return <UploadResults />;
+            case 'Generate Marking Sheet':
+                return <GenerateMarkingSheet />;
             case 'Preferred Timetable':
                 return <PreferredTimetable />;
             case 'Assign Examiner':
