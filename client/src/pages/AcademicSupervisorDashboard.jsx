@@ -377,6 +377,7 @@ import TimetableConfiguration from '../components/TimetableConfiguration';
 import AssignExaminer from '../components/AssignExaminer';
 import SupervisorTimetableManager from '../components/SupervisorTimetableManager';
 import SupervisorAlerts from '../components/SupervisorAlerts';
+import RoleNotificationsPanel from '../components/RoleNotificationsPanel';
 
 const AcademicSupervisorDashboard = () => {
     const { user, logout } = useAuth();
@@ -389,6 +390,25 @@ const AcademicSupervisorDashboard = () => {
     // New State for Sidebar and Navigation
     const [sidebarExpanded, setSidebarExpanded] = useState(false);
     const [activeSection, setActiveSection] = useState('Home');
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    useEffect(() => {
+        const refresh = async () => {
+            if (!user?.user_id) return;
+            try {
+                const res = await fetch(
+                    `http://localhost:5000/api/deadlines/unread-count?userId=${user.user_id}&role=${encodeURIComponent('Academic Supervisor')}`
+                );
+                if (res.ok) {
+                    const { count } = await res.json();
+                    setUnreadCount(count);
+                }
+            } catch { /* ignore */ }
+        };
+        refresh();
+        const interval = setInterval(refresh, 10000);
+        return () => clearInterval(interval);
+    }, [user?.user_id]);
 
     // State for Department Staff Registrations
     const [deptStaffRegistrations, setDeptStaffRegistrations] = useState([]);
@@ -487,7 +507,7 @@ const AcademicSupervisorDashboard = () => {
             case 'Timetable Configuration':
                 return <TimetableConfiguration />;
             case 'Alerts':
-                return <SupervisorAlerts />;
+                return <RoleNotificationsPanel roleName="Academic Supervisor" />;
             case 'Department Staff Registrations':
                 return (
                     <div className="space-y-6 animate-fade-in-up">
@@ -712,9 +732,17 @@ const AcademicSupervisorDashboard = () => {
                         <p className="text-sm text-gray-500 font-medium">Welcome, {user?.name || 'Academic Supervisor'}</p>
                     </div>
                     <div className="flex items-center space-x-4">
-                        <button className="relative p-2 text-gray-400 hover:text-indigo-600 transition-colors">
-                            <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                        <button
+                            className="relative p-2 text-gray-400 hover:text-indigo-600 transition-colors"
+                            onClick={() => setActiveSection('Alerts')}
+                            title="Notifications & Alerts"
+                        >
                             🔔
+                            {unreadCount > 0 && (
+                                <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 ring-2 ring-white text-white text-[10px] font-bold flex items-center justify-center">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
                         </button>
                         <div className="h-10 w-10 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30 ring-2 ring-white cursor-pointer hover:ring-indigo-100 transition-all">
                             {user?.name?.charAt(0) || 'U'}

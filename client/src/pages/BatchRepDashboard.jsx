@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import PersonalizedTimetable from '../components/PersonalizedTimetable';
@@ -9,12 +9,33 @@ import StudentMedicalRepeatForm from '../components/StudentMedicalRepeatForm';
 import StudentDeadlines from '../components/StudentDeadlines';
 import StudentNotifications from '../components/StudentNotifications';
 import StudentExamCalendar from '../components/StudentExamCalendar';
+import RoleNotificationsPanel from '../components/RoleNotificationsPanel';
 
 const BatchRepDashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [sidebarExpanded, setSidebarExpanded] = useState(false);
     const [activeSection, setActiveSection] = useState('Home');
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    useEffect(() => {
+        const refresh = async () => {
+            if (!user?.user_id) return;
+            try {
+                const [res1, res2] = await Promise.all([
+                    fetch(`http://localhost:5000/api/deadlines/unread-count?userId=${user.user_id}&role=${encodeURIComponent('Batch Representative')}`),
+                    fetch(`http://localhost:5000/api/deadlines/unread-count?userId=${user.user_id}&role=${encodeURIComponent('Students')}`)
+                ]);
+                let total = 0;
+                if (res1.ok) total += (await res1.json()).count;
+                if (res2.ok) total += (await res2.json()).count;
+                setUnreadCount(total);
+            } catch { /* ignore */ }
+        };
+        refresh();
+        const interval = setInterval(refresh, 10000);
+        return () => clearInterval(interval);
+    }, [user?.user_id]);
 
     // Mock Data for Quick Actions
     const quickActions = [
@@ -83,7 +104,11 @@ const BatchRepDashboard = () => {
         }
 
         if (activeSection === 'Notifications & Alerts') {
-            return <StudentNotifications />;
+            return (
+                <div>
+                    <StudentNotifications />
+                </div>
+            );
         }
 
         if (activeSection !== 'Home') {
@@ -282,8 +307,17 @@ const BatchRepDashboard = () => {
                             <span className="text-sm font-semibold text-gray-700">{user?.name || 'John Smith'}</span>
                             <span className="text-xs text-gray-500">{user?.role || 'Batch Representative'}</span>
                         </div>
-                        <button className="h-10 w-10 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-shadow">
+                        <button
+                            className="relative h-10 w-10 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-shadow"
+                            onClick={() => setActiveSection('Notifications & Alerts')}
+                            title="Notifications"
+                        >
                             {user?.name?.charAt(0) || 'J'}
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 ring-2 ring-white text-white text-[10px] font-bold flex items-center justify-center">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
                         </button>
                     </div>
                 </header>
