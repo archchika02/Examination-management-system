@@ -50,6 +50,9 @@ app.use('/api/courses', courseRoutes);
 const userRoutes = require('./routes/userRoutes');
 app.use('/api/users', userRoutes);
 
+const reportRoutes = require('./routes/reportRoutes');
+app.use('/api/reports', reportRoutes);
+
 
 // --- Background Jobs ---
 // Delete unverified accounts older than 24 hours. Runs every hour at minute 0.
