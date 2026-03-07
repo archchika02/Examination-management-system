@@ -54,7 +54,7 @@ const FacultyStaffDashboard = () => {
     const menuItems = [
         { name: 'Home', icon: '🏠' },
         { name: 'Timetable', icon: '📅' },
-        { name: 'Hall Attendants', icon: '👥' },
+        { name: 'Hall Attendants Allocation & Final Timetable', icon: '👥' },
         { name: 'Generate Reports', icon: '📊' },
         { name: 'Add/Drop Forms', icon: '📝' },
         { name: 'Academic Course Units', icon: '📚' },
@@ -94,7 +94,7 @@ const FacultyStaffDashboard = () => {
             return <GenerateReportsSection />;
         }
 
-        if (activeSection === 'Hall Attendants') {
+        if (activeSection === 'Hall Attendants Allocation & Final Timetable') {
             return <FacultyAttendantAllocation />;
         }
 

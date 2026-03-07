@@ -100,6 +100,7 @@ const DeadlinesSection = () => {
                     const mappedData = data.map(d => ({
                         ...d,
                         formName: d.form_name,
+                        academicYear: d.academic_year,
                         deadline: d.deadline ? d.deadline.substring(0, 10) : ''
                     }));
                     setDeadlines(mappedData.length > 0 ? mappedData : initialMockDeadlines);
@@ -118,6 +119,7 @@ const DeadlinesSection = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newDeadline, setNewDeadline] = useState({
         formName: '',
+        academicYear: '',
         deadline: '',
         description: '',
         roles: [],
@@ -157,6 +159,7 @@ const DeadlinesSection = () => {
     const validate = () => {
         const errors = {};
         if (!newDeadline.formName) errors.formName = 'Please select a Form Name';
+        if (!newDeadline.academicYear) errors.academicYear = 'Please select an Academic Year';
         if (!newDeadline.deadline) errors.deadline = 'Deadline Date is required';
         else if (newDeadline.deadline < getMinDate()) errors.deadline = 'Deadline must be in the future';
         if (newDeadline.roles.length === 0) errors.roles = 'Select at least one role';
@@ -177,6 +180,7 @@ const DeadlinesSection = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     formName: newDeadline.formName,
+                    academicYear: newDeadline.academicYear,
                     deadline: newDeadline.deadline,
                     roles: newDeadline.roles,
                     description: newDeadline.description,
@@ -209,6 +213,7 @@ const DeadlinesSection = () => {
         setIsModalOpen(false);
         setNewDeadline({
             formName: '',
+            academicYear: '',
             deadline: '',
             description: '',
             roles: [],
@@ -222,6 +227,7 @@ const DeadlinesSection = () => {
         setIsModalOpen(false);
         setNewDeadline({
             formName: '',
+            academicYear: '',
             deadline: '',
             description: '',
             roles: [],
@@ -254,17 +260,19 @@ const DeadlinesSection = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500 font-bold tracking-wider">
-                                <th className="p-4 pl-6">Form Name</th>
-                                <th className="p-4">Deadline</th>
-                                <th className="p-4">Roles</th>
-                                <th className="p-4">Description</th>
+                                <th className="p-4 pl-6 text-left">Form Name</th>
+                                <th className="p-4 text-left">Year</th>
+                                <th className="p-4 text-left">Deadline</th>
+                                <th className="p-4 text-left">Roles</th>
+                                <th className="p-4 text-left">Description</th>
                                 <th className="p-4 pr-6 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-sm">
                             {deadlines.map((deadline) => (
-                                <tr key={deadline.id} className="hover:bg-blue-50/30 transition-colors group">
+                                <tr key={deadline.id} className="hover:bg-blue-50/30 transition-colors group text-sm">
                                     <td className="p-4 pl-6 font-semibold text-gray-800">{deadline.formName}</td>
+                                    <td className="p-4 text-gray-600 font-medium whitespace-nowrap">{deadline.academicYear}</td>
                                     <td className="p-4 text-gray-600 font-medium font-mono">{deadline.deadline}</td>
                                     <td className="p-4">
                                         <div className="flex flex-wrap gap-1.5">
@@ -327,6 +335,23 @@ const DeadlinesSection = () => {
                             ))}
                         </select>
                         {touched.formName && errors.formName && <p className="mt-1 text-xs text-red-600 font-medium">{errors.formName}</p>}
+                    </div>
+
+                    {/* Academic Year Input */}
+                    <div>
+                        <label htmlFor="academicYear" className="block text-sm font-semibold text-gray-700 mb-1">
+                            Academic Year <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            id="academicYear"
+                            type="text"
+                            placeholder="e.g. 2023/2024"
+                            className={`block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border transition-colors bg-white ${touched.academicYear && errors.academicYear ? 'border-red-300 bg-red-50' : ''}`}
+                            value={newDeadline.academicYear}
+                            onChange={(e) => setNewDeadline({ ...newDeadline, academicYear: e.target.value })}
+                            onBlur={() => setTouched({ ...touched, academicYear: true })}
+                        />
+                        {touched.academicYear && errors.academicYear && <p className="mt-1 text-xs text-red-600 font-medium">{errors.academicYear}</p>}
                     </div>
 
                     {/* Deadline Date */}

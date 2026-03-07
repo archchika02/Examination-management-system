@@ -11,6 +11,7 @@ const submitForm = async (req, res) => {
             form_type,
             signature,
             signature_date,
+            academicYear
         } = req.body;
 
         // When sending FormData, arrays/objects are often stringified
@@ -58,9 +59,9 @@ const submitForm = async (req, res) => {
             // 1. Insert into headers table
             const [headerResult] = await connection.execute(
                 `INSERT INTO medical_repeat_request_headers 
-                (user_id, student_number, student_name, contact_number, email, form_type, signature, signature_date, medical_certificate_url, payment_receipt_url, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')`,
-                [user_id, student_number, student_name, contact_number, email, form_type, signature, signature_date || null, medical_certificate_url, payment_receipt_url]
+                (user_id, student_number, student_name, contact_number, email, form_type, signature, signature_date, medical_certificate_url, payment_receipt_url, status, academic_year) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)`,
+                [user_id, student_number, student_name, contact_number, email, form_type, signature, signature_date || null, medical_certificate_url, payment_receipt_url, academicYear || null]
             );
 
             const headerId = headerResult.insertId;

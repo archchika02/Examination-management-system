@@ -27,7 +27,7 @@ const extractStudentNumber = (formData, prefix, count) => {
 
 // 1. Submit Course Registration
 exports.submitRegistration = async (req, res) => {
-    const { user_id, form_data, signature } = req.body;
+    const { user_id, form_data, signature, academicYear } = req.body;
 
     console.log("INCOMING FORM DATA KEYS:", Object.keys(form_data));
 
@@ -54,9 +54,9 @@ exports.submitRegistration = async (req, res) => {
         // Insert Header
         const [headerResult] = await connection.execute(
             `INSERT INTO course_unit_registration_headers 
-            (user_id, student_number, student_name, level, course_unit_combination, total_credits, signature, address, mobile, email, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')`,
-            [user_id || null, studentNumber, studentName.trim(), level, combination, totalCredits, signature, address, mobile, email]
+            (user_id, student_number, student_name, level, course_unit_combination, total_credits, signature, address, mobile, email, status, academic_year) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)`,
+            [user_id || null, studentNumber, studentName.trim(), level, combination, totalCredits, signature, address, mobile, email, academicYear || null]
         );
 
         const headerId = headerResult.insertId;

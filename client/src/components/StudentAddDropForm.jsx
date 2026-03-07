@@ -5,6 +5,25 @@ const StudentAddDropForm = () => {
     const { user } = useAuth();
     const [formData, setFormData] = useState({});
     const [submitted, setSubmitted] = useState(false);
+    const [academicYear, setAcademicYear] = useState('2023/2024');
+
+    useEffect(() => {
+        const fetchDeadline = async () => {
+            try {
+                const res = await fetch('http://localhost:5000/api/deadlines');
+                if (res.ok) {
+                    const data = await res.json();
+                    const targetDeadline = data.find(d => d.form_name === 'Add/Drop Form');
+                    if (targetDeadline && targetDeadline.academic_year) {
+                        setAcademicYear(targetDeadline.academic_year);
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching deadline info:', err);
+            }
+        };
+        fetchDeadline();
+    }, []);
 
     // Form Structure (Copied from EditFormsSection.jsx ID: 2)
     const formStructure = [
@@ -15,7 +34,7 @@ const StudentAddDropForm = () => {
                 { text: 'UNIVERSITY OF KELANIYA - SRI LANKA', style: 'h2' },
                 { text: 'FACULTY OF SCIENCE', style: 'h3' },
                 { text: 'APPLICATION TO ADD/ DROP COURSE UNITS', style: 'h2_underline' },
-                { text: 'SEMESTER II - ACADEMIC YEAR 2023/2024', style: 'h3' }
+                { text: `SEMESTER II - ACADEMIC YEAR ${academicYear}`, style: 'h3' }
             ]
         },
         {
@@ -56,13 +75,13 @@ const StudentAddDropForm = () => {
             fields: [
                 { id: 'sem1_cred', label: 'Number of credits registered for Semester I', type: 'text_right' },
                 { id: 'sem2_cred', label: 'Number of credits registered for Semester II', type: 'text_right' },
-                { id: 'total_cred', label: 'Total number of credits registered for Academic Year 2023/2024', type: 'text_right' },
+                { id: 'total_cred', label: `Total number of credits registered for Academic Year ${academicYear}`, type: 'text_right' },
             ]
         },
         {
             id: 'declaration',
             type: 'text_block',
-            content: 'Declaration: This is my final selection of course units for Semester II of 2023/2024, and I shall not change them for any reason after this date.'
+            content: `Declaration: This is my final selection of course units for Semester II of ${academicYear}, and I shall not change them for any reason after this date.`
         },
         {
             id: 'signatures',
@@ -137,7 +156,8 @@ const StudentAddDropForm = () => {
                 signature: formData.signatures_Signature,
                 signature_date: formData.signatures_Date,
                 added_courses,
-                dropped_courses
+                dropped_courses,
+                academicYear
             };
 
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
