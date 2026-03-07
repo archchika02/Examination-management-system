@@ -8,7 +8,7 @@ const pool = require('../config/db');
  * Body: { formName, deadline, roles, description, notifyEmail, notifySystem, createdBy }
  */
 router.post('/', async (req, res) => {
-    const { formName, deadline, roles, description, notifyEmail, notifySystem, createdBy } = req.body;
+    const { formName, deadline, roles, description, notifyEmail, notifySystem, createdBy, academicYear } = req.body;
 
     if (!formName || !deadline || !roles || roles.length === 0) {
         return res.status(400).json({ message: 'formName, deadline, and at least one role are required' });
@@ -20,15 +20,16 @@ router.post('/', async (req, res) => {
 
         // Insert into deadlines table
         const [result] = await connection.execute(
-            `INSERT INTO deadlines (form_name, title, due_date, description, notify_email, notify_system)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO deadlines (form_name, title, due_date, description, notify_email, notify_system, academic_year)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [
                 formName,
                 formName,
                 deadline,
                 description || '',
                 notifyEmail ? 1 : 0,
-                notifySystem ? 1 : 0
+                notifySystem ? 1 : 0,
+                academicYear || null
             ]
         );
 
@@ -63,7 +64,7 @@ router.get('/', async (req, res) => {
         const [rows] = await pool.execute(`
             SELECT 
                 d.id, d.form_name, d.title, d.due_date AS deadline, d.description,
-                d.notify_email, d.notify_system, d.created_at,
+                d.notify_email, d.notify_system, d.created_at, d.academic_year,
                 GROUP_CONCAT(dr.role_name ORDER BY dr.role_name SEPARATOR ',') AS roles
             FROM deadlines d
             LEFT JOIN deadline_roles dr ON d.id = dr.deadline_id

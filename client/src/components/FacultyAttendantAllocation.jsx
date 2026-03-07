@@ -143,6 +143,31 @@ const FacultyAttendantAllocation = () => {
         }
     };
 
+    const handlePublishToStudents = async () => {
+        const btn = document.getElementById('publish-students-btn');
+        if (btn) btn.innerText = "Publishing...";
+
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/publish-student-timetable', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (response.ok) {
+                if (btn) btn.innerText = "Published! ✓";
+                setTimeout(() => { if (btn) btn.innerText = "Publish timetables to Students"; }, 2000);
+                alert("Timetables published to Students successfully!");
+            } else {
+                alert("Failed to publish timetables.");
+                if (btn) btn.innerText = "Publish timetables to Students";
+            }
+        } catch (err) {
+            console.error("Error publishing:", err);
+            alert("An error occurred while publishing.");
+            if (btn) btn.innerText = "Publish timetables to Students";
+        }
+    };
+
     const handleSubmit = () => {
         // Mock submit action
         console.log("Submitting to Academic Supervisor:", exams);
@@ -489,6 +514,13 @@ const FacultyAttendantAllocation = () => {
                             className="px-6 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all shadow-sm"
                         >
                             Publish Personalized Timetable
+                        </button>
+                        <button
+                            id="publish-students-btn"
+                            onClick={handlePublishToStudents}
+                            className="px-6 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-bold hover:bg-emerald-100 transition-all shadow-sm"
+                        >
+                            Publish timetables to Students
                         </button>
                     </div>
                     <button

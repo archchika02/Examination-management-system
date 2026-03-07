@@ -1,0 +1,28 @@
+{
+  "headers": [
+    {
+      "id": 24,
+      "user_id": 28,
+      "academic_year": "2023/2024",
+      "status": "Approved"
+    },
+    {
+      "id": 25,
+      "user_id": 28,
+      "academic_year": "2023/2024",
+      "status": "Approved"
+    }
+  ],
+  "courses": [
+    {
+      "header_id": 24,
+      "course_code": "inte22283",
+      "academic_year": null
+    },
+    {
+      "header_id": 25,
+      "course_code": "inte22283",
+      "academic_year": null
+    }
+  ]
+}

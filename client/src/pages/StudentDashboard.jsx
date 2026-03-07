@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import PersonalizedTimetable from '../components/PersonalizedTimetable';
+import StudentPersonalizedTimetable from '../components/StudentPersonalizedTimetable';
 import StudentCourseUnitRegistration from '../components/StudentCourseUnitRegistration';
 import StudentAddDropForm from '../components/StudentAddDropForm';
 
@@ -61,7 +61,7 @@ const StudentDashboard = () => {
 
     const renderContent = () => {
         if (activeSection === 'Personalized Timetable') {
-            return <PersonalizedTimetable />;
+            return <StudentPersonalizedTimetable />;
         }
 
         if (activeSection === 'Academic Course Unit') {

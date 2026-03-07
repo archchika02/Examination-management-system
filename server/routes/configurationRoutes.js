@@ -623,41 +623,114 @@ router.post('/publish-timetables', async (req, res) => {
 router.get('/personalized-timetable/:userId', async (req, res) => {
     const userId = req.params.userId;
     try {
-        const query = `
-            SELECT 
-                a.alloc_id,
-                a.exam_id,
-                et.date,
-                et.academic_year,
-                DATE_FORMAT(s.start_time, '%l:%i %p') AS time,
-                et.course_code as courseUnit,
-                c.title as courseTitle,
-                a.venue,
-                CASE 
-                    WHEN a.supervisor_id = ? THEN 'Supervisor'
-                    WHEN (SELECT COUNT(*) FROM exam_draft_invigilators i WHERE i.alloc_id = a.alloc_id AND i.invigilator_id = ?) > 0 THEN 'Invigilator'
-                    WHEN (SELECT COUNT(*) FROM exam_draft_attendants at WHERE at.alloc_id = a.alloc_id AND at.attendant_id = ?) > 0 THEN 'Hall Attendant'
-                    ELSE 'Staff'
-                END as role,
-                (SELECT examiner_role FROM examiner_appointments ea WHERE REPLACE(ea.course_code, ' ', '') = REPLACE(et.course_code, ' ', '') AND ea.user_id = ? AND ea.status = 'Active' LIMIT 1) as examinerRole
-            FROM exam_draft_allocations a
-            JOIN exam_timetables et ON a.exam_id = et.timetable_id
-            JOIN exam_slots s ON et.timetable_id = s.timetable_id
-            LEFT JOIN courses c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
-            WHERE a.is_published = 1
-            AND (
-                a.supervisor_id = ? 
-                OR EXISTS (SELECT 1 FROM exam_draft_invigilators i WHERE i.alloc_id = a.alloc_id AND i.invigilator_id = ?)
-                OR EXISTS (SELECT 1 FROM exam_draft_attendants at WHERE at.alloc_id = a.alloc_id AND at.attendant_id = ?)
-            )
-            ORDER BY et.date ASC, s.start_time ASC
-        `;
-        const [rows] = await pool.query(query, [userId, userId, userId, userId, userId, userId, userId]);
+        // First get the user's role
+        const [userRows] = await pool.query('SELECT role FROM users WHERE user_id = ?', [userId]);
+        if (userRows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const userRole = userRows[0].role;
+        const isStudentOrRep = (userRole === 'Student' || userRole === 'BatchRep' || userRole === 'Batch Representative');
+
+        let query = '';
+        let params = [];
+
+        if (isStudentOrRep) {
+            // Logic for Students/BatchReps: Filter by their approved course registrations matching the exam's academic year
+            query = `
+                SELECT 
+                    a.alloc_id,
+                    a.exam_id,
+                    et.date,
+                    et.academic_year,
+                    DATE_FORMAT(s.start_time, '%l:%i %p') AS time,
+                    et.course_code as courseUnit,
+                    c.title as courseTitle,
+                    a.venue,
+                    'Student' as role,
+                    NULL as examinerRole
+                FROM exam_draft_allocations a
+                JOIN exam_timetables et ON a.exam_id = et.timetable_id
+                JOIN exam_slots s ON et.timetable_id = s.timetable_id
+                LEFT JOIN courses c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+                WHERE a.is_published_to_students = 1
+                AND (
+                    /* Registered Course Units Match */
+                    EXISTS (
+                        SELECT 1 FROM registered_course_units rcu 
+                        JOIN course_unit_registration_headers cur ON rcu.header_id = cur.id 
+                        WHERE cur.user_id = ? AND cur.status = 'Approved'
+                        AND REPLACE(rcu.course_code, ' ', '') = REPLACE(et.course_code, ' ', '')
+                        AND cur.academic_year = et.academic_year
+                    )
+                    OR
+                    /* Add / Drop Added Courses Match */
+                    EXISTS (
+                        SELECT 1 FROM add_drop_requested_courses adc 
+                        JOIN add_drop_request_headers adr ON adc.header_id = adr.id 
+                        WHERE adr.user_id = ? AND adc.action = 'Add' AND adr.status = 'Approved'
+                        AND REPLACE(adc.course_code, ' ', '') = REPLACE(et.course_code, ' ', '')
+                        AND adr.academic_year = et.academic_year
+                    )
+                    OR
+                    /* Medical / Repeat Courses Match */
+                    EXISTS (
+                        SELECT 1 FROM medical_repeat_requested_courses mrc 
+                        JOIN medical_repeat_request_headers mrr ON mrc.header_id = mrr.id 
+                        WHERE mrr.user_id = ? AND mrr.status = 'Approved'
+                        AND REPLACE(mrc.course_code, ' ', '') = REPLACE(et.course_code, ' ', '')
+                        AND mrr.academic_year = et.academic_year
+                    )
+                )
+                AND NOT EXISTS (
+                    /* Subtract Dropped Courses Match */
+                    SELECT 1 FROM add_drop_requested_courses adc 
+                    JOIN add_drop_request_headers adr ON adc.header_id = adr.id 
+                    WHERE adr.user_id = ? AND adc.action = 'Drop' AND adr.status = 'Approved'
+                    AND REPLACE(adc.course_code, ' ', '') = REPLACE(et.course_code, ' ', '')
+                    AND adr.academic_year = et.academic_year
+                )
+                ORDER BY et.date ASC, s.start_time ASC
+            `;
+            params = [userId, userId, userId, userId];
+        } else {
+            // Existing logic for Staff roles
+            query = `
+                SELECT 
+                    a.alloc_id,
+                    a.exam_id,
+                    et.date,
+                    et.academic_year,
+                    DATE_FORMAT(s.start_time, '%l:%i %p') AS time,
+                    et.course_code as courseUnit,
+                    c.title as courseTitle,
+                    a.venue,
+                    CASE 
+                        WHEN a.supervisor_id = ? THEN 'Supervisor'
+                        WHEN (SELECT COUNT(*) FROM exam_draft_invigilators i WHERE i.alloc_id = a.alloc_id AND i.invigilator_id = ?) > 0 THEN 'Invigilator'
+                        WHEN (SELECT COUNT(*) FROM exam_draft_attendants at WHERE at.alloc_id = a.alloc_id AND at.attendant_id = ?) > 0 THEN 'Hall Attendant'
+                        ELSE 'Staff'
+                    END as role,
+                    (SELECT examiner_role FROM examiner_appointments ea WHERE REPLACE(ea.course_code, ' ', '') = REPLACE(et.course_code, ' ', '') AND ea.user_id = ? AND ea.status = 'Active' LIMIT 1) as examinerRole
+                FROM exam_draft_allocations a
+                JOIN exam_timetables et ON a.exam_id = et.timetable_id
+                JOIN exam_slots s ON et.timetable_id = s.timetable_id
+                LEFT JOIN courses c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+                WHERE a.is_published = 1
+                AND (
+                    a.supervisor_id = ? 
+                    OR EXISTS (SELECT 1 FROM exam_draft_invigilators i WHERE i.alloc_id = a.alloc_id AND i.invigilator_id = ?)
+                    OR EXISTS (SELECT 1 FROM exam_draft_attendants at WHERE at.alloc_id = a.alloc_id AND at.attendant_id = ?)
+                )
+                ORDER BY et.date ASC, s.start_time ASC
+            `;
+            params = [userId, userId, userId, userId, userId, userId, userId];
+        }
+
+        const [rows] = await pool.query(query, params);
 
         // Format dates just like the frontend expects 'YYYY-MM-DD'
-        const formattedRows = rows.map((r, index) => {
+        const formattedRows = rows.map((r) => {
             const dateObj = new Date(r.date);
-            // Adjust timezone offset to preserve local YYYY-MM-DD
             const localDate = new Date(dateObj.getTime() - (dateObj.getTimezoneOffset() * 60000));
             return {
                 id: r.alloc_id,
@@ -1190,14 +1263,22 @@ router.post('/save-hall-attendant-draft', async (req, res) => {
 // Publish Hall Attendant Timetable
 router.post('/publish-attendant-timetable', async (req, res) => {
     try {
-        // Set is_published = 1 for all attendant assignments
-        // We could also refine this to only publish for specific exams if needed, 
-        // but the prompt says "publish personalized timetable" which usually means the whole set.
         await pool.query('UPDATE exam_draft_attendants SET is_published = 1');
         res.json({ message: 'Personalized timetables published successfully!' });
     } catch (err) {
         console.error('Error publishing hall attendant timetable:', err);
         res.status(500).json({ message: 'Error publishing hall attendant timetable', error: err.message });
+    }
+});
+
+// Publish Student Timetable
+router.post('/publish-student-timetable', async (req, res) => {
+    try {
+        await pool.query('UPDATE exam_draft_allocations SET is_published_to_students = 1');
+        res.json({ message: 'Timetables published to students successfully!' });
+    } catch (err) {
+        console.error('Error publishing student timetable:', err);
+        res.status(500).json({ message: 'Error publishing student timetable', error: err.message });
     }
 });
 

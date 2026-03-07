@@ -17,7 +17,8 @@ exports.submitAddDropRequest = async (req, res) => {
             signature,
             signature_date,
             added_courses, // Array of strings e.g. ["MATH101", "PHYS201"]
-            dropped_courses // Array of strings
+            dropped_courses, // Array of strings
+            academicYear
         } = req.body;
 
         // Form Validation Check
@@ -44,8 +45,8 @@ exports.submitAddDropRequest = async (req, res) => {
         // Insert Header
         const [headerResult] = await connection.execute(
             `INSERT INTO add_drop_request_headers 
-            (user_id, student_number, student_name, contact_number, email, combination, year, sem1_credits, sem2_credits, total_credits, signature, signature_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            (user_id, student_number, student_name, contact_number, email, combination, year, sem1_credits, sem2_credits, total_credits, signature, signature_date, academic_year)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 userId,
                 student_number,
@@ -58,7 +59,8 @@ exports.submitAddDropRequest = async (req, res) => {
                 sem2_credits || null,
                 total_credits || null,
                 signature,
-                signature_date
+                signature_date,
+                academicYear || null
             ]
         );
 

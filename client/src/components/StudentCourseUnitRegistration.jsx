@@ -7,8 +7,34 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
     // If readOnlyData is provided, use it directly, otherwise use local state
     const [formData, setFormData] = useState(readOnlyData || {});
     const [submitted, setSubmitted] = useState(false);
+    const [academicYear, setAcademicYear] = useState('2023/2024');
+    const [deadlineDate, setDeadlineDate] = useState('Not Set');
     const sigCanvas = useRef(null);
     const isReadOnly = !!readOnlyData;
+
+    useEffect(() => {
+        if (!isReadOnly) {
+            const fetchDeadline = async () => {
+                try {
+                    const res = await fetch('http://localhost:5000/api/deadlines');
+                    if (res.ok) {
+                        const data = await res.json();
+                        const targetDeadline = data.find(d => d.form_name === 'Academic Course Unit');
+                        if (targetDeadline) {
+                            if (targetDeadline.academic_year) setAcademicYear(targetDeadline.academic_year);
+                            if (targetDeadline.deadline) {
+                                const d = new Date(targetDeadline.deadline);
+                                setDeadlineDate(`${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching deadline info:', err);
+                }
+            };
+            fetchDeadline();
+        }
+    }, [isReadOnly]);
 
     // ... [formStructure remains exactly the same] ...
     const formStructure = [
@@ -16,10 +42,10 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
             id: 'header_cr',
             type: 'header',
             content: [
-                { text: 'Application closing date: 17.02.2025', style: 'text_left_bold' },
+                { text: `Application closing date: ${deadlineDate}`, style: 'text_left_bold' },
                 { text: 'UNIVERSITY OF KELANIYA - SRI LANKA', style: 'h2' },
                 { text: 'FACULTY OF SCIENCE', style: 'h3' },
-                { text: '2023/2024 ACADEMIC YEAR', style: 'h2' },
+                { text: `${academicYear} ACADEMIC YEAR`, style: 'h2' },
                 { text: 'REGISTRATION FORM FOR COURSE UNITS', style: 'h2_underline' },
                 { text: '(Use block capitals only)', style: 'text_left_italic_bold' },
             ]
@@ -213,7 +239,8 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
             const payload = {
                 user_id: user?.user_id || null,
                 form_data: formData,
-                signature: signatureBase64
+                signature: signatureBase64,
+                academicYear: academicYear
             };
 
             const response = await fetch('http://localhost:5000/api/course-registration/submit', {

@@ -7,6 +7,30 @@ const StudentMedicalRepeatForm = () => {
     const [submitted, setSubmitted] = useState(false);
     const [medicalFiles, setMedicalFiles] = useState([]);
     const [receiptFiles, setReceiptFiles] = useState([]);
+    const [academicYear, setAcademicYear] = useState('2023/2024');
+    const [deadlineDate, setDeadlineDate] = useState('Not Set');
+
+    useEffect(() => {
+        const fetchDeadline = async () => {
+            try {
+                const res = await fetch('http://localhost:5000/api/deadlines');
+                if (res.ok) {
+                    const data = await res.json();
+                    const targetDeadline = data.find(d => d.form_name === 'Medical/Repeat Form');
+                    if (targetDeadline) {
+                        if (targetDeadline.academic_year) setAcademicYear(targetDeadline.academic_year);
+                        if (targetDeadline.deadline) {
+                            const d = new Date(targetDeadline.deadline);
+                            setDeadlineDate(`${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching deadline info:', err);
+            }
+        };
+        fetchDeadline();
+    }, []);
 
     // Form Structure (Copied from EditFormsSection.jsx ID: 4)
     const formStructure = [
@@ -14,12 +38,12 @@ const StudentMedicalRepeatForm = () => {
             id: 'header_rm',
             type: 'header',
             content: [
-                { text: 'Closing date of Application: 09.04.2025', style: 'text_left_bold' },
+                { text: `Closing date of Application: ${deadlineDate}`, style: 'text_left_bold' },
                 { text: 'UNIVERSITY OF KELANIYA', style: 'h2' },
                 { text: 'APPLICATION FOR REPEAT/MEDICAL EXAMINATIONS', style: 'h2' },
                 { text: 'FOR IT/MIT STUDENTS', style: 'h3' },
                 { text: 'INTAKE OF STUDENTS OF THE ACADEMIC YEAR 2022/2023 ONLY', style: 'h3' },
-                { text: 'ACADEMIC YEAR 2023/2024 – SEMESTER I', style: 'h3' }
+                { text: `ACADEMIC YEAR ${academicYear} – SEMESTER I`, style: 'h3' }
             ]
         },
         {
@@ -139,6 +163,7 @@ const StudentMedicalRepeatForm = () => {
             formDataPayload.append('form_type', formType);
             formDataPayload.append('signature', formData.sig_0 || '');
             formDataPayload.append('signature_date', formData.sig_1 || '');
+            formDataPayload.append('academicYear', academicYear);
             formDataPayload.append('courses', JSON.stringify(courses));
 
             if (medicalFiles[0]) {
