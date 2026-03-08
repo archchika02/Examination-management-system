@@ -3,18 +3,23 @@ const pool = require('../config/db');
 exports.getStats = async (req, res) => {
     try {
         const [addDropCount] = await pool.execute(
-            "SELECT COUNT(*) as count FROM add_drop_request_headers WHERE status = 'Pending'"
+            "SELECT COUNT(*) as count FROM add_drop_request_headers WHERE status = 'Pending Supervisor'"
         );
-        const [courseCount] = await pool.execute(
-            'SELECT COUNT(*) as count FROM course_units'
+        // Get the latest academic year and its course count from the courses table
+        const [latestYear] = await pool.execute(
+            "SELECT academic_year, COUNT(*) as count FROM courses WHERE academic_year IS NOT NULL GROUP BY academic_year ORDER BY academic_year DESC LIMIT 1"
         );
+        const courseUnitCount = latestYear.length > 0 ? latestYear[0].count : 0;
+        const latestAcademicYear = latestYear.length > 0 ? latestYear[0].academic_year : null;
+
         const [alertCount] = await pool.execute(
             'SELECT COUNT(*) as count FROM alerts WHERE is_active = TRUE'
         );
 
         res.json({
             pendingAddDrop: addDropCount[0].count,
-            totalCourseUnits: courseCount[0].count,
+            totalCourseUnits: courseUnitCount,
+            latestAcademicYear: latestAcademicYear,
             activeAlerts: alertCount[0].count
         });
     } catch (error) {

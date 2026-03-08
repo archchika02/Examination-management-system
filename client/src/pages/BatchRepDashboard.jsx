@@ -18,6 +18,53 @@ const BatchRepDashboard = () => {
     const [activeSection, setActiveSection] = useState('Home');
     const [unreadCount, setUnreadCount] = useState(0);
 
+    // New states for Appoint BatchRep
+    const [isAppointModalOpen, setIsAppointModalOpen] = useState(false);
+    const [studentsLevelList, setStudentsLevelList] = useState([]);
+    const [selectedNewRep, setSelectedNewRep] = useState(null);
+    const [loadingStudents, setLoadingStudents] = useState(false);
+
+    const openAppointModal = async () => {
+        setIsAppointModalOpen(true);
+        setLoadingStudents(true);
+        setSelectedNewRep(null);
+        try {
+            const res = await fetch(`http://localhost:5000/api/users/students/level/${user?.level || 1}`);
+            if (res.ok) {
+                const data = await res.json();
+                setStudentsLevelList(data);
+            }
+        } catch (error) {
+            console.error("Error fetching students by level:", error);
+        } finally {
+            setLoadingStudents(false);
+        }
+    };
+
+    const handleAppointSubmit = async () => {
+        if (!selectedNewRep) return;
+        try {
+            const res = await fetch('http://localhost:5000/api/users/swap-batchrep', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    currentBatchRepId: user.user_id,
+                    newBatchRepId: selectedNewRep
+                })
+            });
+            if (res.ok) {
+                alert("Successfully appointed new Batch Representative! You will now be logged out as your role has changed.");
+                logout();
+                navigate('/login');
+            } else {
+                alert("Failed to appoint new Batch Representative.");
+            }
+        } catch (error) {
+            console.error("Error swapping roles:", error);
+            alert("An error occurred while swapping roles.");
+        }
+    };
+
     useEffect(() => {
         const refresh = async () => {
             if (!user?.user_id) return;
@@ -306,6 +353,12 @@ const BatchRepDashboard = () => {
                         <div className="flex flex-col items-end mr-2 hidden md:block">
                             <span className="text-sm font-semibold text-gray-700">{user?.name || 'John Smith'}</span>
                             <span className="text-xs text-gray-500">{user?.role || 'Batch Representative'}</span>
+                            <button
+                                onClick={openAppointModal}
+                                className="mt-1 text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded border border-indigo-200 hover:bg-indigo-100 transition-colors"
+                            >
+                                Appoint BatchRep
+                            </button>
                         </div>
                         <button
                             className="relative h-10 w-10 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-shadow"
@@ -330,6 +383,73 @@ const BatchRepDashboard = () => {
                     )}
                 </main>
             </div>
+
+            {/* Appoint BatchRep Modal */}
+            {isAppointModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-6 w-full max-w-md mx-4 animate-scale-in flex flex-col max-h-[90vh]">
+                        <div className="flex justify-between items-center mb-4 border-b pb-2 shrink-0">
+                            <h3 className="text-xl font-bold text-gray-800">Appoint New Batch Representative</h3>
+                            <button
+                                onClick={() => setIsAppointModalOpen(false)}
+                                className="text-gray-400 hover:text-red-500 transition-colors"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4 shrink-0">
+                            Select a student from your level to transfer your Batch Representative role to.
+                            This action will change your account to a regular Student and log you out.
+                        </p>
+
+                        <div className="overflow-y-auto mb-4 border rounded-lg bg-gray-50/50 p-2 flex-grow min-h-[150px] max-h-[50vh]">
+                            {loadingStudents ? (
+                                <div className="p-4 text-center text-gray-500">Loading students...</div>
+                            ) : studentsLevelList.length === 0 ? (
+                                <div className="p-4 text-center text-gray-500">No available students found in your level.</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {studentsLevelList.filter(s => s.user_id !== user?.user_id).map((student) => (
+                                        <label
+                                            key={student.user_id}
+                                            className={`flex items-center p-3 rounded-lg border cursor-pointer transition-colors ${selectedNewRep === student.user_id ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="newRep"
+                                                value={student.user_id}
+                                                checked={selectedNewRep === student.user_id}
+                                                onChange={() => setSelectedNewRep(student.user_id)}
+                                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 mr-3"
+                                            />
+                                            <div>
+                                                <p className="text-sm font-semibold text-gray-800">{student.name}</p>
+                                                <p className="text-xs text-gray-500">{student.student_number} • {student.email}</p>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end space-x-3 mt-2 shrink-0">
+                            <button
+                                onClick={() => setIsAppointModalOpen(false)}
+                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAppointSubmit}
+                                disabled={!selectedNewRep}
+                                className={`px-4 py-2 font-semibold rounded-lg transition-colors ${!selectedNewRep ? 'bg-indigo-300 text-white cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md'}`}
+                            >
+                                Appoint & Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
