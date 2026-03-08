@@ -24,6 +24,7 @@ const AddDropApproval = () => {
 
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('[AddDropApproval] Raw API response length:', Array.isArray(data) ? data.length : typeof data, data);
 
                     if (!Array.isArray(data)) {
                         setRequests([{ id: 999, studentNumber: 'ERR', name: 'Expected array, got: ' + typeof data, status: 'Rejected' }]);
@@ -47,19 +48,20 @@ const AddDropApproval = () => {
                             }
 
                             return {
-                                id: req.id,
+                                ...req,
                                 studentNumber: req.student_number || 'Missing Number',
                                 name: req.student_name || 'Missing Name',
                                 form: `Add/Drop Form (${(Number(req.sem1_credits) || 0) + (Number(req.sem2_credits) || 0)} Credits)`,
                                 status: req.status || 'Pending',
                                 tabStatus: tabStatus,
                                 reason: req.reject_reason || '',
-                                ...req
                             };
                         });
 
+                        console.log('[AddDropApproval] Formatted data length:', formattedData.length);
                         setRequests(formattedData);
                     } catch (mapError) {
+                        console.error('[AddDropApproval] Map error:', mapError);
                         setRequests([{ id: 998, studentNumber: 'MAP-ERR', name: mapError.message, status: 'Rejected' }]);
                     }
                 } else {
