@@ -104,7 +104,7 @@ const AddDropFormsSection = () => {
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                     <div>
-                        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Course Modification Registry</h2>
+                        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Course code Modification Registry</h2>
                         <p className="text-sm text-slate-500 mt-1 font-medium">Registry of student requests for course unit additions and withdrawals.</p>
                     </div>
 

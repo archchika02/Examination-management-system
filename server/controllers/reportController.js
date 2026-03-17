@@ -167,11 +167,31 @@ exports.getAttendanceSheets = async (req, res) => {
                 et.timetable_id, 
                 et.course_code, 
                 et.academic_year,
-                c.title as course_title,
+                COALESCE(m_map.title, m_latest.title) as course_title,
                 DATE_FORMAT(et.date, '%W, %e %M, %Y') as exam_date,
                 CONCAT(DATE_FORMAT(s.start_time, '%l:%i %p'), ' - ', DATE_FORMAT(s.end_time, '%l:%i %p')) as start_time
             FROM exam_timetables et
-            LEFT JOIN modules c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '') AND et.academic_year = c.academic_year
+            LEFT JOIN (
+                SELECT course_code, MAX(level) as level
+                FROM modules
+                GROUP BY course_code
+            ) ml ON REPLACE(et.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+            CROSS JOIN (
+                SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
+            ) gtc
+            LEFT JOIN modules m_map ON REPLACE(et.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+                AND m_map.academic_year = (
+                    SELECT CONCAT(
+                        CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
+                        '/',
+                        CAST(SUBSTRING_INDEX(gtc.base_year, '/', -1) AS SIGNED) - (ml.level - 1)
+                    )
+                )
+            LEFT JOIN (
+                SELECT m1.course_code, m1.title, m1.academic_year
+                FROM modules m1
+                WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
+            ) m_latest ON REPLACE(et.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
             LEFT JOIN exam_slots s ON et.timetable_id = s.timetable_id
             WHERE REPLACE(et.course_code, ' ', '') = REPLACE(?, ' ', '')
         `, [courseCode]);
@@ -309,10 +329,29 @@ exports.getExaminerCourses = async (req, res) => {
         // We join with modules to get the title and ensure the course exists.
         // We filter by 'Active' status and show all active appointments regardless of the year.
         const query = `
-            SELECT DISTINCT ea.course_code, c.title as course_title 
+            SELECT DISTINCT ea.course_code, COALESCE(m_map.title, m_latest.title) as course_title 
             FROM examiner_appointments ea
-            JOIN modules c ON REPLACE(ea.course_code, ' ', '') = REPLACE(c.course_code, ' ', '') 
-                AND ea.academic_year = c.academic_year
+            LEFT JOIN (
+                SELECT course_code, MAX(level) as level
+                FROM modules
+                GROUP BY course_code
+            ) ml ON REPLACE(ea.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+            CROSS JOIN (
+                SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
+            ) gtc
+            LEFT JOIN modules m_map ON REPLACE(ea.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+                AND m_map.academic_year = (
+                    SELECT CONCAT(
+                        CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
+                        '/',
+                        CAST(SUBSTRING_INDEX(gtc.base_year, '/', -1) AS SIGNED) - (ml.level - 1)
+                    )
+                )
+            LEFT JOIN (
+                SELECT m1.course_code, m1.title, m1.academic_year
+                FROM modules m1
+                WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
+            ) m_latest ON REPLACE(ea.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
             WHERE ea.user_id = ? 
             AND ea.status = 'Active'
             ORDER BY ea.course_code ASC

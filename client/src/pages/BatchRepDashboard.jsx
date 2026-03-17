@@ -8,6 +8,7 @@ import StudentMedicalRepeatForm from '../components/StudentMedicalRepeatForm';
 import StudentDeadlines from '../components/StudentDeadlines';
 import StudentNotifications from '../components/StudentNotifications';
 import StudentExamCalendar from '../components/StudentExamCalendar';
+import DeadlineExpiryMessage from '../components/DeadlineExpiryMessage';
 
 // Professional SVG Icon Library
 const Icons = {
@@ -61,6 +62,7 @@ const BatchRepDashboard = () => {
     const [sidebarExpanded] = useState(true);
     const [activeSection, setActiveSection] = useState('Home');
     const [unreadCount, setUnreadCount] = useState(0);
+    const [allDeadlines, setAllDeadlines] = useState([]);
 
     // Appoint BatchRep States
     const [isAppointModalOpen, setIsAppointModalOpen] = useState(false);
@@ -158,16 +160,19 @@ const BatchRepDashboard = () => {
             // 2. Fetch Deadlines
             const deadlinesRes = await fetch(`http://localhost:5000/api/deadlines`);
             let urgent2Deadlines = [];
+            let relevantDeadlines = [];
             if (deadlinesRes.ok) {
-                const allDeadlines = (await deadlinesRes.json()) || [];
+                const fetchedDeadlines = (await deadlinesRes.json()) || [];
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
 
-                urgent2Deadlines = allDeadlines
-                    .filter(d =>
-                        (d.roles.includes('Batch Representative') || d.roles.includes('Students')) &&
-                        new Date(d.deadline) >= today
-                    )
+                relevantDeadlines = fetchedDeadlines.filter(d =>
+                    d.roles.includes('Batch Representative') || d.roles.includes('Students')
+                );
+                setAllDeadlines(relevantDeadlines);
+
+                urgent2Deadlines = relevantDeadlines
+                    .filter(d => new Date(d.deadline) >= today)
                     .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
                     .slice(0, 2);
             }
@@ -220,16 +225,48 @@ const BatchRepDashboard = () => {
 
     const quickActions = [
         { id: 1, title: 'Academic Registration', icon: <Icons.Book />, color: 'blue', action: 'Academic Course Unit' },
-        { id: 2, title: 'Course Modification', icon: <Icons.Refresh />, color: 'indigo', action: 'Add / Drop Form' },
+        { id: 2, title: 'Course code Modification', icon: <Icons.Refresh />, color: 'indigo', action: 'Add / Drop Form' },
         { id: 3, title: 'Repeat & Medical', icon: <Icons.Hospital />, color: 'slate', action: 'Medical / Repeat Form' },
     ];
 
     const renderContent = () => {
+        // Deadline checking logic
+        const checkDeadline = (sectionName) => {
+            const sectionToFormMap = {
+                'Academic Course Unit': 'Academic Course Unit',
+                'Add / Drop Form': 'Add/Drop Form',
+                'Medical / Repeat Form': 'Medical/Repeat Form'
+            };
+
+            const formName = sectionToFormMap[sectionName];
+            if (!formName) return true; // Not a restricted form
+
+            const deadlineObj = allDeadlines.find(d => d.form_name === formName);
+            if (!deadlineObj) return true; // No deadline set, assume open
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const deadlineDate = new Date(deadlineObj.deadline);
+            deadlineDate.setHours(0, 0, 0, 0);
+
+            return today <= deadlineDate;
+        };
+
+        const isAccessible = checkDeadline(activeSection);
+
         if (activeSection === 'Personalized Timetable') return <StudentPersonalizedTimetable />;
         if (activeSection === 'Timetable Configuration') return <StudentExamCalendar />;
-        if (activeSection === 'Academic Course Unit') return <StudentCourseUnitRegistration />;
-        if (activeSection === 'Add / Drop Form') return <StudentAddDropForm />;
-        if (activeSection === 'Medical / Repeat Form') return <StudentMedicalRepeatForm />;
+
+        if (activeSection === 'Academic Course Unit') {
+            return isAccessible ? <StudentCourseUnitRegistration /> : <DeadlineExpiryMessage title="Academic Registration Closed" />;
+        }
+        if (activeSection === 'Add / Drop Form') {
+            return isAccessible ? <StudentAddDropForm /> : <DeadlineExpiryMessage title="Course code Modification Period Ended" />;
+        }
+        if (activeSection === 'Medical / Repeat Form') {
+            return isAccessible ? <StudentMedicalRepeatForm /> : <DeadlineExpiryMessage title="Medical/Repeat Submission Closed" />;
+        }
+
         if (activeSection === 'Deadlines') return <StudentDeadlines />;
         if (activeSection === 'Notifications & Alerts') return <StudentNotifications />;
 
