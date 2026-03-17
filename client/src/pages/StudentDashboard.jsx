@@ -7,44 +7,45 @@ import StudentAddDropForm from '../components/StudentAddDropForm';
 import StudentMedicalRepeatForm from '../components/StudentMedicalRepeatForm';
 import StudentDeadlines from '../components/StudentDeadlines';
 import StudentNotifications from '../components/StudentNotifications';
+import DeadlineExpiryMessage from '../components/DeadlineExpiryMessage';
 
 // Professional SVG Icon Library
 const Icons = {
     Home: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
     ),
     Book: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
     ),
     FileText: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" x2="8" y1="13" y2="13" /><line x1="16" x2="8" y1="17" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
     ),
     Hospital: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" x2="15" y1="12" y2="12"/><line x1="12" x2="12" y1="9" y2="15"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="9" x2="15" y1="12" y2="12" /><line x1="12" x2="12" y1="9" y2="15" /></svg>
     ),
     Calendar: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg>
     ),
     Clock: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
     ),
     Bell: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
     ),
     Refresh: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M3 22v-6h6" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" /></svg>
     ),
     Logout: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
     ),
     ChevronRight: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
     ),
     MapPin: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
     ),
     Mail: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
     )
 };
 
@@ -54,6 +55,7 @@ const StudentDashboard = () => {
     const [sidebarExpanded] = useState(true);
     const [activeSection, setActiveSection] = useState('Home');
     const [unreadCount, setUnreadCount] = useState(0);
+    const [allDeadlines, setAllDeadlines] = useState([]);
 
     // Effect for unread notification count polling
     useEffect(() => {
@@ -75,7 +77,7 @@ const StudentDashboard = () => {
     // Mock Data for Quick Actions
     const quickActions = [
         { id: 1, title: 'Academic Registration', icon: <Icons.Book />, color: 'blue', action: 'Academic Course Unit' },
-        { id: 2, title: 'Course Modification', icon: <Icons.Refresh />, color: 'indigo', action: 'Add / Drop Form' },
+        { id: 2, title: 'Course code Modification', icon: <Icons.Refresh />, color: 'indigo', action: 'Add / Drop Form' },
         { id: 3, title: 'Repeat & Medical', icon: <Icons.Hospital />, color: 'slate', action: 'Medical / Repeat Form' },
     ];
 
@@ -108,16 +110,17 @@ const StudentDashboard = () => {
             // 2. Fetch Deadlines
             const deadlinesRes = await fetch(`http://localhost:5000/api/deadlines`);
             let urgent2Deadlines = [];
+            let studentDeadlines = [];
             if (deadlinesRes.ok) {
-                const allDeadlines = (await deadlinesRes.json()) || [];
+                const fetchedDeadlines = (await deadlinesRes.json()) || [];
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
 
-                urgent2Deadlines = allDeadlines
-                    .filter(d =>
-                        d.roles.includes('Students') &&
-                        new Date(d.deadline) >= today
-                    )
+                studentDeadlines = fetchedDeadlines.filter(d => d.roles.includes('Students'));
+                setAllDeadlines(studentDeadlines);
+
+                urgent2Deadlines = studentDeadlines
+                    .filter(d => new Date(d.deadline) >= today)
                     .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
                     .slice(0, 2);
             }
@@ -168,10 +171,42 @@ const StudentDashboard = () => {
     ];
 
     const renderContent = () => {
+        // Deadline checking logic
+        const checkDeadline = (sectionName) => {
+            const sectionToFormMap = {
+                'Academic Course Unit': 'Academic Course Unit',
+                'Add / Drop Form': 'Add/Drop Form',
+                'Medical / Repeat Form': 'Medical/Repeat Form'
+            };
+
+            const formName = sectionToFormMap[sectionName];
+            if (!formName) return true; // Not a restricted form
+
+            const deadlineObj = allDeadlines.find(d => d.form_name === formName);
+            if (!deadlineObj) return true; // No deadline set, assume open
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const deadlineDate = new Date(deadlineObj.deadline);
+            deadlineDate.setHours(0, 0, 0, 0);
+
+            return today <= deadlineDate;
+        };
+
+        const isAccessible = checkDeadline(activeSection);
+
         if (activeSection === 'Personalized Timetable') return <StudentPersonalizedTimetable />;
-        if (activeSection === 'Academic Course Unit') return <StudentCourseUnitRegistration />;
-        if (activeSection === 'Add / Drop Form') return <StudentAddDropForm />;
-        if (activeSection === 'Medical / Repeat Form') return <StudentMedicalRepeatForm />;
+
+        if (activeSection === 'Academic Course Unit') {
+            return isAccessible ? <StudentCourseUnitRegistration /> : <DeadlineExpiryMessage title="Academic Registration Closed" />;
+        }
+        if (activeSection === 'Add / Drop Form') {
+            return isAccessible ? <StudentAddDropForm /> : <DeadlineExpiryMessage title="Course code Modification Period Ended" />;
+        }
+        if (activeSection === 'Medical / Repeat Form') {
+            return isAccessible ? <StudentMedicalRepeatForm /> : <DeadlineExpiryMessage title="Medical/Repeat Submission Closed" />;
+        }
+
         if (activeSection === 'Deadlines') return <StudentDeadlines />;
         if (activeSection === 'Notifications & Alerts') return <StudentNotifications />;
 

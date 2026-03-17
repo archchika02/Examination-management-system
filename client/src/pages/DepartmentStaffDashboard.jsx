@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import PersonalizedTimetable from '../components/PersonalizedTimetable';
 import GenerateMarkingSheet from '../components/GenerateMarkingSheet';
 import DepartmentStaffNotifications from '../components/DepartmentStaffNotifications';
+import ExaminationIrregularities from '../components/ExaminationIrregularities';
 
 // Professional SVG Icon Library
 const Icons = {
@@ -33,6 +34,9 @@ const Icons = {
     ),
     Book: () => (
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" /><path d="M6.5 2H20v20H6.5" /></svg>
+    ),
+    FileWarning: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
     )
 };
 
@@ -121,6 +125,7 @@ const DepartmentStaffDashboard = () => {
         { name: 'Home', icon: <Icons.Dashboard />, label: 'Dashboard' },
         { name: 'Personalized Timetable', icon: <Icons.Calendar />, label: 'My Timetable' },
         { name: 'Generate Marking Sheet', icon: <Icons.Report />, label: 'Marking Sheets' },
+        { name: 'Examination Irregularities', icon: <Icons.FileWarning />, label: 'Irregularities' },
         { name: 'Notifications & Alerts', icon: <Icons.Bell />, label: 'Notifications' },
     ];
 
@@ -135,6 +140,10 @@ const DepartmentStaffDashboard = () => {
 
         if (activeSection === 'Notifications & Alerts') {
             return <DepartmentStaffNotifications />;
+        }
+
+        if (activeSection === 'Examination Irregularities') {
+            return <ExaminationIrregularities />;
         }
 
         if (activeSection !== 'Home') {

@@ -378,6 +378,7 @@ import AssignExaminer from '../components/AssignExaminer';
 import SupervisorTimetableManager from '../components/SupervisorTimetableManager';
 import SupervisorAlerts from '../components/SupervisorAlerts';
 import RoleNotificationsPanel from '../components/RoleNotificationsPanel';
+import ExaminationIrregularities from '../components/ExaminationIrregularities';
 
 // Professional SVG Icon Library
 const Icons = {
@@ -410,6 +411,9 @@ const Icons = {
     ),
     Bell: () => (
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
+    ),
+    FileWarning: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
     )
 };
 
@@ -437,6 +441,7 @@ const AcademicSupervisorDashboard = () => {
         { name: 'Add/Drop Form Approval', icon: <Icons.FileText /> },
         { name: 'Department Staff Registrations', icon: <Icons.Users /> },
         { name: 'Add Course Unit', icon: <Icons.Plus /> },
+        { name: 'Examination Irregularities', icon: <Icons.FileWarning /> },
         { name: 'Alerts', icon: <Icons.Bell /> }
     ];
 
@@ -562,6 +567,8 @@ const AcademicSupervisorDashboard = () => {
                 return <TimetableConfiguration />;
             case 'Alerts':
                 return <RoleNotificationsPanel roleName="Academic Supervisor" />;
+            case 'Examination Irregularities':
+                return <ExaminationIrregularities />;
             case 'Department Staff Registrations':
                 return (
                     <div className="space-y-6 animate-fade-in-up">
@@ -609,7 +616,7 @@ const AcademicSupervisorDashboard = () => {
                                                     </td>
                                                     <td className="px-8 py-5">
                                                         <div className="text-xs font-bold text-slate-600">{new Date(staff.requestedAt).toLocaleDateString()}</div>
-                                                        <div className="text-[10px] text-slate-400 font-medium">Original Request Date</div>
+                                                        <div className="text-[10px] text-slate-400 font-medium">Request Date</div>
                                                     </td>
                                                     <td className="px-8 py-5">
                                                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border

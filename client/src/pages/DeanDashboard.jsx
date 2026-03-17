@@ -368,7 +368,7 @@ const DeanDashboard = () => {
                             <div className="relative z-10">
                                 <h2 className="text-3xl font-semibold mb-2 tracking-tight">Good day, Prof. {user?.name?.split(' ')[0] || 'Dean'}</h2>
                                 <p className="text-slate-400 text-base font-medium max-w-7xl leading-relaxed">
-                                    Access the Faculty administrative hub to manage credential validation and course modifications.
+                                    Access the Faculty administrative hub to manage credential validation and course code modifications.
                                 </p>
                             </div>
                         </div>
@@ -382,7 +382,7 @@ const DeanDashboard = () => {
                                         <Icons.Approvals />
                                     </span>
                                 </div>
-                                <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-4">Course Modifications</h3>
+                                <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-4">Course code Modifications</h3>
                                 <div className="flex items-baseline gap-2 mb-6">
                                     <span className="text-5xl font-bold text-slate-800 tracking-tighter">{stats.pendingDeanAddDrop}</span>
                                     <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">Pending Review</span>

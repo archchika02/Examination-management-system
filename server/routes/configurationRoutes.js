@@ -586,20 +586,33 @@ router.get('/allocations-dashboard', async (req, res) => {
                 DATE_FORMAT(t.date, '%Y-%m-%d') AS date, 
                 DATE_FORMAT(s.start_time, '%l:%i %p') AS time, 
                 s.end_time AS endTime, 
-                CONCAT(t.course_code, COALESCE(CONCAT(' - ', c.title), '')) AS course,
+                CONCAT(t.course_code, COALESCE(CONCAT(' - ', m_map.title), CONCAT(' - ', m_latest.title), '')) AS course,
                 s.std_non_repeat AS totalNonRepeat, 
                 s.std_repeat AS totalRepeat,
                 ea.user_id AS examiner1Id
             FROM exam_timetables t
             JOIN exam_slots s ON t.timetable_id = s.timetable_id
             LEFT JOIN (
+                SELECT course_code, MAX(level) as level
+                FROM modules
+                GROUP BY course_code
+            ) ml ON REPLACE(t.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+            CROSS JOIN (
+                SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
+            ) gtc
+            LEFT JOIN modules m_map ON REPLACE(t.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+                AND m_map.academic_year = (
+                    SELECT CONCAT(
+                        CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
+                        '/',
+                        CAST(SUBSTRING_INDEX(gtc.base_year, '/', -1) AS SIGNED) - (ml.level - 1)
+                    )
+                )
+            LEFT JOIN (
                 SELECT m1.course_code, m1.title, m1.academic_year
                 FROM modules m1
-                WHERE m1.academic_year = (
-                    SELECT MAX(m2.academic_year) FROM modules m2 
-                    WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', '') 
-                )
-            ) c ON REPLACE(t.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+                WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
+            ) m_latest ON REPLACE(t.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
             LEFT JOIN examiner_appointments ea 
                 ON REPLACE(t.course_code, ' ', '') = REPLACE(ea.course_code, ' ', '') 
                 AND t.academic_year = ea.academic_year 
@@ -851,7 +864,7 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                     et.academic_year,
                     DATE_FORMAT(s.start_time, '%l:%i %p') AS time,
                     et.course_code as courseUnit,
-                    c.title as courseTitle,
+                    COALESCE(m_map.title, m_latest.title) as courseTitle,
                     a.venue,
                     'Student' as role,
                     NULL as examinerRole
@@ -859,13 +872,26 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                 JOIN exam_timetables et ON a.exam_id = et.timetable_id
                 JOIN exam_slots s ON et.timetable_id = s.timetable_id
                 LEFT JOIN (
+                    SELECT course_code, MAX(level) as level
+                    FROM modules
+                    GROUP BY course_code
+                ) ml ON REPLACE(et.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+                CROSS JOIN (
+                    SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
+                ) gtc
+                LEFT JOIN modules m_map ON REPLACE(et.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+                    AND m_map.academic_year = (
+                        SELECT CONCAT(
+                            CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
+                            '/',
+                            CAST(SUBSTRING_INDEX(gtc.base_year, '/', -1) AS SIGNED) - (ml.level - 1)
+                        )
+                    )
+                LEFT JOIN (
                     SELECT m1.course_code, m1.title, m1.academic_year
                     FROM modules m1
-                    WHERE m1.academic_year = (
-                        SELECT MAX(m2.academic_year) FROM modules m2 
-                        WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', '')
-                    )
-                ) c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+                    WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
+                ) m_latest ON REPLACE(et.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
                 WHERE a.is_published_to_students = 1
                 AND (
                     /* Registered Course Units Match */
@@ -916,7 +942,7 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                     et.academic_year,
                     DATE_FORMAT(s.start_time, '%l:%i %p') AS time,
                     et.course_code as courseUnit,
-                    c.title as courseTitle,
+                    COALESCE(m_map.title, m_latest.title) as courseTitle,
                     a.venue,
                     CASE 
                         WHEN a.supervisor_id = ? THEN 'Supervisor'
@@ -929,13 +955,26 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                 JOIN exam_timetables et ON a.exam_id = et.timetable_id
                 JOIN exam_slots s ON et.timetable_id = s.timetable_id
                 LEFT JOIN (
+                    SELECT course_code, MAX(level) as level
+                    FROM modules
+                    GROUP BY course_code
+                ) ml ON REPLACE(et.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+                CROSS JOIN (
+                    SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
+                ) gtc
+                LEFT JOIN modules m_map ON REPLACE(et.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+                    AND m_map.academic_year = (
+                        SELECT CONCAT(
+                            CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
+                            '/',
+                            CAST(SUBSTRING_INDEX(gtc.base_year, '/', -1) AS SIGNED) - (ml.level - 1)
+                        )
+                    )
+                LEFT JOIN (
                     SELECT m1.course_code, m1.title, m1.academic_year
                     FROM modules m1
-                    WHERE m1.academic_year = (
-                        SELECT MAX(m2.academic_year) FROM modules m2 
-                        WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', '')
-                    )
-                ) c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+                    WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
+                ) m_latest ON REPLACE(et.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
                 WHERE a.is_published = 1
                 AND (
                     a.supervisor_id = ? 
@@ -1454,7 +1493,7 @@ router.get('/faculty-attendant-allocations', async (req, res) => {
                 s.start_time as raw_start_time,
                 CONCAT(DATE_FORMAT(s.start_time, '%l:%i %p'), ' - ', DATE_FORMAT(s.end_time, '%l:%i %p')) AS time,
                 et.course_code,
-                c.title as course_title,
+                COALESCE(m_map.title, m_latest.title) as course_title,
                 s.std_non_repeat as total_non_repeat,
                 s.std_repeat as total_repeat,
                 a.venue,
@@ -1465,13 +1504,26 @@ router.get('/faculty-attendant-allocations', async (req, res) => {
             JOIN exam_timetables et ON a.exam_id = et.timetable_id
             JOIN exam_slots s ON et.timetable_id = s.timetable_id
             LEFT JOIN (
+                SELECT course_code, MAX(level) as level
+                FROM modules
+                GROUP BY course_code
+            ) ml ON REPLACE(et.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+            CROSS JOIN (
+                SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
+            ) gtc
+            LEFT JOIN modules m_map ON REPLACE(et.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+                AND m_map.academic_year = (
+                    SELECT CONCAT(
+                        CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
+                        '/',
+                        CAST(SUBSTRING_INDEX(gtc.base_year, '/', -1) AS SIGNED) - (ml.level - 1)
+                    )
+                )
+            LEFT JOIN (
                 SELECT m1.course_code, m1.title, m1.academic_year
                 FROM modules m1
-                WHERE m1.academic_year = (
-                    SELECT MAX(m2.academic_year) FROM modules m2 
-                    WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', '') 
-                )
-            ) c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+                WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
+            ) m_latest ON REPLACE(et.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
             LEFT JOIN users u_sup ON a.supervisor_id = u_sup.user_id
             WHERE a.is_submitted_to_faculty IN (1, 2)
             ORDER BY et.date ASC, s.start_time ASC
@@ -1608,7 +1660,7 @@ router.get('/attendant-published-exams', async (req, res) => {
                 et.academic_year as academicYear,
                 et.date,
                 et.course_code,
-                c.title as courseTitle,
+                COALESCE(m_map.title, m_latest.title) as courseTitle,
                 a.venue,
                 s.start_time,
                 s.end_time,
@@ -1623,7 +1675,27 @@ router.get('/attendant-published-exams', async (req, res) => {
             JOIN exam_draft_allocations a ON eda.alloc_id = a.alloc_id
             JOIN exam_timetables et ON a.exam_id = et.timetable_id
             LEFT JOIN exam_slots s ON et.timetable_id = s.timetable_id
-            LEFT JOIN modules c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '') AND et.academic_year = c.academic_year
+            LEFT JOIN (
+                SELECT course_code, MAX(level) as level
+                FROM modules
+                GROUP BY course_code
+            ) ml ON REPLACE(et.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+            CROSS JOIN (
+                SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
+            ) gtc
+            LEFT JOIN modules m_map ON REPLACE(et.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+                AND m_map.academic_year = (
+                    SELECT CONCAT(
+                        CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
+                        '/',
+                        CAST(SUBSTRING_INDEX(gtc.base_year, '/', -1) AS SIGNED) - (ml.level - 1)
+                    )
+                )
+            LEFT JOIN (
+                SELECT m1.course_code, m1.title, m1.academic_year
+                FROM modules m1
+                WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
+            ) m_latest ON REPLACE(et.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
             LEFT JOIN users u_sup ON a.supervisor_id = u_sup.user_id
             WHERE eda.attendant_id = ? AND eda.is_published = 1
             ORDER BY et.date ASC, s.start_time ASC
