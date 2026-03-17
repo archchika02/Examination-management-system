@@ -5,6 +5,43 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import RoleNotificationsPanel from '../components/RoleNotificationsPanel';
 
+// Professional SVG Icon Library
+const Icons = {
+    Bell: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>
+    ),
+    Logout: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" /></svg>
+    ),
+    Download: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>
+    ),
+    FileText: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" x2="8" y1="13" y2="13" /><line x1="16" x2="8" y1="17" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+    ),
+    MapPin: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+    ),
+    AlertCircle: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12" y1="16" y2="16" /></svg>
+    ),
+    Eye: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+    ),
+    Clock: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+    ),
+    Calendar: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg>
+    ),
+    X: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="6" y1="6" y2="18" /><line x1="6" x2="18" y1="6" y2="18" /></svg>
+    ),
+    Check: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+    )
+};
+
 const HallAttendantDashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
@@ -277,350 +314,359 @@ const HallAttendantDashboard = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+        <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
             {/* Header */}
-            <header className="bg-white shadow-sm z-10 sticky top-0">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-                    <div className="flex items-center">
-                        <h1 className="text-xl font-bold text-gray-800 tracking-tight">EMS | Hall Attendant</h1>
+            <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <div>
+                            <h1 className="text-xl font-black text-white tracking-tight uppercase tracking-widest text-xs">EMS | Registry</h1>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hall Attendant Services</p>
+                        </div>
                     </div>
 
                     <div className="flex items-center space-x-6">
                         <button
-                            className="relative p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                            className="relative p-2.5 bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-all group"
                             onClick={() => setShowNotifications(prev => !prev)}
-                            title="Notifications & Alerts"
                         >
-                            <span className="text-xl">🔔</span>
+                            <Icons.Bell />
                             {unreadCount > 0 && (
-                                <span className="absolute top-0.5 right-0.5 h-4 w-4 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center">
+                                <span className="absolute -top-1 -right-1 h-5 w-5 bg-blue-600 border-2 border-slate-900 rounded-full text-white text-[10px] font-black flex items-center justify-center animate-pulse">
                                     {unreadCount > 9 ? '9+' : unreadCount}
                                 </span>
                             )}
                         </button>
 
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center gap-4 pl-4 border-l border-slate-800">
                             <div className="flex flex-col items-end hidden md:flex">
-                                <span className="text-sm font-semibold text-gray-700">{user?.name || 'Hall Attendant'}</span>
-                                <span className="text-xs text-gray-500">{user?.userId || 'ID: HA-001'}</span>
-                            </div>
-                            <div className="h-9 w-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold border border-blue-200">
-                                {user?.name?.charAt(0) || 'H'}
-                            </div>
+                                <span className="text-xs font-black text-white uppercase tracking-widest">{user?.name}</span>                            </div>
                         </div>
 
                         <button
                             onClick={handleLogout}
-                            className="text-gray-500 hover:text-red-600 transition-colors"
+                            className="flex items-center gap-2 p-2.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all group"
                             title="Logout"
                         >
-                            <span className="text-xl">🚪<b>Logout</b></span>
+                            <Icons.Logout />
+                            <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">Log Out</span>
                         </button>
                     </div>
                 </div>
             </header>
 
-            {/* Notifications Slide-Down Panel */}
+            {/* Notifications Panel */}
             {showNotifications && (
-                <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)}>
-                    <div
-                        className="absolute top-16 right-4 w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-y-auto max-h-[80vh] p-6 z-50"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold text-gray-800">Notifications &amp; Alerts</h2>
-                            <button onClick={() => setShowNotifications(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+                <div className="fixed inset-0 z-50 flex justify-end animate-fade-in">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowNotifications(false)}></div>
+                    <div className="relative w-full max-w-lg bg-white shadow-2xl h-full flex flex-col animate-slide-in-right">
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                            <div>
+                                <h2 className="text-lg font-black text-slate-900 uppercase tracking-widest text-xs">Security & Alerts</h2>
+                                <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">System Broadcasts</p>
+                            </div>
+                            <button onClick={() => setShowNotifications(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+                                <Icons.X />
+                            </button>
                         </div>
-                        <RoleNotificationsPanel roleName="Hall Attendant" />
+                        <div className="flex-1 overflow-y-auto p-6">
+                            <RoleNotificationsPanel roleName="Hall Attendant" />
+                        </div>
                     </div>
                 </div>
             )}
 
             {/* Main Content */}
-            <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 space-y-10">
 
-                {/* Section 1: Upcoming Exams */}
-                <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                        <div>
-                            <h2 className="text-lg font-bold text-gray-800">Upcoming Exams</h2>
-                            <p className="text-sm text-gray-500 mt-1">Select and confirm your assigned duties.</p>
+                {/* Section 1: Assignments */}
+                <section className="bg-white rounded-3xl shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden animate-fade-in-up">
+                    <div className="p-8 border-b border-slate-50 flex flex-col md:flex-row md:justify-between md:items-center gap-6 bg-slate-50/30">
+                        <div className="flex items-center gap-5">
+                            <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-200">
+                                <Icons.FileText />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-black text-slate-900 uppercase tracking-widest text-xs">Exam Duties</h2>
+                                <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">Personal Schedule</p>
+                            </div>
                         </div>
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={handleDownloadPDF}
                                 disabled={upcomingSessions.length === 0}
-                                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm flex items-center gap-2
-                                    ${upcomingSessions.length > 0
-                                        ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md'
-                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                                className="group relative overflow-hidden inline-flex items-center gap-3 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-slate-800 active:scale-95 shadow-xl shadow-slate-200"
                             >
-                                <span className="text-lg">⬇️</span>
-                                Download Timetable
+                                <Icons.Download />
+                                <span>Export Timetable</span>
                             </button>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto min-h-[400px]">
                         <table className="w-full text-left border-collapse">
-                            <thead className="bg-gray-50/50 text-gray-500 font-semibold text-xs uppercase tracking-wider">
-                                <tr>
-                                    <th className="px-6 py-4 w-12">
-
-                                    </th>
-                                    <th className="px-6 py-4">Date</th>
-                                    <th className="px-6 py-4">Time</th>
-                                    <th className="px-6 py-4">Course Unit</th>
-                                    <th className="px-6 py-4">Venue</th>
+                            <thead>
+                                <tr className="bg-slate-50 border-b border-slate-100">
+                                    <th className="px-8 py-5 w-16"></th>
+                                    <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Date</th>
+                                    <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Time</th>
+                                    <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Course Unit</th>
+                                    <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Location</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-50">
+                            <tbody className="divide-y divide-slate-50">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center text-gray-400 text-sm">
-                                            <div className="flex flex-col items-center">
-                                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
-                                                Loading your assignments...
+                                        <td colSpan="5" className="px-8 py-20 text-center">
+                                            <div className="flex flex-col items-center gap-4">
+                                                <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fetching assignments...</p>
                                             </div>
                                         </td>
                                     </tr>
                                 ) : upcomingSessions.length > 0 ? (
                                     upcomingSessions.map((session) => (
-                                        <tr key={session.id} className={`hover:bg-blue-50/30 transition-colors ${selectedSessions.includes(session.id) ? 'bg-blue-50/50' : ''}`}>
-                                            <td className="px-6 py-4">
+                                        <tr key={session.id} className={`hover:bg-slate-50/50 transition-all group ${selectedSessions.includes(session.id) ? 'bg-blue-50/30' : ''}`}>
+                                            <td className="px-8 py-5">
                                                 {session.has_pending_concern > 0 ? (
-                                                    <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-orange-100 text-orange-700 border border-orange-200">
-                                                        REPORTED
-                                                    </span>
+                                                    <div className="  bg-orange-100 flex items-center justify-center text-orange-600 shadow-sm" title="Reported">
+                                                        Reported
+                                                    </div>
                                                 ) : (
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedSessions.includes(session.id)}
-                                                        onChange={() => handleCheckboxChange(session.id)}
-                                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
-                                                        title="Mark for Confirmation or Reschedule"
-                                                    />
+                                                    <div className="relative">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedSessions.includes(session.id)}
+                                                            onChange={() => handleCheckboxChange(session.id)}
+                                                            className="peer h-6 w-6 rounded-lg border-2 border-slate-200 text-blue-600 focus:ring-0 transition-all cursor-pointer opacity-0 absolute inset-0 z-10"
+                                                        />
+                                                        <div className={`h-6 w-6 rounded-lg border-2 flex items-center justify-center transition-all ${selectedSessions.includes(session.id) ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-200 group-hover:border-slate-300'}`}>
+                                                            {selectedSessions.includes(session.id) && <Icons.Check />}
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-700 font-medium whitespace-nowrap">
-                                                {session.date}
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-slate-100 rounded-lg text-slate-500">
+                                                        <Icons.Calendar />
+                                                    </div>
+                                                    <span className="text-sm font-bold text-slate-900">{session.date}</span>
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-500">{session.time}</td>
-                                            <td className="px-6 py-4 text-sm text-gray-800 font-semibold">{session.courseUnit}</td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                                    📍 {session.venue}
-                                                </span>
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-slate-100 rounded-lg text-slate-500">
+                                                        <Icons.Clock />
+                                                    </div>
+                                                    <span className="text-sm font-bold text-slate-600">{session.time}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div>
+                                                    <p className="text-sm font-black text-slate-900 leading-tight">{session.courseUnit.split(' - ')[0]}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{session.courseUnit.split(' - ')[1]}</p>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl font-black text-[10px] uppercase tracking-widest border border-blue-100">
+                                                    <Icons.MapPin />
+                                                    {session.venue}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center text-gray-400 text-sm">
-                                            No upcoming sessions found.
+                                        <td colSpan="5" className="px-8 py-20 text-center">
+                                            <div className="flex flex-col items-center gap-4">
+                                                <div className="p-4 bg-slate-50 rounded-2xl text-slate-300">
+                                                    <Icons.Eye />
+                                                </div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">No upcoming duties found<br />Check back later for updates</p>
+                                            </div>
                                         </td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
-                </section>
 
-                <div className="flex justify-between items-center">
-                    <div className="flex gap-4">
-                        <button
-                            onClick={() => setIsMyConcernsModalOpen(true)}
-                            className="flex items-center space-x-2 px-4 py-2 bg-orange-50 text-orange-700 border border-orange-200 rounded-lg text-sm font-bold hover:bg-orange-100 transition-all shadow-sm"
-                        >
-                            <span>📝</span>
-                            <span>View My Concerns</span>
-                        </button>
+                    {/* Table Footer Actions */}
+                    <div className="p-8 bg-slate-50/30 border-t border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => setIsMyConcernsModalOpen(true)}
+                                className="group inline-flex items-center gap-3 px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all hover:bg-slate-50 active:scale-95 shadow-sm"
+                            >
+                                <Icons.AlertCircle />
+                                <span>My Reported Concerns</span>
+                            </button>
+
+                            <button
+                                onClick={handleGenerateSummaryReport}
+                                disabled={upcomingSessions.length === 0}
+                                className="group inline-flex items-center gap-3 px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all hover:bg-slate-50 active:scale-95 shadow-sm disabled:opacity-50"
+                            >
+                                <Icons.FileText />
+                                <span>Summary Report</span>
+                            </button>
+                        </div>
 
                         <button
-                            onClick={handleGenerateSummaryReport}
-                            disabled={upcomingSessions.length === 0}
-                            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm border
-                                ${upcomingSessions.length > 0
-                                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                                    : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'}`}
+                            onClick={openRescheduleModal}
+                            disabled={selectedSessions.length === 0}
+                            className={`group inline-flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-blue-200 active:scale-95
+                                 ${selectedSessions.length > 0 ? 'hover:bg-blue-700' : 'opacity-50 grayscale cursor-not-allowed'}
+                            `}
                         >
-                            <span>📊</span>
-                            <span>Report</span>
+                            <Icons.AlertCircle />
+                            <span>Report Concern ({selectedSessions.length})</span>
                         </button>
                     </div>
-
-                    <button
-                        onClick={openRescheduleModal}
-                        disabled={selectedSessions.length === 0}
-                        className={`px-4 py-2 border font-medium rounded-lg transition-all text-sm shadow-sm
-                             ${selectedSessions.length > 0
-                                ? 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                                : 'bg-gray-100 border-transparent text-gray-400 cursor-not-allowed'
-                            }`}
-                    >
-                        Report Selected ({selectedSessions.length})
-                    </button>
-                </div>
-
+                </section>
             </main>
 
             {/* Reschedule Request Modal */}
             {isRescheduleModalOpen && rescheduleList.length > 0 && (
-                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-
-                    {/* Background overlay */}
-                    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-blur-sm" onClick={() => setIsRescheduleModalOpen(false)}></div>
-
-                    {/* Modal Panel Container - Flex Centering */}
-                    <div className="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
-
-                        <div className="relative bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:max-w-lg w-full z-50">
-
-                            {/* Modal Content */}
-                            <div className="bg-white px-6 pt-6 pb-6">
-                                <div className="sm:flex sm:items-start">
-                                    <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                                        <div className="flex justify-between items-center mb-4">
-                                            <h3 className="text-xl leading-6 font-bold text-gray-900" id="modal-title">
-                                                Request Reschedule
-                                            </h3>
-                                            <button onClick={() => setIsRescheduleModalOpen(false)} className="text-gray-400 hover:text-gray-500 bg-transparent border-0 cursor-pointer">
-                                                <span className="text-2xl">×</span>
-                                            </button>
-                                        </div>
-
-                                        <p className="text-sm text-gray-500 mb-4">
-                                            You are requesting to reschedule <span className="font-bold text-gray-800">{rescheduleList.length}</span> session(s).
-                                        </p>
-
-                                        {/* Scrollable List of Selected Sessions */}
-                                        <div className="max-h-60 overflow-y-auto mb-6 bg-gray-50 rounded-lg border border-gray-200 divide-y divide-gray-200">
-                                            {rescheduleList.map(session => (
-                                                <div key={session.id} className="p-3">
-                                                    <div className="flex justify-between items-start">
-                                                        <div>
-                                                            <p className="text-sm font-bold text-gray-800">{session.courseUnit}</p>
-                                                            <p className="text-xs text-gray-500 mt-0.5">{session.date} • {session.time}</p>
-                                                        </div>
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-white border border-gray-200 text-gray-600">
-                                                            {session.venue}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            {/* Reason Input */}
-                                            <div>
-                                                <label htmlFor="reason" className="block text-sm font-bold text-gray-900 mb-2">Reason<span className="text-red-500">*</span></label>
-                                                <textarea
-                                                    id="reason"
-                                                    rows="4"
-                                                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md p-3"
-                                                    placeholder="Please explain the reason for requesting reschedule..."
-                                                    value={rescheduleReason}
-                                                    onChange={(e) => setRescheduleReason(e.target.value)}
-                                                ></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsRescheduleModalOpen(false)}></div>
+                    <div className="relative bg-white rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden animate-modal-pop">
+                        <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-200">
+                                    <Icons.AlertCircle />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-black text-slate-900 uppercase tracking-widest text-xs">Report Duty Concern</h2>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">Reschedule Request</p>
                                 </div>
                             </div>
+                            <button onClick={() => setIsRescheduleModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+                                <Icons.X />
+                            </button>
+                        </div>
 
-                            {/* Modal Footer */}
-                            <div className="bg-gray-50 px-6 py-4 sm:flex sm:flex-row-reverse border-t border-gray-100">
-                                <button
-                                    type="button"
-                                    disabled={!rescheduleReason.trim() || submitting}
-                                    className={`w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors
-                                        ${rescheduleReason.trim() && !submitting ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'}`}
-                                    onClick={handleRescheduleSubmit}
-                                >
-                                    {submitting ? 'Submitting...' : `Submit Request (${rescheduleList.length})`}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-                                    onClick={() => setIsRescheduleModalOpen(false)}
-                                >
-                                    Cancel
-                                </button>
+                        <div className="p-8 space-y-8">
+                            <div className="bg-slate-50/50 rounded-3xl border border-slate-100 p-6 space-y-4 max-h-[12rem] overflow-y-auto custom-scrollbar">
+                                {rescheduleList.map(session => (
+                                    <div key={session.id} className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                        <div>
+                                            <p className="text-sm font-black text-slate-900">{session.courseUnit.split(' - ')[0]}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{session.date} • {session.time}</p>
+                                        </div>
+                                        <div className="px-3 py-1 bg-blue-50 text-blue-700 rounded-xl font-black text-[9px] uppercase tracking-widest border border-blue-100">
+                                            {session.venue}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
+
+                            <div className="space-y-3">
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Reason for Adjustment</label>
+                                <textarea
+                                    className="w-full px-6 py-4 bg-slate-50 border-none rounded-3xl focus:ring-2 focus:ring-blue-500/20 transition-all font-bold text-slate-900 placeholder:text-slate-300 text-sm resize-none"
+                                    rows="4"
+                                    placeholder="Explain your situation briefly..."
+                                    value={rescheduleReason}
+                                    onChange={(e) => setRescheduleReason(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="p-8 bg-slate-50/50 border-t border-slate-50 flex flex-col sm:flex-row-reverse gap-4">
+                            <button
+                                onClick={handleRescheduleSubmit}
+                                disabled={!rescheduleReason.trim() || submitting}
+                                className="flex-1 inline-flex items-center justify-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-blue-200 active:scale-95 disabled:opacity-50"
+                            >
+                                {submitting ? 'Processing...' : `Submit Request (${rescheduleList.length})`}
+                            </button>
+                            <button
+                                onClick={() => setIsRescheduleModalOpen(false)}
+                                className="flex-1 px-8 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all hover:bg-slate-50 active:scale-95 shadow-sm"
+                            >
+                                Dismiss
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* My Concerns Summary Modal */}
+            {/* Concerns Summary Modal */}
             {isMyConcernsModalOpen && (
-                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-                    {/* Background overlay */}
-                    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-blur-sm" onClick={() => setIsMyConcernsModalOpen(false)}></div>
-
-                    {/* Modal Panel Container */}
-                    <div className="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
-                        <div className="relative bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:max-w-2xl w-full z-50">
-                            <div className="bg-white px-6 pt-6 pb-6">
-                                <div className="flex justify-between items-center mb-6">
-                                    <h3 className="text-xl leading-6 font-bold text-gray-900 flex items-center">
-                                        <span className="mr-2">📝</span> My Reported Concerns
-                                    </h3>
-                                    <button onClick={() => setIsMyConcernsModalOpen(false)} className="text-gray-400 hover:text-gray-500 transition-colors">
-                                        <span className="text-2xl">×</span>
-                                    </button>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsMyConcernsModalOpen(false)}></div>
+                    <div className="relative bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-modal-pop h-[80vh] flex flex-col">
+                        <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-xl shadow-blue-200">
+                                    <Icons.FileText />
                                 </div>
+                                <div>
+                                    <h2 className="text-lg font-black text-slate-900 uppercase tracking-widest text-xs">Registry Status</h2>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">Reported Concerns</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setIsMyConcernsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+                                <Icons.X />
+                            </button>
+                        </div>
 
-                                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                                    {loadingConcerns ? (
-                                        <div className="text-center py-8 text-gray-500">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-2"></div>
-                                            Loading your concerns...
-                                        </div>
-                                    ) : myConcerns.length > 0 ? (
-                                        myConcerns.map((concern) => (
-                                            <div key={concern.id} className={`p-4 rounded-xl border-l-4 shadow-sm ${concern.status === 'Approved' ? 'bg-gray-50 border-green-500' : concern.status === 'Rejected' ? 'bg-red-50 border-red-500' : 'bg-white border-amber-500 ring-1 ring-gray-100'}`}>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <h4 className="text-sm font-bold text-gray-900">{concern.course || concern.courseUnit}</h4>
-                                                        <p className="text-xs text-gray-500">{concern.courseTitle}</p>
-                                                    </div>
-                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${concern.status === 'Approved' ? 'bg-green-100 text-green-700' : concern.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                        {concern.status}
-                                                    </span>
+                        <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
+                            {loadingConcerns ? (
+                                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                    <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Updating data...</p>
+                                </div>
+                            ) : myConcerns.length > 0 ? (
+                                myConcerns.map((concern) => (
+                                    <div key={concern.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden group hover:border-blue-200 transition-all">
+                                        <div className="p-6 space-y-4">
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <p className="text-sm font-black text-slate-900 leading-tight">{concern.course || concern.courseUnit}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{concern.examDate || concern.date} • {concern.time}</p>
                                                 </div>
-                                                <div className="text-xs text-gray-600 mb-3">
-                                                    <span className="inline-block mr-4">📅 {concern.examDate || concern.date}</span>
-                                                    <span className="inline-block">⏰ {concern.time}</span>
-                                                    <span className="inline-block ml-4 text-indigo-600 font-medium font-bold">📍 {concern.venue}</span>
+                                                <div className={`px-3 py-1.5 rounded-xl font-black text-[9px] uppercase tracking-widest border ${concern.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                    concern.status === 'Rejected' ? 'bg-red-50 text-red-700 border-red-100' :
+                                                        'bg-orange-50 text-orange-700 border-orange-100'
+                                                    }`}>
+                                                    {concern.status}
                                                 </div>
-                                                <div className="bg-amber-50 rounded p-3 text-sm text-gray-700 border border-amber-100">
-                                                    <p className="font-semibold text-xs text-amber-800 mb-1">Reason for concern:</p>
-                                                    {concern.reason || concern.description}
-                                                </div>
-                                                {concern.status === 'Approved' && concern.replacementName && (
-                                                    <div className="mt-3 text-sm text-green-700 font-medium flex items-center bg-green-50/50 p-2 rounded">
-                                                        <span className="mr-2">✅</span> Reassigned to: {concern.replacementName}
-                                                    </div>
-                                                )}
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-8 text-gray-500">
-                                            <p>You haven't reported any concerns yet.</p>
+
+                                            <div className="bg-slate-50 rounded-2xl p-5 space-y-2 border border-slate-50">
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">My Reported Statement:</p>
+                                                <p className="text-sm font-bold text-slate-700 leading-relaxed italic">"{concern.reason || concern.description}"</p>
+                                            </div>
+
+                                            {concern.status === 'Approved' && concern.replacementName && (
+                                                <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50/50 rounded-2xl border border-emerald-50">
+                                                    <div className="p-1.5 bg-emerald-500 rounded-lg text-white">
+                                                        <Icons.Check />
+                                                    </div>
+                                                    <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Reassigned: {concern.replacementName}</p>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-20 gap-4 opacity-50">
+                                    <Icons.Eye />
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No active concerns found</p>
                                 </div>
-                            </div>
-                            <div className="bg-gray-50 px-6 py-4 flex justify-end">
-                                <button
-                                    type="button"
-                                    className="px-6 py-2 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
-                                    onClick={() => setIsMyConcernsModalOpen(false)}
-                                >
-                                    Close
-                                </button>
-                            </div>
+                            )}
+                        </div>
+
+                        <div className="p-8 bg-slate-50/30 border-t border-slate-50">
+                            <button
+                                onClick={() => setIsMyConcernsModalOpen(false)}
+                                className="w-full px-8 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all hover:bg-slate-50 active:scale-95 shadow-sm"
+                            >
+                                Close Summary
+                            </button>
                         </div>
                     </div>
                 </div>

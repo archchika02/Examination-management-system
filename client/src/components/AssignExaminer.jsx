@@ -1,5 +1,32 @@
 import React, { useState, useEffect } from 'react';
 
+const Icons = {
+    Search: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    ),
+    Calendar: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+    ),
+    Filter: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+    ),
+    Users: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    ),
+    CheckCircle: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    ),
+    Clock: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    ),
+    Edit: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    ),
+    X: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="6" y1="6" y2="18"/><line x1="6" x2="18" y1="6" y2="18"/></svg>
+    )
+};
+
 const AssignExaminer = () => {
     const [examiners, setExaminers] = useState([]);
     const [courses, setCourses] = useState([]);
@@ -126,9 +153,6 @@ const AssignExaminer = () => {
         const matchesSearch = ex.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             ex.course.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === "All" || ex.status === statusFilter;
-        // In a real app, we might also filter by academicYear if the list contained mixed years, 
-        // but here we assume the list is loaded based on the context or we just show all for now.
-        // The requirements say "Displays the academic year entered in the typing field", implying the row data helps confirm it.
         return matchesSearch && matchesStatus;
     });
 
@@ -138,130 +162,180 @@ const AssignExaminer = () => {
         available: filteredExaminers.filter(e => e.status === "Available").length
     };
 
+    if (loading) return (
+        <div className="flex items-center justify-center p-20">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+    );
+
     return (
-        <div className="space-y-6 animate-fade-in-up">
-            {/* Header / Title Section could go here if not covered by Dashboard header */}
-
-            {/* Top Control Section */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row items-end md:items-center justify-between gap-4">
-
-                {/* Left Controls */}
-                <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto flex-1">
-                    {/* Search Bar */}
-                    <div className="relative flex-1 min-w-[200px]">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</span>
-                        <input
-                            type="text"
-                            placeholder="Search by Name, Course..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+        <div className="space-y-8 animate-fade-in-up">
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 transition-all hover:shadow-md group">
+                    <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-slate-500 text-[10px] font-black uppercase tracking-widest leading-none">Total Registry</h4>
+                        <span className="p-2 bg-slate-50 text-slate-400 rounded-xl group-hover:bg-slate-100 group-hover:text-slate-600 transition-colors">
+                            <Icons.Users />
+                        </span>
                     </div>
-
-                    {/* Academic Year */}
-                    <div className="flex flex-col">
-                        <label className="text-xs text-gray-500 font-medium ml-1 mb-1">Academic Year</label>
-                        <input
-                            type="text"
-                            placeholder="YYYY/YYYY"
-                            className="w-40 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                            value={academicYear}
-                            onChange={(e) => setAcademicYear(e.target.value)}
-                        />
-                    </div>
-
-                    {/* Status Filter */}
-                    <div className="flex flex-col">
-                        <label className="text-xs text-gray-500 font-medium ml-1 mb-1">Status</label>
-                        <select
-                            className="w-40 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                            <option value="All">All Status</option>
-                            <option value="Available">Available</option>
-                            <option value="Appointed">Appointed</option>
-                        </select>
-                    </div>
+                    <div className="text-3xl font-black text-slate-900 leading-none">{stats.total}</div>
+                    <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-tighter">Academic Staff Listed</p>
                 </div>
 
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 transition-all hover:shadow-md group">
+                    <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-slate-500 text-[10px] font-black uppercase tracking-widest leading-none">Appointed</h4>
+                        <span className="p-2 bg-emerald-50 text-emerald-500 rounded-xl group-hover:bg-emerald-100 transition-colors">
+                            <Icons.CheckCircle />
+                        </span>
+                    </div>
+                    <div className="text-3xl font-black text-emerald-600 leading-none">{stats.appointed}</div>
+                    <p className="text-[10px] text-emerald-500/70 font-bold mt-2 uppercase tracking-tighter">Configurations Finalized</p>
+                </div>
 
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 transition-all hover:shadow-md group">
+                    <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-slate-500 text-[10px] font-black uppercase tracking-widest leading-none">Pending Availability</h4>
+                        <span className="p-2 bg-blue-50 text-blue-500 rounded-xl group-hover:bg-blue-100 transition-colors">
+                            <Icons.Clock />
+                        </span>
+                    </div>
+                    <div className="text-3xl font-black text-blue-600 leading-none">{stats.available}</div>
+                    <p className="text-[10px] text-blue-500/70 font-bold mt-2 uppercase tracking-tighter">Awaiting Assignment</p>
+                </div>
+            </div>
+
+            {/* Comprehensive Controls Bar */}
+            <div className="bg-slate-900 p-2 rounded-2xl shadow-xl flex flex-col md:flex-row items-stretch md:items-center gap-2">
+                <div className="relative flex-1 group">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors">
+                        <Icons.Search />
+                    </span>
+                    <input
+                        type="text"
+                        placeholder="Search by personnel or course..."
+                        className="w-full pl-11 pr-4 py-3 bg-slate-800 border-none rounded-xl text-white text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-500"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+
+                <div className="flex items-center gap-2 p-1">
+                    <div className="flex items-center bg-slate-800 rounded-xl px-4 py-2 group focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                        <span className="text-blue-400 mr-3">
+                            <Icons.Calendar />
+                        </span>
+                        <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Session</span>
+                            <input
+                                type="text"
+                                className="bg-transparent border-none p-0 text-white text-xs font-bold focus:ring-0 w-24 h-4"
+                                value={academicYear}
+                                onChange={(e) => setAcademicYear(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center bg-slate-800 rounded-xl px-4 py-2 group focus-within:ring-2 focus-within:ring-blue-500 transition-all">
+                        <span className="text-blue-400 mr-3">
+                            <Icons.Filter />
+                        </span>
+                        <div className="flex flex-col">
+                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Status</span>
+                            <select
+                                className="bg-transparent border-none p-0 text-white text-xs font-bold focus:ring-0 w-24 h-4 cursor-pointer"
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                            >
+                                <option value="All" className="bg-slate-800">All</option>
+                                <option value="Available" className="bg-slate-800">Available</option>
+                                <option value="Appointed" className="bg-slate-800">Appointed</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Examiner Assignment Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-gray-50/50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
-                                <th className="px-6 py-4 font-semibold">Name</th>
-                                <th className="px-6 py-4 font-semibold">Examiner Type</th>
-                                <th className="px-6 py-4 font-semibold">Course</th>
-                                <th className="px-6 py-4 font-semibold">Academic Year</th>
-                                <th className="px-6 py-4 font-semibold">Status</th>
-                                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                            <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] uppercase text-slate-500 font-black tracking-widest">
+                                <th className="px-8 py-5">Personnel</th>
+                                <th className="px-8 py-5">Role Assignment</th>
+                                <th className="px-8 py-5">Unit Allocation</th>
+                                <th className="px-8 py-5">Status</th>
+                                <th className="px-8 py-5 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
+                        <tbody className="divide-y divide-slate-100">
                             {filteredExaminers.map((examiner) => (
-                                <tr key={examiner.id} className="hover:bg-gray-50/50 transition-colors group">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center">
-                                            <div className="h-10 w-10 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold mr-3 border border-gray-200">
+                                <tr key={examiner.id} className="hover:bg-slate-50/30 transition-colors group">
+                                    <td className="px-8 py-5">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-black border border-slate-200 group-hover:scale-105 transition-transform uppercase shadow-sm shadow-slate-100">
                                                 {examiner.name.charAt(0)}
                                             </div>
                                             <div>
-                                                <div className="font-medium text-gray-900">{examiner.name}</div>
-                                                <div className="text-sm text-gray-500">{examiner.email}</div>
+                                                <div className="text-sm font-black text-slate-900 leading-none mb-1 group-hover:text-blue-600 transition-colors">{examiner.name}</div>
+                                                <div className="text-[10px] font-bold text-slate-400 group-hover:text-slate-500 transition-colors">{examiner.email}</div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <select
-                                            className="w-full bg-transparent border-none focus:ring-0 text-gray-700 text-sm p-0 cursor-pointer hover:text-indigo-600 transition-colors disabled:cursor-not-allowed disabled:hover:text-gray-700"
-                                            value={examiner.type}
-                                            onChange={(e) => handleTypeChange(examiner.id, e.target.value)}
-                                            disabled={examiner.status === "Appointed" && editingId !== examiner.id}
-                                        >
-                                            <option value="" disabled>Select Type</option>
-                                            <option value="Examiner 1">Examiner 1</option>
-                                            <option value="Examiner 2">Examiner 2</option>
-                                        </select>
+                                    <td className="px-8 py-5">
+                                        <div className="relative group/select">
+                                            <select
+                                                className="block w-full bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-700 py-2.5 pl-3 pr-8 appearance-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group-hover/select:bg-white group-hover/select:shadow-sm"
+                                                value={examiner.type}
+                                                onChange={(e) => handleTypeChange(examiner.id, e.target.value)}
+                                                disabled={examiner.status === "Appointed" && editingId !== examiner.id}
+                                            >
+                                                <option value="" disabled>Select Type</option>
+                                                <option value="Examiner 1">Examiner 1</option>
+                                                <option value="Examiner 2">Examiner 2</option>
+                                            </select>
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover/select:text-blue-500 transition-colors">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <select
-                                            className="w-full bg-transparent border-none focus:ring-0 text-gray-700 text-sm p-0 cursor-pointer hover:text-indigo-600 transition-colors disabled:cursor-not-allowed disabled:hover:text-gray-700"
-                                            value={examiner.course}
-                                            onChange={(e) => handleCourseChange(examiner.id, e.target.value)}
-                                            disabled={examiner.status === "Appointed" && editingId !== examiner.id}
-                                        >
-                                            <option value="" disabled>Select Course</option>
-                                            {courses.map(course => (
-                                                <option key={course} value={course}>{course}</option>
-                                            ))}
-                                        </select>
+                                    <td className="px-8 py-5">
+                                        <div className="relative group/select">
+                                            <select
+                                                className="block w-full bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-700 py-2.5 pl-3 pr-8 appearance-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group-hover/select:bg-white group-hover/select:shadow-sm"
+                                                value={examiner.course}
+                                                onChange={(e) => handleCourseChange(examiner.id, e.target.value)}
+                                                disabled={examiner.status === "Appointed" && editingId !== examiner.id}
+                                            >
+                                                <option value="" disabled>Select Course</option>
+                                                {courses.map(course => (
+                                                    <option key={course} value={course}>{course}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover/select:text-blue-500 transition-colors">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                                            </div>
+                                        </div>
                                     </td>
-                                    <td className="px-6 py-4">
-                                        <span className="text-gray-600 text-sm bg-gray-100 px-2 py-1 rounded">{academicYear}</span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                    <td className="px-8 py-5">
+                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border shadow-sm
                                             ${examiner.status === "Appointed"
-                                                ? "bg-green-100 text-green-800"
-                                                : "bg-blue-100 text-blue-800"
+                                                ? "bg-emerald-50 text-emerald-700 border-emerald-100 shadow-emerald-50"
+                                                : "bg-blue-50 text-blue-700 border-blue-100 shadow-blue-50"
                                             }`}>
-                                            {examiner.status === "Appointed" && <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></span>}
-                                            {examiner.status === "Available" && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1.5"></span>}
+                                            <span className={`w-1.5 h-1.5 rounded-full mr-2 ${examiner.status === "Appointed" ? "bg-emerald-500 animate-pulse" : "bg-blue-500"}`}></span>
                                             {examiner.status}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-8 py-5 text-right">
                                         {examiner.status === "Appointed" && editingId !== examiner.id ? (
                                             <button
                                                 onClick={() => setEditingId(examiner.id)}
-                                                className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600 hover:border-blue-100 rounded-xl text-xs font-black transition-all shadow-sm active:scale-95"
                                             >
+                                                <Icons.Edit />
                                                 Edit
                                             </button>
                                         ) : (
@@ -269,21 +343,22 @@ const AssignExaminer = () => {
                                                 {editingId === examiner.id && (
                                                     <button
                                                         onClick={() => setEditingId(null)}
-                                                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all bg-white border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800"
+                                                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100 rounded-xl text-xs font-black transition-all shadow-sm active:scale-95"
                                                     >
+                                                        <Icons.X />
                                                         Cancel
                                                     </button>
                                                 )}
                                                 <button
                                                     onClick={() => handleAppoint(examiner.id)}
                                                     disabled={!examiner.type || !examiner.course}
-                                                    className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all
+                                                    className={`inline-flex items-center gap-1.5 px-6 py-2 rounded-xl text-xs font-black transition-all shadow-sm active:scale-95 text-white
                                                         ${(!examiner.type || !examiner.course)
-                                                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                                            : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-md"
+                                                            ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                                                            : "bg-blue-600 hover:bg-blue-700 shadow-blue-200 hover:-translate-y-0.5"
                                                         }`}
                                                 >
-                                                    {editingId === examiner.id ? "Save" : "Appoint"}
+                                                    {editingId === examiner.id ? "Save Changes" : "Confirm Appointment"}
                                                 </button>
                                             </div>
                                         )}
@@ -292,8 +367,14 @@ const AssignExaminer = () => {
                             ))}
                             {filteredExaminers.length === 0 && (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
-                                        No examiners found matching your criteria.
+                                    <td colSpan="5" className="px-8 py-20 text-center">
+                                        <div className="flex flex-col items-center">
+                                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
+                                                <Icons.Search />
+                                            </div>
+                                            <p className="text-sm font-bold text-slate-900">No personnel matches found</p>
+                                            <p className="text-xs text-slate-400 mt-1">Try adjusting your search or filters.</p>
+                                        </div>
                                     </td>
                                 </tr>
                             )}

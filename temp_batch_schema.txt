@@ -1,0 +1,13 @@
+CREATE TABLE `batch_configurations` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `batch_rep_id` int DEFAULT NULL,
+  `level` int DEFAULT '1',
+  `academic_year` varchar(50) DEFAULT '',
+  `course_code` varchar(50) NOT NULL,
+  `preferred_dates` json DEFAULT NULL,
+  `status` enum('DRAFT','SENT') DEFAULT 'DRAFT',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fk_batch_rep` (`batch_rep_id`),
+  KEY `fk_batch_course` (`course_code`)
+) ENGINE=InnoDB AUTO_INCREMENT=59 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

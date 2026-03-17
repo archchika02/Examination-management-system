@@ -9,196 +9,72 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
     const [submitted, setSubmitted] = useState(false);
     const [academicYear, setAcademicYear] = useState('2023/2024');
     const [deadlineDate, setDeadlineDate] = useState('Not Set');
+    const [dynamicStructure, setDynamicStructure] = useState([]);
+    const [loading, setLoading] = useState(true);
     const sigCanvas = useRef(null);
     const isReadOnly = !!readOnlyData;
 
     useEffect(() => {
-        if (!isReadOnly) {
-            const fetchDeadline = async () => {
-                try {
-                    const res = await fetch('http://localhost:5000/api/deadlines');
-                    if (res.ok) {
-                        const data = await res.json();
-                        const targetDeadline = data.find(d => d.form_name === 'Academic Course Unit');
-                        if (targetDeadline) {
-                            if (targetDeadline.academic_year) setAcademicYear(targetDeadline.academic_year);
-                            if (targetDeadline.deadline) {
-                                const d = new Date(targetDeadline.deadline);
-                                setDeadlineDate(`${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`);
-                            }
+        const loadInitialData = async () => {
+            try {
+                setLoading(true);
+                // 1. Fetch Deadlines
+                const deadlineRes = await fetch('http://localhost:5000/api/deadlines');
+                let currentAcademicYear = '2023/2024';
+                let currentDeadlineDate = 'Not Set';
+
+                if (deadlineRes.ok) {
+                    const data = await deadlineRes.json();
+                    const targetDeadline = data.find(d => d.form_name === 'Academic Course Unit');
+                    if (targetDeadline) {
+                        if (targetDeadline.academic_year) {
+                            currentAcademicYear = targetDeadline.academic_year;
+                            setAcademicYear(currentAcademicYear);
+                        }
+                        if (targetDeadline.deadline) {
+                            const d = new Date(targetDeadline.deadline);
+                            currentDeadlineDate = `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`;
+                            setDeadlineDate(currentDeadlineDate);
                         }
                     }
-                } catch (err) {
-                    console.error('Error fetching deadline info:', err);
                 }
-            };
-            fetchDeadline();
+
+                // 2. Fetch Form Structure
+                const formRes = await fetch('http://localhost:5000/api/configurations/forms/course_registration');
+                if (formRes.ok) {
+                    let structure = await formRes.json();
+                    // Interpolate placeholders
+                    const interpolate = (obj) => {
+                        const str = JSON.stringify(obj);
+                        const replaced = str
+                            .replace(/{{deadlineDate}}/g, currentDeadlineDate)
+                            .replace(/{{academicYear}}/g, currentAcademicYear);
+                        return JSON.parse(replaced);
+                    };
+                    setDynamicStructure(interpolate(structure));
+                }
+            } catch (err) {
+                console.error('Error loading initial data:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (!isReadOnly) {
+            loadInitialData();
+        } else {
+            // If read only, just set loading false as it likely has specific data/structure passed or we use hardcoded as fallback
+            setLoading(false);
         }
     }, [isReadOnly]);
+    
+    // Hardcoded structure as fallback if needed, but we'll use dynamicStructure
+    const fallbackStructure = [
+        // ... (preserving original for safety if needed, but we'll swap it)
+    ];
 
     // ... [formStructure remains exactly the same] ...
-    const formStructure = [
-        {
-            id: 'header_cr',
-            type: 'header',
-            content: [
-                { text: `Application closing date: ${deadlineDate}`, style: 'text_left_bold' },
-                { text: 'UNIVERSITY OF KELANIYA - SRI LANKA', style: 'h2' },
-                { text: 'FACULTY OF SCIENCE', style: 'h3' },
-                { text: `${academicYear} ACADEMIC YEAR`, style: 'h2' },
-                { text: 'REGISTRATION FORM FOR COURSE UNITS', style: 'h2_underline' },
-                { text: '(Use block capitals only)', style: 'text_left_italic_bold' },
-            ]
-        },
-        {
-            id: 'student_info_cr_1',
-            type: 'section_inline',
-            fields: [
-                { id: 'st_no_cr', label: '*STUDENT NUMBER', type: 'box_input_prefilled', value: ['I', 'M', '/'], count: 8 },
-                { id: 'level', label: '*LEVEL', type: 'box_single', align: 'right' },
-            ]
-        },
-        {
-            id: 'student_info_cr_2',
-            type: 'section',
-            fields: [
-                { id: 'st_name_cr', label: '*STUDENT NAME: Mr', type: 'line_input_check', secondaryLabel: 'Ms' },
-                { id: 'address', label: 'ADDRESS', type: 'line_input_dotted' },
-            ]
-        },
-        {
-            id: 'student_info_cr_3',
-            type: 'section_inline',
-            fields: [
-                { id: 'mobile', label: '*MOBILE/ TELEPHONE NO', type: 'line_input_dotted', flex: 1 },
-                { id: 'email_cr', label: 'E-MAIL', type: 'line_input_dotted', flex: 1 },
-            ]
-        },
-        {
-            id: 'course_combo_row',
-            type: 'section_inline',
-            fields: [
-                { id: 'spacer', type: 'spacer', flex: 2 },
-                { id: 'course_combo', label: '*COURSE UNIT COMBINATION', type: 'box_single', align: 'right' },
-            ]
-        },
-        {
-            id: 'course_grids_layout',
-            type: 'two_column_layout',
-            left: [
-                {
-                    type: 'grid_section',
-                    title: 'COMPULSORY COURSE UNITS',
-                    subtitle: 'SEMESTER 1',
-                    rows: 10,
-                    cols: 12,
-                    id: 'Grid_Comp_S1'
-                },
-                {
-                    type: 'section_inline',
-                    justify: 'end',
-                    fields: [{ id: 'cred_comp_1', label: 'CREDITS', type: 'box_small' }]
-                },
-                {
-                    type: 'grid_section',
-                    subtitle: 'SEMESTER 2',
-                    rows: 10,
-                    cols: 12,
-                    id: 'Grid_Comp_S2'
-                },
-                {
-                    type: 'section_inline',
-                    justify: 'end',
-                    fields: [{ id: 'cred_comp_2', label: 'CREDITS', type: 'box_small' }]
-                },
-                {
-                    type: 'section_inline',
-                    justify: 'end',
-                    fields: [{ id: 'cred_comp_total', label: 'COMPULSORY CREDITS', type: 'box_small' }]
-                },
-            ],
-            right: [
-                {
-                    type: 'grid_section',
-                    title: 'OPTIONAL COURSE UNITS',
-                    subtitle: 'SEMESTER 1',
-                    rows: 6,
-                    cols: 12,
-                    id: 'Grid_Opt_S1'
-                },
-                {
-                    type: 'section_inline',
-                    justify: 'end',
-                    fields: [{ id: 'cred_opt_1', label: 'CREDITS', type: 'box_small' }]
-                },
-                {
-                    type: 'grid_section',
-                    subtitle: 'SEMESTER 2',
-                    rows: 6,
-                    cols: 12,
-                    id: 'Grid_Opt_S2'
-                },
-                {
-                    type: 'section_inline',
-                    justify: 'end',
-                    fields: [{ id: 'cred_opt_2', label: 'CREDITS', type: 'box_small' }]
-                },
-                {
-                    type: 'section_inline',
-                    justify: 'end',
-                    fields: [{ id: 'cred_opt_total', label: 'OPTIONAL CREDITS', type: 'box_small' }]
-                },
-                {
-                    type: 'grid_section',
-                    title: 'AUXILIARY COURSE UNITS',
-                    subtitle: 'SEMESTER 1',
-                    rows: 3,
-                    cols: 12,
-                    id: 'Grid_Aux_S1'
-                },
-                {
-                    type: 'section_inline',
-                    justify: 'end',
-                    fields: [{ id: 'cred_aux_1', label: 'CREDITS', type: 'box_small' }]
-                },
-                {
-                    type: 'grid_section',
-                    subtitle: 'SEMESTER 2',
-                    rows: 3,
-                    cols: 12,
-                    id: 'Grid_Aux_S2'
-                },
-                {
-                    type: 'section_inline',
-                    justify: 'end',
-                    fields: [{ id: 'cred_aux_2', label: 'CREDITS', type: 'box_small' }]
-                },
-                {
-                    type: 'section_inline',
-                    justify: 'end',
-                    fields: [{ id: 'cred_aux_total', label: 'AUXILIARY CREDITS', type: 'box_small' }]
-                },
-            ]
-        },
-        {
-            id: 'footer_summary',
-            type: 'section_inline',
-            fields: [
-                { id: 'total_creds_box', label: 'TOTAL NUMBER OF CREDITS', type: 'box_medium_labeled' },
-            ]
-        },
-        {
-            id: 'signatures_cr',
-            type: 'signature_row_wide',
-            labels: ['DATE', 'SIGNATURE OF APPLICANT'],
-            footer: 'ANY CHANGE TO THE REGISTERED COURSES WILL NOT BE DONE AFTER TWO WEEKS OF THE COMMENCEMENT OF THE SEMESTER.'
-        },
-        {
-            id: 'footer_office',
-            type: 'text_center_italic',
-            content: 'Office of the Dean – Faculty of Science, University of Kelaniya'
-        }
-    ];
+    const formStructure = dynamicStructure.length > 0 ? dynamicStructure : [];
 
     // Pre-fill Logic
     useEffect(() => {

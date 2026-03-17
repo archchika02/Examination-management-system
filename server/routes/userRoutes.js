@@ -11,7 +11,7 @@ router.get('/role/:role', async (req, res) => {
             FROM users 
             WHERE role = ? 
             AND is_verified = 1 
-            AND approval_status = 'approved'
+            AND approval_status = 'Approved'
         `;
         const [rows] = await pool.query(query, [role]);
         res.json(rows);

@@ -1,0 +1,13 @@
+CREATE TABLE `exam_timetables` (
+  `timetable_id` int NOT NULL AUTO_INCREMENT,
+  `academic_year` varchar(10) DEFAULT NULL,
+  `semester` int DEFAULT NULL,
+  `created_by` int DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `course_code` varchar(50) DEFAULT NULL,
+  `date` date DEFAULT NULL,
+  `is_submitted` tinyint(1) DEFAULT '0',
+  PRIMARY KEY (`timetable_id`),
+  KEY `created_by` (`created_by`),
+  CONSTRAINT `exam_timetables_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=314 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

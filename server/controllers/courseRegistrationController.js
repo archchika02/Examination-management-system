@@ -54,9 +54,9 @@ exports.submitRegistration = async (req, res) => {
         // Insert Header
         const [headerResult] = await connection.execute(
             `INSERT INTO course_unit_registration_headers 
-            (user_id, student_number, student_name, level, course_unit_combination, total_credits, signature, address, mobile, email, status, academic_year) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)`,
-            [user_id || null, studentNumber, studentName.trim(), level, combination, totalCredits, signature, address, mobile, email, academicYear || null]
+            (user_id, student_number, student_name, level, course_unit_combination, total_credits, signature, address, mobile, email, status, academic_year, form_data) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)`,
+            [user_id || null, studentNumber, studentName.trim(), level, combination, totalCredits, signature, address, mobile, email, academicYear || null, JSON.stringify(form_data)]
         );
 
         const headerId = headerResult.insertId;

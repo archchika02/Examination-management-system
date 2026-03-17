@@ -9,100 +9,60 @@ const StudentMedicalRepeatForm = () => {
     const [receiptFiles, setReceiptFiles] = useState([]);
     const [academicYear, setAcademicYear] = useState('2023/2024');
     const [deadlineDate, setDeadlineDate] = useState('Not Set');
+    const [dynamicStructure, setDynamicStructure] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchDeadline = async () => {
+        const loadInitialData = async () => {
             try {
-                const res = await fetch('http://localhost:5000/api/deadlines');
-                if (res.ok) {
-                    const data = await res.json();
+                setLoading(true);
+                // 1. Fetch Deadlines
+                const deadlineRes = await fetch('http://localhost:5000/api/deadlines');
+                let currentAcademicYear = '2023/2024';
+                let currentDeadlineDate = 'Not Set';
+
+                if (deadlineRes.ok) {
+                    const data = await deadlineRes.json();
                     const targetDeadline = data.find(d => d.form_name === 'Medical/Repeat Form');
                     if (targetDeadline) {
-                        if (targetDeadline.academic_year) setAcademicYear(targetDeadline.academic_year);
+                        if (targetDeadline.academic_year) {
+                            currentAcademicYear = targetDeadline.academic_year;
+                            setAcademicYear(currentAcademicYear);
+                        }
                         if (targetDeadline.deadline) {
                             const d = new Date(targetDeadline.deadline);
-                            setDeadlineDate(`${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`);
+                            currentDeadlineDate = `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`;
+                            setDeadlineDate(currentDeadlineDate);
                         }
                     }
                 }
+
+                // 2. Fetch Form Structure
+                const formRes = await fetch('http://localhost:5000/api/configurations/forms/medical_repeat');
+                if (formRes.ok) {
+                    let structure = await formRes.json();
+                    // Interpolate placeholders
+                    const interpolate = (obj) => {
+                        const str = JSON.stringify(obj);
+                        const replaced = str
+                            .replace(/{{deadlineDate}}/g, currentDeadlineDate)
+                            .replace(/{{academicYear}}/g, currentAcademicYear);
+                        return JSON.parse(replaced);
+                    };
+                    setDynamicStructure(interpolate(structure));
+                }
             } catch (err) {
-                console.error('Error fetching deadline info:', err);
+                console.error('Error loading initial data:', err);
+            } finally {
+                setLoading(false);
             }
         };
-        fetchDeadline();
+
+        loadInitialData();
     }, []);
 
     // Form Structure (Copied from EditFormsSection.jsx ID: 4)
-    const formStructure = [
-        {
-            id: 'header_rm',
-            type: 'header',
-            content: [
-                { text: `Closing date of Application: ${deadlineDate}`, style: 'text_left_bold' },
-                { text: 'UNIVERSITY OF KELANIYA', style: 'h2' },
-                { text: 'APPLICATION FOR REPEAT/MEDICAL EXAMINATIONS', style: 'h2' },
-                { text: 'FOR IT/MIT STUDENTS', style: 'h3' },
-                { text: 'INTAKE OF STUDENTS OF THE ACADEMIC YEAR 2022/2023 ONLY', style: 'h3' },
-                { text: `ACADEMIC YEAR ${academicYear} – SEMESTER I`, style: 'h3' }
-            ]
-        },
-        {
-            id: 'instructions',
-            type: 'instruction_block',
-            items: [
-                "Mention the results obtained (E, D+, D, or C-) for each course unit separately with the relevant academic year. If you have been absent for the module mention it as 'AB', if you have obtained the approval for the medical application, mention it as 'MED', if the results are withheld, mention it as 'WH'.",
-                "Follow mentioned amount should be deposited to the Peoples Bank, Dalugama Branch, Account Name: University of Kelaniya, Account No: 055-100130667553.",
-                {
-                    type: 'table_embedded',
-                    columns: ['Kind of Payment', 'Amount to be paid for a course unit'],
-                    rows: [
-                        ['1st Medical', 'LKR 100.00 per course unit'],
-                        ['2nd, 3rd Medical of the same course unit', 'LKR 500.00 per course unit'],
-                        ['Repeat or any other situation', 'LKR 500.00 per course unit']
-                    ]
-                },
-                "The duly filled application, copy of the medical application approved letter and the copy of the payment receipt should be attached and should be handed over to the help desk of the Faculty of Science.",
-                "The student requests to sit exams beyond 5 years should obtain the approval of the Appeals committee and attach the letter of approval."
-            ]
-        },
-        {
-            id: 'student_info_rm',
-            type: 'section',
-            fields: [
-                { id: 'full_name', label: '01. Full Name', type: 'dotted_line' },
-                { id: 'st_num_spec', label: '02. Student Number', type: 'prefilled_box', value: 'IM/2022/' },
-                { id: 'tel_no', label: '03. Telephone No', type: 'dotted_line' },
-                { id: 'email_rm', label: '04. Email', type: 'dotted_line' },
-            ]
-        },
-        {
-            id: 'course_apply_head',
-            type: 'text_block_simple',
-            content: '05. Course unit applying for:'
-        },
-        {
-            id: 'course_apply_table',
-            type: 'table',
-            columns: ['Course Code', 'Course Title', 'Results obtained', 'Academic Year'],
-            rows: 5,
-            numberedRows: true
-        },
-        {
-            id: 'medical_certificate_upload',
-            type: 'file_upload_medical',
-            label: '06. Upload Medical Certificate',
-        },
-        {
-            id: 'payment_receipt_upload',
-            type: 'file_upload_receipt',
-            label: '07. Upload Payment Receipt',
-        },
-        {
-            id: 'signatures_rm',
-            type: 'signature_row_wide',
-            labels: ['Student Signature:....................................', 'Date ........................']
-        },
-    ];
+    const formStructure = dynamicStructure.length > 0 ? dynamicStructure : [];
 
     useEffect(() => {
         if (user) {
@@ -434,6 +394,15 @@ const StudentMedicalRepeatForm = () => {
             </div>
         )
     };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-500 font-medium font-serif italic">Loading formal structure...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-5xl mx-auto pb-20 animate-fade-in-up">

@@ -1,12 +1,35 @@
-import { useState, useEffect, useRef } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import StudentCourseUnitRegistration from './StudentCourseUnitRegistration';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { generateCourseUnitPDF } from '../utils/pdfGenerator';
+
+const Icons = {
+    Search: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    ),
+    Filter: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+    ),
+    Eye: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+    ),
+    Check: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    ),
+    X: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    ),
+    Download: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+    ),
+    Empty: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+    )
+};
 
 const AcademicCourseUnits = () => {
     const [registrations, setRegistrations] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('All');
+    const [loading, setLoading] = useState(true);
 
     // Modal State
     const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -14,35 +37,36 @@ const AcademicCourseUnits = () => {
     const [selectedRegistration, setSelectedRegistration] = useState(null);
     const [rejectReason, setRejectReason] = useState('');
 
-    // Reference to the rendered PDF layout (invisible)
-    const pdfRef = useRef();
-
     // Fetch data from backend
     const fetchRegistrations = async () => {
         try {
+            setLoading(true);
             const res = await fetch('http://localhost:5000/api/course-registration/list');
             const data = await res.json();
-            // Map the DB schema to the table format
             const mappedData = data.map(dbRow => {
                 const stNo = dbRow.student_number?.startsWith('IM/') ? dbRow.student_number : `IM/${dbRow.student_number || ''}`;
                 return {
                     id: dbRow.id,
                     studentNumber: stNo,
                     studentName: dbRow.student_name,
-                    formName: `CourseReg_${stNo.replace(/[^a-zA-Z0-9]/g, '')}.pdf`,
+                    formName: `CourseReg_${stNo.replace(/[^a-zA-Z0-9]/g, '')}`,
                     courseUnits: dbRow.courses || [],
                     totalCredits: dbRow.total_credits,
-                    dateSubmitted: new Date(dbRow.created_at).toLocaleDateString(),
+                    dateSubmitted: new Date(dbRow.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
                     status: dbRow.status,
                     signature: dbRow.signature,
                     address: dbRow.address || '',
                     mobile: dbRow.mobile || '',
-                    email: dbRow.email || ''
+                    email: dbRow.email || '',
+                    rejectReason: dbRow.reject_reason || '',
+                    form_data: typeof dbRow.form_data === 'string' ? JSON.parse(dbRow.form_data) : dbRow.form_data
                 };
             });
             setRegistrations(mappedData);
         } catch (error) {
             console.error("Error fetching registrations:", error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -51,11 +75,14 @@ const AcademicCourseUnits = () => {
     }, []);
 
     // Filter Logic
-    const filteredRegistrations = registrations.filter(reg => {
-        const matchesSearch = reg.studentNumber.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStatus = filterStatus === 'All' || reg.status === filterStatus;
-        return matchesSearch && matchesStatus;
-    });
+    const filteredRegistrations = useMemo(() => {
+        return registrations.filter(reg => {
+            const matchesSearch = reg.studentNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                reg.studentName?.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesStatus = filterStatus === 'All' || reg.status === filterStatus;
+            return matchesSearch && matchesStatus;
+        });
+    }, [searchTerm, filterStatus, registrations]);
 
     // Actions
     const handleApprove = async (id) => {
@@ -96,42 +123,24 @@ const AcademicCourseUnits = () => {
         }
     };
 
-    const initiateView = (reg) => {
-        setSelectedRegistration(reg);
-        setViewModalOpen(true);
-    };
-
-    const downloadPDF = async (reg) => {
-        // Find the invisible element we rendered for PDF layout
-        const element = document.getElementById(`pdf-form-${reg.id}`);
-        if (!element) return;
-
+    const initiateView = async (reg) => {
         try {
-            const canvas = await html2canvas(element, { scale: 2 });
-            const imgData = canvas.toDataURL('image/png');
-
-            // A4 Aspect Ratio 210x297mm
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(reg.formName);
-        } catch (err) {
-            console.error("Error generating PDF:", err);
+            const doc = await generateCourseUnitPDF(reg);
+            window.open(doc.output('bloburl'), '_blank');
+        } catch (error) {
+            console.error("PDF Preview Error:", error);
+            alert("Failed to generate document preview.");
         }
     };
-
-    const getStatusColor = (status) => {
+    const getStatusBadge = (status) => {
         switch (status) {
-            case 'Approved': return 'bg-green-100 text-green-700';
-            case 'Rejected': return 'bg-red-100 text-red-700';
-            case 'Pending': return 'bg-yellow-100 text-yellow-700';
-            default: return 'bg-gray-100 text-gray-700';
+            case 'Approved': return <span className="bg-emerald-50 text-emerald-700 py-1 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-emerald-100 italic">Validated</span>;
+            case 'Rejected': return <span className="bg-rose-50 text-rose-700 py-1 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-rose-100 italic">Disputed</span>;
+            case 'Pending': return <span className="bg-amber-50 text-amber-700 py-1 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-amber-100 animate-pulse italic">Inspection Required</span>;
+            default: return <span className="bg-slate-50 text-slate-500 py-1 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-100 italic">{status}</span>;
         }
     };
 
-    // Helper to format DB row data into the structure expected by StudentCourseUnitRegistration
     const formatForReadOnlyForm = (reg) => {
         const formatted = {
             st_name_cr: reg.studentName || '',
@@ -143,9 +152,6 @@ const AcademicCourseUnits = () => {
             dateSubmitted: reg.dateSubmitted
         };
 
-        // The studentNumber string from DB is e.g. "IM/12345". 
-        // The first 3 chars "IM/" map to the static prefilled boxes.
-        // The remaining 5-8 chars map to st_no_cr_0 through 7
         const dbStNo = reg.studentNumber || '';
         const rawDigits = dbStNo.replace(/^IM\//, '');
 
@@ -154,21 +160,13 @@ const AcademicCourseUnits = () => {
         }
 
         const gridRowCounters = {};
-
         reg.courseUnits.forEach((course) => {
             let courseTypeStr = (course.course_type || course.type || '').toLowerCase();
-            let gridPrefix = courseTypeStr.includes('compulsory') ? 'Grid_Comp'
-                : courseTypeStr.includes('optional') ? 'Grid_Opt'
-                    : 'Grid_Aux';
-
+            let gridPrefix = courseTypeStr.includes('compulsory') ? 'Grid_Comp' : courseTypeStr.includes('optional') ? 'Grid_Opt' : 'Grid_Aux';
             let semSuffix = course.semester === 1 ? '_S1' : '_S2';
             let gridId = `${gridPrefix}${semSuffix}`;
-
-            if (gridRowCounters[gridId] === undefined) {
-                gridRowCounters[gridId] = 0;
-            }
+            if (gridRowCounters[gridId] === undefined) gridRowCounters[gridId] = 0;
             let rowIndex = gridRowCounters[gridId]++;
-
             const code = course.course_code;
             if (code) {
                 for (let c = 0; c < code.length && c < 12; c++) {
@@ -179,110 +177,125 @@ const AcademicCourseUnits = () => {
 
         formatted.cred_comp_total = reg.totalCredits;
         formatted.total_creds_box = reg.totalCredits;
-
         return formatted;
     };
 
     return (
-        <div className="max-w-7xl mx-auto animate-fade-in-up relative">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-800">Academic Course Units</h2>
-                    <p className="text-gray-500 text-sm mt-1">Review and manage student course registration submissions.</p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                    {/* Search Field */}
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-gray-400">🔍</span>
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="Search Student ID..."
-                            className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-64"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+        <div className="max-w-7xl mx-auto space-y-6 animate-fade-in-up flex flex-col h-full pb-10">
+            {/* Header Section */}
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-900 tracking-tight">Course Registration Registry</h2>
+                        <p className="text-sm text-slate-500 mt-1 font-medium">Official logs of student course unit registrations for the semester.</p>
                     </div>
 
-                    {/* Filter Button */}
-                    <select
-                        className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700 cursor-pointer"
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                    >
-                        <option value="All">All Status</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Rejected">Rejected</option>
-                    </select>
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                        {/* Status Filter */}
+                        <div className="relative group w-full sm:w-auto">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                <Icons.Filter />
+                            </span>
+                            <select
+                                className="pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-wider focus:ring-4 focus:ring-blue-700/5 focus:border-blue-700 transition-all appearance-none cursor-pointer outline-none w-full sm:w-48"
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                            >
+                                <option value="All">All Records</option>
+                                <option value="Pending">Pending Audit</option>
+                                <option value="Approved">Validated</option>
+                                <option value="Rejected">Disputed</option>
+                            </select>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                            </div>
+                        </div>
+
+                        {/* Search */}
+                        <div className="relative group w-full sm:w-64">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-700 transition-colors">
+                                <Icons.Search />
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="SEARCH REGISTRY..."
+                                className="pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-wider placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-700/5 focus:border-blue-700 transition-all w-full"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Course Registration Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Number</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Form</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Submitted</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            {/* Table Section */}
+            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden flex-1 flex flex-col min-h-0">
+                <div className="overflow-x-auto flex-1">
+                    <table className="w-full text-left border-collapse">
+                        <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-md z-10">
+                            <tr className="border-b border-slate-100 text-[10px] uppercase text-slate-400 font-bold tracking-widest">
+                                <th className="px-8 py-5">Applicant</th>
+                                <th className="px-8 py-5">Academic Record</th>
+                                <th className="px-8 py-5">Status</th>
+                                <th className="px-8 py-5 text-right">Administrative Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredRegistrations.length > 0 ? (
+                        <tbody className="divide-y divide-slate-50">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan="4" className="px-6 py-24 text-center">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="w-6 h-6 border-2 border-blue-700 border-t-transparent rounded-full animate-spin"></div>
+                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Querying System...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : filteredRegistrations.length > 0 ? (
                                 filteredRegistrations.map((reg) => (
-                                    <tr key={reg.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            {reg.studentNumber}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {reg.studentName}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:text-blue-800 cursor-pointer" onClick={() => downloadPDF(reg)}>
-                                            <div className="flex items-center gap-1 group">
-                                                <span>📄</span>
-                                                <span className="underline decoration-transparent group-hover:decoration-blue-800 transition-colors">{reg.formName}</span>
-                                                <span className="text-xs ml-1 text-gray-400 group-hover:text-blue-800">📥</span>
+                                    <tr key={reg.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <td className="px-8 py-5 text-left">
+                                            <div className="flex flex-col">
+                                                <div className="text-sm font-bold text-slate-900 tracking-tight">{reg.studentName}</div>
+                                                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{reg.studentNumber}</div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {reg.dateSubmitted}
+                                        <td className="px-8 py-5">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="text-xs text-slate-600 font-bold uppercase tracking-tight">{reg.dateSubmitted}</div>
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(reg.status)}`}>
-                                                {reg.status}
-                                            </span>
+                                        <td className="px-8 py-5">
+                                            {getStatusBadge(reg.status)}
+                                            {reg.status === 'Rejected' && reg.rejectReason && (
+                                                <div className="text-[10px] text-rose-500 font-bold uppercase mt-1 italic max-w-[150px] truncate" title={reg.rejectReason}>
+                                                    Reason: {reg.rejectReason}
+                                                </div>
+                                            )}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <td className="px-8 py-5 text-right">
                                             <div className="flex justify-end gap-2">
                                                 <button
                                                     onClick={() => initiateView(reg)}
-                                                    className="text-gray-500 hover:text-gray-700 p-1 rounded-md hover:bg-gray-100"
-                                                    title="View"
+                                                    className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-widest text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all flex items-center gap-2"
                                                 >
-                                                    👁️
+                                                    <Icons.Eye />
+                                                    <span>Review</span>
                                                 </button>
                                                 {reg.status === 'Pending' && (
                                                     <>
                                                         <button
                                                             onClick={() => handleApprove(reg.id)}
-                                                            className="text-green-600 hover:text-green-900 p-1 rounded-md hover:bg-green-50"
-                                                            title="Approve"
+                                                            className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-all flex items-center gap-2 border border-emerald-100"
                                                         >
-                                                            ✅
+                                                            <Icons.Check />
+                                                            <span>Approve</span>
                                                         </button>
                                                         <button
                                                             onClick={() => initiateReject(reg)}
-                                                            className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50"
-                                                            title="Reject"
+                                                            className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-widest text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-all flex items-center gap-2 border border-rose-100"
                                                         >
-                                                            ❌
+                                                            <Icons.X />
+                                                            <span>Reject</span>
                                                         </button>
                                                     </>
                                                 )}
@@ -292,70 +305,73 @@ const AcademicCourseUnits = () => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-10 text-center text-sm text-gray-500">
-                                        No registrations found.
+                                    <td colSpan="4" className="px-8 py-32 text-center">
+                                        <div className="flex flex-col items-center justify-center opacity-40">
+                                            <Icons.Empty />
+                                            <div className="mt-4">
+                                                <p className="text-sm font-bold text-slate-900 tracking-tight">No Submissions Detected</p>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Registry is currently void</p>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
                 </div>
+                <div className="px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <span>Registry Summary: {filteredRegistrations.length} Records</span>
+                </div>
             </div>
 
             {/* View Modal */}
             {viewModalOpen && selectedRegistration && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden animate-scale-in">
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden animate-scale-up border border-slate-200">
+                        <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                             <div>
-                                <h3 className="text-lg font-bold text-gray-800">Course Registration Submission</h3>
-                                <p className="text-sm text-gray-500">{selectedRegistration.studentName} ({selectedRegistration.studentNumber})</p>
+                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Course Registration Document</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{selectedRegistration.studentName} | {selectedRegistration.studentNumber}</p>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3">
                                 <button
                                     onClick={() => downloadPDF(selectedRegistration)}
-                                    className="px-3 py-1.5 bg-blue-50 text-blue-700 font-bold text-sm rounded hover:bg-blue-100 transition-colors flex items-center gap-2"
+                                    className="px-4 py-2 bg-blue-700 text-white font-bold text-[10px] uppercase tracking-widest rounded-xl hover:bg-blue-800 transition-all flex items-center gap-2 shadow-lg shadow-blue-200"
                                 >
-                                    <span>📥</span> Download PDF
+                                    <Icons.Download />
+                                    <span>Download Source</span>
                                 </button>
                                 <button
                                     onClick={() => setViewModalOpen(false)}
-                                    className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors"
+                                    className="h-10 w-10 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded-xl transition-all"
                                 >
-                                    ✕
+                                    <Icons.X />
                                 </button>
                             </div>
                         </div>
-                        <div className="flex-1 bg-gray-100 p-6 overflow-y-auto w-full">
-                            {/* Render exact layout */}
-                            <div className="bg-white shadow-lg mx-auto w-full max-w-[210mm] border border-gray-200 pointer-events-none transform scale-90 origin-top">
+                        <div className="flex-1 bg-slate-100/30 p-8 overflow-y-auto scrollbar-hide">
+                            <div className="bg-white shadow-2xl mx-auto w-full max-w-[210mm] border border-slate-200 pointer-events-none transform scale-95 origin-top rounded-lg">
                                 <StudentCourseUnitRegistration readOnlyData={formatForReadOnlyForm(selectedRegistration)} />
                             </div>
                         </div>
-                        <div className="p-4 border-t border-gray-100 bg-white flex justify-end gap-3">
+                        <div className="px-8 py-4 border-t border-slate-100 bg-white flex justify-end gap-3">
                             <button
                                 onClick={() => setViewModalOpen(false)}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                                className="px-6 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all"
                             >
-                                Close
+                                Close Audit
                             </button>
                             {selectedRegistration.status === 'Pending' && (
                                 <>
                                     <button
-                                        onClick={() => {
-                                            initiateReject(selectedRegistration);
-                                            setViewModalOpen(false);
-                                        }}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                                        onClick={() => { initiateReject(selectedRegistration); setViewModalOpen(false); }}
+                                        className="px-6 py-2 text-[10px] font-bold uppercase tracking-widest text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition-all border border-rose-100"
                                     >
                                         Reject
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            handleApprove(selectedRegistration.id);
-                                            setViewModalOpen(false);
-                                        }}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+                                        onClick={() => { handleApprove(selectedRegistration.id); setViewModalOpen(false); }}
+                                        className="px-6 py-2 text-[10px] font-bold uppercase tracking-widest text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-lg shadow-emerald-100"
                                     >
                                         Approve
                                     </button>
@@ -368,35 +384,34 @@ const AcademicCourseUnits = () => {
 
             {/* Reject Modal */}
             {rejectModalOpen && selectedRegistration && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md animate-scale-in">
-                        <div className="p-6">
-                            <h3 className="text-lg font-bold text-gray-800 mb-2">Reject Registration</h3>
-                            <p className="text-sm text-gray-600 mb-4">
-                                Please provide a reason for rejecting <span className="font-semibold">{selectedRegistration.studentNumber}</span>'s registration.
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md animate-scale-up border border-slate-200">
+                        <div className="p-8">
+                            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-2">Issue Registration Dispute</h3>
+                            <p className="text-xs text-slate-500 font-medium mb-6">
+                                Provide substantial reasoning for the rejection of <span className="font-bold text-slate-900">{selectedRegistration.studentNumber}</span>'s submission.
                             </p>
 
                             <textarea
-                                className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
-                                rows="4"
-                                placeholder="Enter rejection reason here..."
+                                className="w-full border border-slate-200 rounded-2xl p-4 text-xs font-medium focus:ring-4 focus:ring-rose-700/5 focus:border-rose-700 outline-none transition-all bg-slate-50/50 min-h-[120px]"
+                                placeholder="DOCUMENT REASONING HERE..."
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
                             ></textarea>
 
-                            <div className="flex justify-end gap-3 mt-6">
+                            <div className="flex justify-end gap-4 mt-8">
                                 <button
                                     onClick={() => setRejectModalOpen(false)}
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                                    className="px-6 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={confirmReject}
                                     disabled={!rejectReason.trim()}
-                                    className={`px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors ${!rejectReason.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`px-6 py-2 text-[10px] font-bold uppercase tracking-widest text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-all shadow-lg shadow-rose-100 ${!rejectReason.trim() ? 'opacity-50 cursor-not-allowed shadow-none' : ''}`}
                                 >
-                                    Confirm Reject
+                                    Confirm Dispute
                                 </button>
                             </div>
                         </div>
@@ -404,14 +419,6 @@ const AcademicCourseUnits = () => {
                 </div>
             )}
 
-            {/* Hidden Off-Screen Renderers for PDF Downloading */}
-            <div className="fixed top-[-9999px] left-[-9999px]">
-                {registrations.map(reg => (
-                    <div key={reg.id} id={`pdf-form-${reg.id}`} className="w-[210mm] bg-white p-12">
-                        <StudentCourseUnitRegistration readOnlyData={formatForReadOnlyForm(reg)} />
-                    </div>
-                ))}
-            </div>
         </div>
     );
 };
