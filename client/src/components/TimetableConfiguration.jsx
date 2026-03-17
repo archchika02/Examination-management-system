@@ -1,4 +1,31 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+
+const Icons = {
+    Calendar: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg>
+    ),
+    ChevronLeft: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+    ),
+    ChevronRight: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+    ),
+    Clock: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+    ),
+    Check: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+    ),
+    Trash: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /><line x1="10" x2="10" y1="11" y2="17" /><line x1="14" x2="14" y1="11" y2="17" /></svg>
+    ),
+    Send: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" x2="11" y1="2" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+    ),
+    Info: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="16" y2="12" /><line x1="12" x2="12" y1="8" y2="8" /></svg>
+    )
+};
 
 const TimetableConfiguration = () => {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -11,16 +38,13 @@ const TimetableConfiguration = () => {
     const [poyaDays, setPoyaDays] = useState([]);
     const [nationalHolidays, setNationalHolidays] = useState([]);
     const [loadingHolidays, setLoadingHolidays] = useState(false);
+    const dateInputRef = useRef(null);
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     // Adjust logic: 0 is Sunday in JS. We want 0 to be Monday.
-    // Sunday (0) -> 6
-    // Monday (1) -> 0
-    // ...
-    // Saturday (6) -> 5
     const firstDayOfMonth = (new Date(year, month, 1).getDay() + 6) % 7;
 
     const months = [
@@ -45,7 +69,6 @@ const TimetableConfiguration = () => {
 
     const formatDateKey = (date) => {
         if (!date) return null;
-        // Avoid timezone shift issues by using local date values directly
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
         const d = String(date.getDate()).padStart(2, '0');
@@ -113,12 +136,38 @@ const TimetableConfiguration = () => {
         setIsDragging(false);
     };
 
+    const [deadlineDate, setDeadlineDate] = useState('');
+    const [academicYear, setAcademicYear] = useState(''); // New state for academic year
+    const [batchRepPreferences, setBatchRepPreferences] = useState([]);
+
+    const formatDateToUK = (dateString) => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}/${month}/${year}`;
+    };
+
+    // Fetch batch rep preferences and global config
+    const fetchBatchRepPreferences = async () => {
+        try {
+            const respPref = await fetch('http://localhost:5000/api/configurations/list');
+            if (respPref.ok) setBatchRepPreferences(await respPref.json());
+
+            const respConfig = await fetch('http://localhost:5000/api/configurations/global-dates');
+            const configData = await respConfig.json();
+            if (configData.allowed_dates) setSelectedExamDates(new Set(configData.allowed_dates));
+            if (configData.deadline) setDeadlineDate(configData.deadline);
+            if (configData.academic_year) setAcademicYear(configData.academic_year);
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        }
+    };
+
     // Fetch holidays dynamically
     useEffect(() => {
+        fetchBatchRepPreferences();
         const fetchHolidays = async () => {
             setLoadingHolidays(true);
             try {
-                // Tallyfy API provides reliable data for Sri Lanka including future years like 2027/2028
                 const url = `https://tallyfy.com/national-holidays/api/LK/${year}.json`;
                 const response = await fetch(url);
 
@@ -126,22 +175,16 @@ const TimetableConfiguration = () => {
                     const data = await response.json();
                     const holidayList = data.holidays || [];
 
-                    // Filter Poya days (based on name)
                     const poya = holidayList
                         .filter(h => h.name.toLowerCase().includes('poya'))
                         .map(h => h.date);
 
-                    // Filter other national holidays (excluding Poya for distinct categories)
                     const otherHolidays = holidayList
                         .filter(h => !h.name.toLowerCase().includes('poya'))
                         .map(h => h.date);
 
                     setPoyaDays(poya);
                     setNationalHolidays(otherHolidays);
-                } else {
-                    console.error("Failed to fetch holidays from Tallyfy:", response.statusText);
-                    setPoyaDays([]);
-                    setNationalHolidays([]);
                 }
             } catch (error) {
                 console.error("Error fetching holidays:", error);
@@ -153,29 +196,11 @@ const TimetableConfiguration = () => {
         fetchHolidays();
     }, [year]);
 
-    // Attach global mouse up to stop dragging if cursor leaves the calendar
     useEffect(() => {
         window.addEventListener('mouseup', handleMouseUp);
         return () => window.removeEventListener('mouseup', handleMouseUp);
     }, []);
 
-    const countUnavailable = () => {
-        let sundays = 0;
-        let poyas = 0;
-
-        for (let i = 1; i <= daysInMonth; i++) {
-            const date = new Date(year, month, i);
-            if (isSunday(date)) sundays++;
-            if (isPoya(date)) poyas++;
-        }
-        return { sundays, poyas };
-    };
-
-    const stats = countUnavailable();
-    const totalUnavailable = stats.sundays + stats.poyas; // Simplified overlap logic for now
-    const totalAvailable = daysInMonth - totalUnavailable; // Assuming poya doesn't fall on sunday for simplicity logic here, mostly distinct
-    // Refined Available calc:
-    // Actually need to iterate to account for overlaps if Poya is on Sunday
     const calculateExactStats = () => {
         let sun = 0;
         let poy = 0;
@@ -200,7 +225,6 @@ const TimetableConfiguration = () => {
 
     const exactStats = calculateExactStats();
 
-
     const handleMonthChange = (e) => {
         setCurrentDate(new Date(year, parseInt(e.target.value), 1));
     };
@@ -220,41 +244,34 @@ const TimetableConfiguration = () => {
         setSelectedExamDates(newSelected);
     };
 
-    const clearAll = () => {
-        setSelectedExamDates(new Set());
-    };
-
-    const [deadlineDate, setDeadlineDate] = useState('');
-
-    const formatDateToUK = (dateString) => {
-        if (!dateString) return '';
-        const [year, month, day] = dateString.split('-');
-        return `${day}/${month}/${year}`;
-    };
-
-    const sendToRepresentative = async () => {
-        if (!deadlineDate) {
-            alert("Please set a deadline date before sending.");
+    const handleDispatchToReps = async () => {
+        if (availableDates.length === 0) {
+            alert('Please select at least one available date.');
             return;
         }
-        const formattedDeadline = formatDateToUK(deadlineDate);
+        if (!submissionDeadline) {
+            alert('Please set a submission deadline.');
+            return;
+        }
+        if (!academicYear) {
+            alert('Please set the Academic Year.');
+            return;
+        }
 
+        setIsSaving(true);
         try {
             const response = await fetch('http://localhost:5000/api/configurations/global-dates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    allowed_dates: Array.from(selectedExamDates),
-                    deadline: formattedDeadline
+                body: JSON.stringify({ 
+                    allowed_dates: availableDates, 
+                    deadline: submissionDeadline,
+                    academic_year: academicYear
                 })
             });
 
             if (response.ok) {
-                // Also save to localStorage as a fallback/cache if desired
-                localStorage.setItem('exam_deadline', formattedDeadline);
                 localStorage.setItem('allowed_exam_dates', JSON.stringify(Array.from(selectedExamDates)));
-
-                console.log("Sending configuration to BatchRep with deadline:", formattedDeadline);
                 alert(`Configuration sent to representative! Deadline set to: ${formattedDeadline}`);
             } else {
                 alert("Failed to send configuration to representative. Please try again.");
@@ -266,82 +283,92 @@ const TimetableConfiguration = () => {
     };
 
     return (
-        <div className="flex flex-col lg:flex-row gap-6 animate-fade-in-up">
+        <div className="flex flex-col lg:flex-row gap-8 animate-fade-in-up">
             {/* Main Calendar Section */}
-            <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-gray-800">Timetable Configuration</h2>
-                    <div className="flex gap-3">
+            <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                                <Icons.Calendar />
+                            </span>
+                            <span className="text-[10px] font-black text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-full uppercase tracking-widest leading-none">Scheduler</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Timeline Configuration</h2>
+                    </div>
+
+                    <div className="flex items-center gap-3 bg-slate-900 p-1.5 rounded-2xl shadow-xl shadow-slate-200">
                         <select
                             value={month}
                             onChange={handleMonthChange}
-                            className="px-4 py-2 border rounded-lg bg-gray-50 text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="bg-transparent border-none text-white text-xs font-black uppercase tracking-widest px-4 py-2 focus:ring-0 cursor-pointer"
                         >
                             {months.map((m, idx) => (
-                                <option key={m} value={idx}>{m}</option>
+                                <option key={m} value={idx} className="bg-slate-800 uppercase">{m}</option>
                             ))}
                         </select>
-                        <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+
+                        <div className="w-[1px] h-6 bg-slate-800"></div>
+
+                        <div className="flex items-center gap-1 px-2">
                             <button
                                 onClick={() => handleYearChange(year - 1)}
-                                className="p-2 hover:bg-gray-100 text-gray-600 transition-all active:scale-95 border-r border-gray-200"
+                                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all active:scale-95"
                                 title="Previous Year"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
-                                </svg>
+                                <Icons.ChevronLeft />
                             </button>
-                            <span className="px-5 py-2 font-bold text-indigo-600 min-w-[80px] text-center select-none text-lg">
+                            <span className="text-sm font-black text-blue-400 min-w-[60px] text-center">
                                 {year}
                             </span>
                             <button
                                 onClick={() => handleYearChange(year + 1)}
-                                className="p-2 hover:bg-gray-100 text-gray-600 transition-all active:scale-95 border-l border-gray-200"
+                                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all active:scale-95"
                                 title="Next Year"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                                </svg>
+                                <Icons.ChevronRight />
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Legend */}
-                <div className="flex gap-4 mb-4 text-sm flex-wrap">
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-gray-100 border border-gray-200 rounded"></div>
-                        <span className="text-gray-600">Available</span>
+                {/* Refined Legend */}
+                <div className="flex flex-wrap gap-4 mb-8 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-slate-100">
+                        <div className="w-2.5 h-2.5 bg-slate-200 border border-slate-300 rounded-full"></div>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Open Session</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-indigo-500 rounded"></div>
-                        <span className="text-gray-600">Selected Exam</span>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 rounded-xl shadow-md shadow-blue-100 border border-blue-500">
+                        <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
+                        <span className="text-[10px] font-black text-white uppercase tracking-widest">Exam Date</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-red-100 text-red-600 flex items-center justify-center rounded text-xs">S</div>
-                        <span className="text-gray-600">Sunday</span>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-slate-100">
+                        <div className="w-2.5 h-2.5 bg-rose-500 rounded-full"></div>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sunday</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-yellow-100 text-yellow-600 flex items-center justify-center rounded text-xs">P</div>
-                        <span className="text-gray-600">Poya Day</span>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-slate-100">
+                        <div className="w-2.5 h-2.5 bg-amber-500 rounded-full"></div>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Poya Day</span>
                     </div>
-                    <div className="flex items-center gap-2 animate-fade-in">
-                        <div className="w-4 h-4 bg-pink-100 text-pink-600 flex items-center justify-center rounded text-xs">H</div>
-                        <span className="text-gray-600">Holiday</span>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl shadow-sm border border-slate-100">
+                        <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></div>
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Holiday</span>
                     </div>
                 </div>
 
-                {/* Calendar Grid */}
-                <div className="grid grid-cols-7 gap-2 mb-2">
+                {/* Calendar Grid Header */}
+                <div className="grid grid-cols-7 gap-3 mb-4">
                     {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                        <div key={day} className="text-center font-semibold text-gray-500 py-2">
+                        <div key={day} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest py-2">
                             {day}
                         </div>
                     ))}
                 </div>
-                <div className="grid grid-cols-7 gap-2">
+
+                {/* Interactive Calendar Body */}
+                <div className="grid grid-cols-7 gap-3">
                     {calendarDays.map((date, index) => {
-                        if (!date) return <div key={`empty-${index}`} className="p-2"></div>;
+                        if (!date) return <div key={`empty-${index}`} className="p-2 aspect-square"></div>;
 
                         const key = formatDateKey(date);
                         const isSel = selectedExamDates.has(key);
@@ -350,40 +377,53 @@ const TimetableConfiguration = () => {
                         const isHol = isHoliday(date);
                         const unavail = isSun || isPoy || isHol;
 
-                        let bgClass = "bg-white hover:bg-gray-50 border-gray-200 text-gray-700 cursor-pointer";
-                        let content = date.getDate();
+                        let styleClass = "bg-white border-slate-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-500/5 group/day";
+                        let textClass = "text-slate-900";
+                        let indicator = null;
 
                         if (isSel) {
-                            bgClass = "bg-indigo-500 text-white border-indigo-600 hover:bg-indigo-600 shadow-md transform scale-105 transition-all";
+                            styleClass = "bg-blue-600 border-blue-500 shadow-xl shadow-blue-200 scale-105 z-10 hover:bg-blue-700";
+                            textClass = "text-white";
+                            indicator = "Exam Date";
                         } else if (isSun) {
-                            bgClass = "bg-red-50 text-red-300 border-red-100 cursor-not-allowed";
+                            styleClass = "bg-rose-50/30 border-rose-100 cursor-not-allowed grayscale-[0.5] opacity-80";
+                            textClass = "text-rose-400";
+                            indicator = "Sunday";
                         } else if (isPoy) {
-                            bgClass = "bg-yellow-50 text-yellow-600 border-yellow-100 cursor-not-allowed";
+                            styleClass = "bg-amber-50/30 border-amber-100 cursor-not-allowed shadow-inner shadow-amber-50";
+                            textClass = "text-amber-500";
+                            indicator = "Poya Day";
                         } else if (isHol) {
-                            bgClass = "bg-pink-50 text-pink-600 border-pink-100 cursor-not-allowed";
+                            styleClass = "bg-emerald-50/30 border-emerald-100 cursor-not-allowed";
+                            textClass = "text-emerald-500";
+                            indicator = "Holiday";
                         }
 
-                        // Combine indicator if needs specific marker
                         return (
                             <div
                                 key={key}
                                 onMouseDown={() => handleMouseDown(date)}
                                 onMouseEnter={() => handleMouseEnter(date)}
                                 onMouseUp={handleMouseUp}
-                                // Keep onClick for single clicks outside of drag logic, but prevent conflict if needed
-                                // (onMouseDown/Up handles clicks as well, but standard JS click event is fine to keep or remove. We'll rely on our mice events for the action, but single clicks will trigger MouseDown + MouseUp quickly, effectively handling acts.)
                                 className={`
-                                    relative p-2 rounded-xl border flex flex-col items-center justify-center h-24 transition-all duration-200 select-none
-                                    ${bgClass}
+                                    relative p-2 rounded-2xl border flex flex-col items-center justify-center aspect-square transition-all duration-300 select-none cursor-pointer
+                                    ${styleClass}
                                 `}
                             >
-                                <span className={`text-lg font-bold ${isSel ? 'text-white' : ''} ${isSun ? 'text-red-400' : ''}`}>
-                                    {content}
+                                <span className={`text-xl font-black ${textClass} transition-transform group-hover/day:scale-110`}>
+                                    {date.getDate()}
                                 </span>
-                                {isSun && <span className="text-[10px] font-medium mt-1">Sunday</span>}
-                                {isPoy && <span className="text-[10px] font-medium mt-1">Poya</span>}
-                                {isHol && <span className="text-[10px] font-medium mt-1">Holiday</span>}
-                                {isSel && <span className="text-[10px] font-medium mt-1">Exam</span>}
+                                {indicator && (
+                                    <span className={`text-[7px] font-black uppercase tracking-widest mt-1 opacity-70 ${isSel ? 'text-blue-100' : ''}`}>
+                                        {indicator}
+                                    </span>
+                                )}
+
+                                {isSel && (
+                                    <div className="absolute top-2 right-2">
+                                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-[0_0_8px_rgba(255,255,255,0.8)]"></div>
+                                    </div>
+                                )}
                             </div>
                         );
                     })}
@@ -392,92 +432,190 @@ const TimetableConfiguration = () => {
 
             {/* Sidebar Summary */}
             <div className="w-full lg:w-80 flex flex-col gap-6">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Summary</h3>
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
+                        <Icons.Info />
+                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Session Summary</h3>
+                    </div>
 
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                            <span className="text-red-700 font-medium">Total Sundays</span>
-                            <span className="text-xl font-bold text-red-700">{exactStats.sun}</span>
+                    <div className="space-y-3">
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sundays</span>
+                            <span className="text-sm font-black text-rose-600">{exactStats.sun}</span>
                         </div>
-                        <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg relative overflow-hidden">
-                            <span className="text-yellow-700 font-medium">Total Poya Days</span>
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Poya Days</span>
                             {loadingHolidays ? (
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-                                </div>
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-amber-500"></div>
                             ) : (
-                                <span className="text-xl font-bold text-yellow-700">{exactStats.poy}</span>
+                                <span className="text-sm font-black text-amber-500">{exactStats.poy}</span>
                             )}
                         </div>
-                        <div className="flex justify-between items-center p-3 bg-pink-50 rounded-lg animate-fade-in relative overflow-hidden">
-                            <span className="text-pink-700 font-medium">National Holidays</span>
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Holidays</span>
                             {loadingHolidays ? (
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-4 border-2 border-pink-400 border-t-transparent rounded-full animate-spin"></div>
-                                </div>
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-emerald-500"></div>
                             ) : (
-                                <span className="text-xl font-bold text-pink-700">{exactStats.hol}</span>
+                                <span className="text-sm font-black text-emerald-500">{exactStats.hol}</span>
                             )}
                         </div>
-                        <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                            <span className="text-green-700 font-medium">Available Days</span>
-                            <span className="text-xl font-bold text-green-700">{exactStats.avail}</span>
-                        </div>
-                        <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-                            <span className="text-indigo-700 font-medium">Selected for Exams</span>
-                            <span className="text-2xl font-extrabold text-indigo-700">{selectedExamDates.size}</span>
+
+                        <div className="h-px bg-slate-100 my-4"></div>
+
+                        <div className="flex justify-between items-center p-4 bg-blue-50 rounded-2xl border border-blue-100 shadow-sm shadow-blue-50">
+                            <div className="flex flex-col">
+                                <span className="text-[8px] font-black text-blue-600 uppercase tracking-widest mb-1">Allocated Slots</span>
+                                <span className="text-2xl font-black text-blue-900 leading-none">{selectedExamDates.size}</span>
+                            </div>
+                            <div className="p-2.5 bg-blue-600 text-white rounded-xl">
+                                <Icons.Check />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col gap-3">
-                    <h3 className="text-lg font-bold text-gray-800 mb-2">Actions</h3>
+                {/* Batch Rep Preferences */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
+                        <Icons.Clock />
+                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Solicited Preferences</h3>
+                    </div>
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                        {batchRepPreferences.length === 0 ? (
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center py-8 italic">No preferences received</p>
+                        ) : (
+                            batchRepPreferences.map((pref, idx) => (
+                                <div key={idx} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                                    <div>
+                                        <div className="text-[10px] font-black text-slate-900 uppercase tracking-tight mb-0.5">{pref.course_code}</div>
+                                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                                            <Icons.Calendar />
+                                            {Array.isArray(pref.preferred_dates) ? pref.preferred_dates[0] : pref.preferred_dates}
+                                        </div>
+                                    </div>
+                                    <div className="text-[8px] font-black px-2 py-0.5 bg-blue-100 text-blue-600 rounded uppercase">LVL {pref.level}</div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
 
-                    <div className="mb-2 relative">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Set Deadline</label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                value={formatDateToUK(deadlineDate)}
-                                placeholder="dd/mm/yyyy"
-                                readOnly
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-gray-50 text-gray-700"
-                            />
-                            <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <div className="bg-slate-900 rounded-2xl shadow-xl p-8 flex flex-col gap-5 border border-slate-800">
+                    <div>
+                        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Configuration Controls</h3>
+
+                        <div className="space-y-4">
+                            <div className="group">
+                                <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Target Academic Year</label>
+                                <div className="relative">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none">
+                                        <Icons.Clock />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={academicYear}
+                                        onChange={(e) => setAcademicYear(e.target.value)}
+                                        placeholder="e.g. 2024/2025"
+                                        readOnly
+                                        className="w-full pl-11 pr-4 py-3 bg-slate-800/50 border-none rounded-xl text-slate-400 text-xs font-bold focus:ring-0 transition-all cursor-default"
+                                    />
+                                </div>
                             </div>
-                            <input
-                                type="date"
-                                value={deadlineDate}
-                                onChange={(e) => setDeadlineDate(e.target.value)}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            />
+
+                            <div className="group">
+                                <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Submission Deadline</label>
+                                <div
+                                    className="relative cursor-pointer group/picker"
+                                    onClick={() => dateInputRef.current?.showPicker()}
+                                >
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none transition-transform group-hover/picker:scale-110">
+                                        <Icons.Calendar />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={deadlineDate.includes('-') ? formatDateToUK(deadlineDate) : deadlineDate}
+                                        placeholder="Pick a date..."
+                                        readOnly
+                                        className="w-full pl-11 pr-4 py-3 bg-slate-800 border-none rounded-xl text-white text-xs font-bold focus:ring-2 focus:ring-blue-500 transition-all cursor-pointer placeholder:text-slate-600"
+                                    />
+                                    <input
+                                        ref={dateInputRef}
+                                        type="date"
+                                        value={deadlineDate}
+                                        onChange={(e) => setDeadlineDate(e.target.value)}
+                                        className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <button
-                        onClick={markAllAvailable}
-                        className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
-                    >
-                        <span>✓</span> Mark All Available
-                    </button>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            onClick={markAllAvailable}
+                            className="flex flex-col items-center justify-center gap-2 py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl transition-all border border-slate-700/50 group active:scale-95"
+                        >
+                            <span className="p-2 bg-blue-500/10 text-blue-400 rounded-xl group-hover:bg-blue-500 group-hover:text-white transition-all">
+                                <Icons.Check />
+                            </span>
+                            <span className="text-[9px] font-black uppercase tracking-widest">Mark All</span>
+                        </button>
+
+                        <button
+                            onClick={() => setSelectedExamDates(new Set())}
+                            className="flex flex-col items-center justify-center gap-2 py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl transition-all border border-slate-700/50 group active:scale-95"
+                        >
+                            <span className="p-2 bg-rose-500/10 text-rose-400 rounded-xl group-hover:bg-rose-500 group-hover:text-white transition-all">
+                                <Icons.Trash />
+                            </span>
+                            <span className="text-[9px] font-black uppercase tracking-widest">Clear All</span>
+                        </button>
+                    </div>
 
                     <button
-                        onClick={clearAll}
-                        className="w-full py-2 px-4 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                        onClick={async () => {
+                            if (selectedExamDates.size === 0) {
+                                alert('Please select at least one available date.');
+                                return;
+                            }
+                            if (!deadlineDate) {
+                                alert('Please set a submission deadline.');
+                                return;
+                            }
+                            if (!academicYear) {
+                                alert('Please set the Academic Year.');
+                                return;
+                            }
+
+                            try {
+                                const response = await fetch('http://localhost:5000/api/configurations/global-dates', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ 
+                                        allowed_dates: Array.from(selectedExamDates), 
+                                        deadline: deadlineDate,
+                                        academic_year: academicYear
+                                    })
+                                });
+
+                                if (response.ok) {
+                                    alert(`Configuration sent to representative!`);
+                                } else {
+                                    alert("Failed to send configuration. Please try again.");
+                                }
+                            } catch (error) {
+                                console.error("Error sending configuration:", error);
+                            }
+                        }}
+                        className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-xl shadow-blue-900/40 transition-all transform hover:-translate-y-0.5 active:scale-95 flex items-center justify-center gap-3 group"
                     >
-                        <span>✕</span> Clear All
+                        <Icons.Send />
+                        <span className="text-xs uppercase tracking-widest">Submit to batch rep</span>
                     </button>
 
-                    <div className="h-px bg-gray-200 my-2"></div>
-
-                    <button
-                        onClick={sendToRepresentative}
-                        className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
-                    >
-                        <span>📤</span> Send to Representative
-                    </button>
+                    <p className="text-[9px] font-bold text-slate-500 text-center leading-relaxed">
+                        * Dispatching will broadcast allowed dates to all Batch Representatives for departmental coordination.
+                    </p>
                 </div>
             </div>
         </div>

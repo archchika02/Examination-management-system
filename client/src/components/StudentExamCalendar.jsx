@@ -1,25 +1,62 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+
+const Icons = {
+    Calendar: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg>
+    ),
+    History: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></svg>
+    ),
+    Settings: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
+    ),
+    ChevronLeft: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+    ),
+    ChevronRight: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+    ),
+    AlertCircle: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12" y1="16" y2="16" /></svg>
+    ),
+    Check: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+    ),
+    Plus: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="5" y2="19" /><line x1="5" x2="19" y1="12" y2="12" /></svg>
+    ),
+    Trash: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+    ),
+    Send: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" x2="11" y1="2" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+    ),
+    FileText: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14.5 2 14.5 7.5 20 7.5" /><line x1="8" x2="16" y1="13" y2="13" /><line x1="8" x2="16" y1="17" y2="17" /><line x1="8" x2="10" y1="9" y2="9" /></svg>
+    )
+};
 
 const StudentExamCalendar = () => {
     const { user } = useAuth();
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [selectedExam, setSelectedExam] = useState(null); // For modal
     const [courseCode, setCourseCode] = useState('');
-    const [selectedDates, setSelectedDates] = useState([]);
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [drafts, setDrafts] = useState([]);
+    const [history, setHistory] = useState([]);
+    const [allowedDates, setAllowedDates] = useState(new Set());
+    const [examDeadline, setExamDeadline] = useState(null);
+    const [academicYear, setAcademicYear] = useState(''); // Added missing state
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState({ text: '', type: '' });
 
-    // New Feature: List of drafted configurations (Drafts are local until submitted)
-    const [draftList, setDraftList] = useState([]);
-    // Submitted list (history)
-    const [submittedList, setSubmittedList] = useState([]);
+    const [poyaDays, setPoyaDays] = useState([]);
+    const [nationalHolidays, setNationalHolidays] = useState([]);
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    // Monday start correction: (day + 6) % 7 ensures Mon=0, Sun=6
     const firstDayOfMonth = (new Date(year, month, 1).getDay() + 6) % 7;
 
     const months = [
@@ -27,456 +64,346 @@ const StudentExamCalendar = () => {
         "July", "August", "September", "October", "November", "December"
     ];
 
-    // Mock Exams Data (keep existing for display)
-    const exams = [
-        {
-            date: '2026-02-15',
-            courseCode: 'CSC101',
-            title: 'Intro to Programming',
-            time: '09:00 AM - 12:00 PM',
-            venue: 'Main Hall A'
-        },
-    ];
-
-    // Mock Poya days for 2026
-    const poyaDays2026 = [
-        '2026-01-03', '2026-02-01', '2026-03-03', '2026-04-02',
-        '2026-05-01', '2026-05-31', '2026-06-29', '2026-07-28',
-        '2026-08-27', '2026-09-25', '2026-10-24', '2026-11-23', '2026-12-23'
-    ];
-
-    // Fetch existing configurations on mount (Persistence)
-    useEffect(() => {
-        fetchSubmittedConfigs();
-        fetchAllowedDates();
-    }, []);
-
-    const [allowedDates, setAllowedDates] = useState(new Set());
-
-    const fetchAllowedDates = async () => {
+    const fetchConfig = async () => {
         try {
             const response = await fetch('http://localhost:5000/api/configurations/global-dates');
             if (response.ok) {
                 const data = await response.json();
                 setAllowedDates(new Set(data.allowed_dates || []));
-            } else {
-                const storedDates = localStorage.getItem('allowed_exam_dates');
-                if (storedDates) setAllowedDates(new Set(JSON.parse(storedDates)));
+                setExamDeadline(data.deadline);
+                if (data.academic_year) setAcademicYear(data.academic_year);
             }
-        } catch (e) {
-            console.error('Failed to fetch global dates:', e);
-            const storedDates = localStorage.getItem('allowed_exam_dates');
-            if (storedDates) setAllowedDates(new Set(JSON.parse(storedDates)));
+        } catch (error) {
+            console.error("Error fetching global config:", error);
         }
     };
 
-    const fetchSubmittedConfigs = async () => {
+    const fetchSubmittedHistory = async () => {
         try {
             const response = await fetch('http://localhost:5000/api/configurations/list');
             if (response.ok) {
                 const data = await response.json();
-                // Filter by the logged-in representative's user ID
                 const repId = user?.user_id || 1;
-                const myConfigs = data.filter(c => c.batch_rep_id === repId);
-                setSubmittedList(myConfigs);
+                // Filter for current rep
+                const myHistory = data.filter(item => item.batch_rep_id === repId);
+                setHistory(myHistory);
             }
         } catch (error) {
-            console.error("Failed to fetch history", error);
+            console.error("Error fetching history:", error);
         }
     };
-
-    const [examDeadline, setExamDeadline] = useState(null);
 
     useEffect(() => {
-        const fetchDeadline = async () => {
-            try {
-                const response = await fetch('http://localhost:5000/api/configurations/global-dates');
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.deadline) setExamDeadline(data.deadline);
-                }
-            } catch (e) {
-                const deadline = localStorage.getItem('exam_deadline');
-                if (deadline) setExamDeadline(deadline);
-            }
-        };
-        fetchDeadline();
+        fetchConfig();
+        fetchSubmittedHistory();
     }, []);
-
-    const generateCalendarDays = () => {
-        const days = [];
-        for (let i = 0; i < firstDayOfMonth; i++) {
-            days.push(null);
-        }
-        for (let i = 1; i <= daysInMonth; i++) {
-            days.push(new Date(year, month, i));
-        }
-        return days;
-    };
-
-    const calendarDays = generateCalendarDays();
 
     const formatDateKey = (date) => {
         if (!date) return null;
-        const offset = date.getTimezoneOffset();
-        const adjustedDate = new Date(date.getTime() - (offset * 60 * 1000));
-        return adjustedDate.toISOString().split('T')[0];
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     };
 
     const isSunday = (date) => date && date.getDay() === 0;
-    const isPoya = (date) => {
-        if (!date) return false;
-        const key = formatDateKey(date);
-        return poyaDays2026.includes(key);
+    const isPoya = (date) => date && poyaDays.includes(formatDateKey(date));
+    const isHoliday = (date) => date && nationalHolidays.includes(formatDateKey(date));
+    const isAllowed = (date) => date && allowedDates.has(formatDateKey(date));
+
+    const handleDateClick = (date) => {
+        if (!isAllowed(date)) return;
+        setSelectedDate(date);
     };
 
-    const handleMonthChange = (e) => {
-        setCurrentDate(new Date(year, parseInt(e.target.value), 1));
-    };
-
-    const handleYearChange = (e) => {
-        setCurrentDate(new Date(parseInt(e.target.value), month, 1));
-    };
-
-    const handleDateClick = (calendarDate) => {
-        if (!calendarDate) return;
-        const dateKey = formatDateKey(calendarDate);
-        if (!allowedDates.has(dateKey)) return; // Prevent clicking unallowed dates
-
-        // Strict: ONLY ONE DATE ALLOWED
-        if (selectedDates.includes(dateKey)) {
-            setSelectedDates([]);
-        } else {
-            setSelectedDates([dateKey]);
-        }
-    };
-
-    const handleAddToDraft = () => {
-        if (!courseCode.trim()) {
-            setMessage({ text: 'Please enter a Course Code', type: 'error' });
-            return;
-        }
-        if (selectedDates.length === 0) {
-            setMessage({ text: 'Please select one date', type: 'error' });
+    const addToDraft = () => {
+        if (!courseCode || !selectedDate) {
+            setMessage({ text: "Assign both Course Code and Date", type: 'error' });
             return;
         }
 
-        // Add to local draft
-        const newItem = {
-            batch_rep_id: user?.user_id || 1,
-            course_code: courseCode,
-            preferred_dates: selectedDates,
-            level: user?.level || 1, // Automatically bound to logged-in user level
-            status: 'DRAFT',
-            tempId: Date.now() // temporary ID for UI
-        };
+        const dateStr = formatDateKey(selectedDate);
+        if (drafts.some(d => d.date === dateStr || d.code === courseCode.toUpperCase())) {
+            setMessage({ text: "Conflict: Date or Course already drafted", type: 'error' });
+            return;
+        }
 
-        setDraftList([...draftList, newItem]);
+        setDrafts([...drafts, { code: courseCode.toUpperCase(), date: dateStr }]);
         setCourseCode('');
-        setSelectedDates([]);
-        setMessage({ text: '', type: '' });
+        setSelectedDate(null);
+        setMessage({ text: "Added to draft", type: 'success' });
     };
 
-    const handleSubmitAll = async () => {
-        if (draftList.length === 0) {
-            setMessage({ text: 'Draft list is empty', type: 'error' });
-            return;
-        }
+    const removeFromDraft = (index) => {
+        const newDrafts = [...drafts];
+        newDrafts.splice(index, 1);
+        setDrafts(newDrafts);
+    };
 
+    const submitToAS = async () => {
+        if (drafts.length === 0) return;
         setIsSubmitting(true);
-        setMessage({ text: '', type: '' });
+
+        const payload = drafts.map(d => ({
+            batch_rep_id: user?.user_id || 1,
+            course_code: d.code,
+            preferred_dates: [d.date],
+            level: user?.level || 1,
+            academic_year: academicYear, // Include academic year
+            status: 'SENT'
+        }));
 
         try {
-            // Bulk Submit
-            const payload = draftList.map(({ tempId, ...rest }) => ({
-                ...rest,
-                status: 'SENT'
-            }));
-
             const response = await fetch('http://localhost:5000/api/configurations/save', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
 
             if (response.ok) {
-                setMessage({ text: 'Timetable configuration sent successfully!', type: 'success' });
-                setDraftList([]); // Clear drafts
-                fetchSubmittedConfigs(); // Refresh history
+                setMessage({ text: "Preferences dispatched successfully!", type: 'success' });
+                setDrafts([]);
+                fetchSubmittedHistory();
             } else {
-                setMessage({ text: 'Failed to submit timetable', type: 'error' });
+                setMessage({ text: "Submission failed. Please try again.", type: 'error' });
             }
         } catch (error) {
-            console.error(error);
-            setMessage({ text: 'Network error occurred', type: 'error' });
+            console.error("Submission Error:", error);
+            setMessage({ text: `Connection error (${error.message}). Check console.`, type: 'error' });
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const closeModal = () => {
-        setSelectedExam(null);
-    };
+    const calendarDays = (() => {
+        const days = [];
+        for (let i = 0; i < firstDayOfMonth; i++) days.push(null);
+        for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
+        return days;
+    })();
 
     return (
-        <div className="flex flex-col gap-6 animate-fade-in-up h-full">
-            <div className="flex gap-6 h-full">
-                {/* Left Panel: Calendar & Input */}
-                <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col h-full">
-                    {/* Header Section */}
-                    <div className="flex flex-col gap-4 mb-6">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <h2 className="text-2xl font-bold text-gray-800">Timetable Configuration</h2>
-                                <p className="text-gray-500 text-sm mt-1">Select dates and add modules to your list</p>
-                                {examDeadline && (
-                                    <div className="mt-2 inline-block bg-red-50 border border-red-200 rounded-lg px-3 py-1 animate-pulse">
-                                        <p className="text-sm font-bold text-red-700 flex items-center gap-2">
-                                            <span>⏰</span> Deadline: {examDeadline}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex gap-3">
-                                <select
-                                    value={month}
-                                    onChange={handleMonthChange}
-                                    className="px-4 py-2 border rounded-lg bg-gray-50 text-gray-700 outline-none"
-                                >
-                                    {months.map((m, idx) => (
-                                        <option key={m} value={idx}>{m}</option>
-                                    ))}
-                                </select>
-                                <select
-                                    value={year}
-                                    onChange={handleYearChange}
-                                    className="px-4 py-2 border rounded-lg bg-gray-50 text-gray-700 outline-none"
-                                >
-                                    {[2025, 2026, 2027].map(y => (
-                                        <option key={y} value={y}>{y}</option>
-                                    ))}
-                                </select>
-                            </div>
+        <div className="flex flex-col xl:flex-row gap-8 animate-fade-in-up pb-12">
+            {/* Left Section: Allocation Workspace */}
+            <div className="flex-1 flex flex-col gap-6">
+                {/* Header Card */}
+                <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                                <Icons.Calendar />
+                            </span>
+                            <span className="text-[10px] font-black text-blue-600 bg-blue-50/50 px-2 py-0.5 rounded-full uppercase tracking-widest leading-none">Scheduler</span>
                         </div>
-
-                        {/* Configuration Inputs */}
-                        <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex flex-col gap-4">
-                            <div className="flex gap-4 items-end flex-wrap">
-                                {/* Level Display (Auto-injected) */}
-                                <div className="w-full md:w-auto">
-                                    <label className="block text-xs font-semibold text-indigo-800 uppercase mb-1">Level</label>
-                                    <div className="px-4 py-2 border border-indigo-200 rounded-lg bg-indigo-100 text-indigo-900 font-bold min-w-[100px] text-center">
-                                        Lvl {user?.level || 1}
-                                    </div>
-                                </div>
-
-                                <div className="flex-1 min-w-[150px]">
-                                    <label className="block text-xs font-semibold text-indigo-800 uppercase mb-1">Course Code</label>
-                                    <input
-                                        type="text"
-                                        value={courseCode}
-                                        onChange={(e) => setCourseCode(e.target.value)}
-                                        placeholder="e.g. CSC303"
-                                        className="w-full px-4 py-2 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    />
-                                </div>
-                                <div className="flex-1 min-w-[150px]">
-                                    <label className="block text-xs font-semibold text-indigo-800 uppercase mb-1">Selected Date</label>
-                                    <div className="px-4 py-2 text-indigo-700 text-sm font-medium bg-white/50 border border-indigo-100 rounded-lg">
-                                        {selectedDates.length > 0 ? selectedDates[0] : 'None'}
-                                    </div>
-                                </div>
-                                <div>
-                                    <button
-                                        onClick={handleAddToDraft}
-                                        disabled={isSubmitting}
-                                        className="px-6 py-2 bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50 font-bold rounded-lg shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-                                        Add
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        {message.text && (
-                            <div className={`p-3 rounded-lg text-sm font-medium ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                {message.text}
-                            </div>
-                        )}
+                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">Timeline Configuration</h2>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Level {user?.level || 'N/A'} Academic Session Allocation</p>
                     </div>
 
-                    {/* Legend */}
-                    <div className="flex gap-4 mb-4 text-sm flex-wrap p-3 bg-gray-50/50 rounded-lg border border-gray-100">
-                        <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 bg-indigo-600 rounded"></div>
-                            <span className="text-gray-600">Selected (Max 1)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 bg-red-50 border border-red-100 rounded"></div>
-                            <span className="text-gray-600">Sunday</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-4 h-4 bg-yellow-50 border border-yellow-100 rounded"></div>
-                            <span className="text-gray-600">Poya Day</span>
-                        </div>
-                    </div>
-
-                    {/* Calendar Grid - Starts Monday */}
-                    <div className="flex-1 overflow-auto">
-                        <div className="grid grid-cols-7 gap-2 mb-2 sticky top-0 bg-white z-10">
-                            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                                <div key={day} className="text-center font-bold text-gray-500 py-3 uppercase text-xs tracking-wider">
-                                    {day}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="grid grid-cols-7 gap-2">
-                            {calendarDays.map((date, index) => {
-                                if (!date) return <div key={`empty-${index}`} className="p-2 min-h-[100px] bg-gray-50/30 rounded-xl"></div>;
-
-                                const dateKey = formatDateKey(date);
-                                const isSun = isSunday(date);
-                                const isPoy = isPoya(date);
-                                const isSelected = selectedDates.includes(dateKey);
-                                const isAllowed = allowedDates.has(dateKey);
-
-                                // Find drafted and submitted exams for this date
-                                const dayDrafts = draftList.filter(d => d.preferred_dates.includes(dateKey));
-                                const daySubmitted = submittedList.filter(s => {
-                                    if (Array.isArray(s.preferred_dates)) {
-                                        return s.preferred_dates.includes(dateKey);
-                                    }
-                                    return s.preferred_dates === dateKey;
-                                });
-
-                                let bgClass = "bg-white hover:border-indigo-300 border-gray-200";
-                                let cursorClass = "cursor-pointer";
-
-                                if (isSun) {
-                                    bgClass = "bg-red-50/50 text-red-300 border-red-100 opacity-60 cursor-not-allowed";
-                                } else if (isPoy) {
-                                    bgClass = "bg-yellow-50/50 text-yellow-600 border-yellow-100 opacity-60 cursor-not-allowed";
-                                } else if (!isAllowed) {
-                                    bgClass = "bg-gray-50 text-gray-400 border-gray-100 opacity-50 cursor-not-allowed";
-                                } else if (isSelected) {
-                                    bgClass = "bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-[1.02]";
-                                }
-
-                                const canClick = !isSun && !isPoy && isAllowed;
-
-                                return (
-                                    <div
-                                        key={index}
-                                        onClick={() => canClick && handleDateClick(date)}
-                                        className={`
-                                            relative p-3 rounded-xl border flex flex-col min-h-[100px]
-                                            ${bgClass} ${canClick ? cursorClass : ''} transition-all duration-200
-                                        `}
-                                    >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className={`text-lg font-bold ${isSelected ? 'text-white' : 'text-gray-700'} ${isSun && !isSelected ? 'text-red-400' : ''}`}>
-                                                {date.getDate()}
-                                            </span>
-                                            {isSun && <span className="text-[10px] font-bold text-red-400 uppercase">Sun</span>}
-                                            {isPoy && <span className="text-[10px] font-bold text-yellow-600 uppercase">Poya</span>}
-                                        </div>
-
-                                        {/* Render Draft and Submitted Exams on this day */}
-                                        <div className="flex-1 flex flex-col gap-1 overflow-y-auto no-scrollbar">
-                                            {daySubmitted.map((exam, i) => (
-                                                <div key={`sub-${i}`} className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-800 rounded font-medium truncate border border-green-200">
-                                                    {exam.course_code} (Lvl {exam.level || 1})
-                                                </div>
-                                            ))}
-                                            {dayDrafts.map((draft, i) => (
-                                                <div key={`draft-${draft.tempId}`} className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-800 rounded font-medium truncate border border-indigo-200">
-                                                    {draft.course_code} (Draft)
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                    <div className="flex items-center gap-3 bg-slate-900 p-2 rounded-2xl shadow-xl shadow-slate-900/20">
+                        <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-2 text-slate-400 hover:text-white transition-colors">
+                            <Icons.ChevronLeft />
+                        </button>
+                        <span className="text-sm font-black text-blue-400 min-w-[120px] text-center uppercase tracking-widest">
+                            {months[month]} {year}
+                        </span>
+                        <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-2 text-slate-400 hover:text-white transition-colors">
+                            <Icons.ChevronRight />
+                        </button>
                     </div>
                 </div>
 
-                {/* Right Panel: Drafts & Submitted List */}
-                <div className="w-80 flex flex-col gap-4 h-full">
-
-                    {/* Draft List Panel */}
-                    <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden max-h-[50%]">
-                        <div className="p-4 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
-                            <div>
-                                <h3 className="font-bold text-indigo-900">Draft List</h3>
-                                <p className="text-xs text-indigo-600">Pending submission</p>
+                {/* Calendar & Entry Workspace */}
+                <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-slate-200/50 border border-slate-100">
+                    <div className="grid grid-cols-1 lg:grid-cols-7 gap-8">
+                        {/* Calendar Side */}
+                        <div className="lg:col-span-5">
+                            <div className="grid grid-cols-7 gap-3 mb-6">
+                                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+                                    <div key={d} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">{d}</div>
+                                ))}
                             </div>
-                            <span className="bg-white text-indigo-600 text-xs px-2 py-1 rounded-full font-bold">{draftList.length}</span>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                            {draftList.length === 0 ? (
-                                <p className="text-xs text-gray-400 text-center italic mt-4">Add modules to build your timetable draft.</p>
-                            ) : (
-                                draftList.map((item) => (
-                                    <div key={item.tempId} className="p-3 bg-white border border-gray-100 rounded-lg shadow-sm">
-                                        <div className="flex justify-between font-bold text-sm text-gray-800">
-                                            <span>{item.course_code}</span>
-                                            <span className="text-indigo-600">Lvl {item.level}</span>
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-1">
-                                            {item.preferred_dates[0]}
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                        <div className="p-4 border-t border-gray-100">
-                            <button
-                                onClick={handleSubmitAll}
-                                disabled={draftList.length === 0 || isSubmitting}
-                                className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isSubmitting ? 'Sending...' : 'Submit Timetable'}
-                            </button>
-                        </div>
-                    </div>
+                            <div className="grid grid-cols-7 gap-3">
+                                {calendarDays.map((date, idx) => {
+                                    if (!date) return <div key={idx} className="aspect-square"></div>;
+                                    const allowed = isAllowed(date);
+                                    const selected = selectedDate && formatDateKey(date) === formatDateKey(selectedDate);
+                                    const isSun = isSunday(date);
 
-                    {/* Submitted History Panel */}
-                    <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-                        <div className="p-4 bg-gray-50 border-b border-gray-200">
-                            <h3 className="font-bold text-gray-800">Sent History</h3>
-                            <p className="text-xs text-gray-500">Previously submitted</p>
+                                    let contentClass = "bg-white border-slate-100 text-slate-900 hover:border-blue-300 hover:bg-blue-50/50";
+                                    if (!allowed) contentClass = "bg-slate-50 border-transparent text-slate-300 opacity-40 cursor-not-allowed";
+                                    if (selected) contentClass = "bg-blue-600 border-blue-500 text-white shadow-xl shadow-blue-200 scale-105 z-10";
+                                    if (isSun) contentClass += " text-rose-400";
+
+                                    return (
+                                        <button
+                                            key={idx}
+                                            disabled={!allowed}
+                                            onClick={() => handleDateClick(date)}
+                                            className={`relative aspect-square rounded-2xl border flex flex-col items-center justify-center transition-all duration-300 group ${contentClass}`}
+                                        >
+                                            <span className="text-xl font-black">{date.getDate()}</span>
+                                            {allowed && !selected && (
+                                                <div className="absolute bottom-2">
+                                                    <div className="w-1 h-1 bg-blue-600 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                                </div>
+                                            )}
+                                            {selected && (
+                                                <span className="text-[7px] font-black uppercase tracking-widest mt-1 text-blue-100">Selected</span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Legend */}
+                            <div className="flex flex-wrap gap-4 mt-8 pt-6 border-t border-slate-50">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 bg-blue-600 rounded-full"></div>
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Choice</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 bg-slate-100 border border-slate-200 rounded-full"></div>
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Unavailable</span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                            {submittedList.length === 0 ? (
-                                <p className="text-xs text-gray-400 text-center italic mt-4">No history yet.</p>
-                            ) : (
-                                submittedList.map((config, idx) => (
-                                    <div key={idx} className="p-3 rounded-xl border border-gray-100 bg-gray-50/50 opacity-75">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h4 className="font-bold text-gray-700">{config.course_code}</h4>
-                                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">SENT</span>
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                            <span className="font-medium">Level {config.level || 1}</span> • {config.preferred_dates && (Array.isArray(config.preferred_dates) ? config.preferred_dates[0] : config.preferred_dates)}
+
+                        {/* Quick Entry Side */}
+                        <div className="lg:col-span-2 flex flex-col gap-6">
+                            <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 flex flex-col gap-5">
+                                <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></span>
+                                    Slot Staging
+                                </h3>
+
+                                <div className="space-y-4">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Course Code</label>
+                                        <input
+                                            type="text"
+                                            value={courseCode}
+                                            onChange={(e) => setCourseCode(e.target.value)}
+                                            placeholder="INTE21233..."
+                                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-widest focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Allocation Date</label>
+                                        <div className="w-full px-4 py-3 bg-slate-100 text-slate-900 rounded-xl text-xs font-bold tracking-widest border border-transparent">
+                                            {selectedDate ? selectedDate.toLocaleDateString() : 'Pick on Calendar'}
                                         </div>
                                     </div>
-                                ))
-                            )}
+
+                                    <button
+                                        onClick={addToDraft}
+                                        className="w-full py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all active:scale-95 shadow-lg shadow-slate-200 flex items-center justify-center gap-2"
+                                    >
+                                        <Icons.Plus />
+                                        Stage Preference
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 p-6 bg-blue-50 rounded-[2rem] border border-blue-100 flex flex-col gap-4">
+                                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                                    <span className="text-blue-900">Current Draft ({drafts.length})</span>
+                                    <button onClick={() => setDrafts([])} className="text-blue-400 hover:text-blue-600 transition-colors">Clear</button>
+                                </div>
+
+                                <div className="flex-1 space-y-2 overflow-y-auto max-h-[220px] pr-2 custom-scrollbar">
+                                    {drafts.length === 0 ? (
+                                        <p className="text-[9px] font-bold text-blue-400/60 uppercase tracking-widest italic text-center py-8">No slots staged yet</p>
+                                    ) : (
+                                        drafts.map((d, i) => (
+                                            <div key={i} className="flex items-center justify-between p-3 bg-white rounded-xl border border-blue-100 group">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight">{d.code}</span>
+                                                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{d.date}</span>
+                                                </div>
+                                                <button onClick={() => removeFromDraft(i)} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors">
+                                                    <Icons.Trash />
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                <button
+                                    onClick={submitToAS}
+                                    disabled={drafts.length === 0 || isSubmitting}
+                                    className="w-full py-4 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-xl shadow-blue-200 hover:bg-blue-700 disabled:bg-blue-200 disabled:shadow-none transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Icons.Send />
+                                    {isSubmitting ? 'Dispatching...' : 'Dispatch to AS'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {selectedExam && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in p-4">
-                        <button onClick={closeModal}>Close</button>
+            {/* Right Side: Sidebar Monitoring */}
+            <div className="w-full xl:w-96 flex flex-col gap-6">
+                {/* Status Card */}
+                <div className="bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl shadow-slate-900/40 text-white border border-slate-800">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-6 flex items-center gap-2">
+                        <Icons.AlertCircle />
+                        Dispatch Protocol
+                    </h3>
+
+                    <div className="space-y-4">
+                        <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/30">
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1 shadow-sm block">Academic Year</span>
+                            <div className="text-lg font-black text-white tracking-tight">{academicYear || 'Not Set'}</div>
+                        </div>
+                        <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/30">
+                            <span className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1 shadow-sm block">Submission Deadline</span>
+                            <div className="text-lg font-black text-rose-500 tracking-tight">
+                                {examDeadline ? (examDeadline.includes('-') ? formatDateToUK(examDeadline) : examDeadline) : 'Not Set'}
+                            </div>
+                        </div>
                     </div>
                 </div>
-            )}
+
+                {/* History Card */}
+                <div className="flex-1 bg-white rounded-[2.5rem] p-8 shadow-2xl shadow-slate-200/50 border border-slate-100 flex flex-col">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 mb-6 flex items-center gap-2">
+                        <Icons.History />
+                        Submission History
+                    </h3>
+
+                    <div className="flex-1 space-y-3 overflow-y-auto max-h-[500px] pr-2 custom-scrollbar">
+                        {history.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-48 opacity-20">
+                                <Icons.FileText />
+                                <span className="text-[10px] font-black uppercase tracking-widest mt-2">No past records</span>
+                            </div>
+                        ) : (
+                            history.map((record, i) => (
+                                <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center group">
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{record.course_code}</span>
+                                            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-600 rounded text-[8px] font-black uppercase">Sent</span>
+                                        </div>
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{record.preferred_dates[0]}</span>
+                                    </div>
+                                    <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                                        <Icons.Check />
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {message.text && (
+                        <div className={`mt-6 p-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-center animate-bounce ${message.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                            }`}>
+                            {message.text}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };

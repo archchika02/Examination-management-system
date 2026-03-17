@@ -17,13 +17,13 @@ exports.getAdmissionCards = async (req, res) => {
         if (type === 'Academic') {
             query = `
                 WITH AllEnrollments AS (
-                    -- Standard Registrations
                     SELECT 
                         h.user_id, 
                         sd.student_number, 
                         h.student_name, 
                         sd.level,
-                        rcu.course_code
+                        rcu.course_code,
+                        h.academic_year
                     FROM course_unit_registration_headers h
                     JOIN registered_course_units rcu ON h.id = rcu.header_id
                     JOIN student_details sd ON h.user_id = sd.user_id
@@ -37,7 +37,8 @@ exports.getAdmissionCards = async (req, res) => {
                         sd.student_number, 
                         h.student_name, 
                         sd.level,
-                        arc.course_code
+                        arc.course_code,
+                        h.academic_year
                     FROM add_drop_request_headers h
                     JOIN add_drop_requested_courses arc ON h.id = arc.header_id
                     JOIN student_details sd ON h.user_id = sd.user_id
@@ -57,10 +58,6 @@ exports.getAdmissionCards = async (req, res) => {
                     FROM AllEnrollments e
                     LEFT JOIN ExcludedEnrollments ex ON e.user_id = ex.user_id AND REPLACE(e.course_code, ' ', '') = REPLACE(ex.course_code, ' ', '')
                     WHERE ex.user_id IS NULL
-                    AND EXISTS (
-                        SELECT 1 FROM batch_configurations bc 
-                        WHERE REPLACE(bc.course_code, ' ', '') = REPLACE(e.course_code, ' ', '')
-                    )
                 )
                 SELECT 
                     fe.user_id,
@@ -68,14 +65,13 @@ exports.getAdmissionCards = async (req, res) => {
                     fe.student_name,
                     fe.level,
                     fe.course_code,
-                    c.title as course_title,
                     DATE_FORMAT(et.date, '%W, %e %M, %Y') as exam_date,
                     CONCAT(DATE_FORMAT(s.start_time, '%l:%i %p'), ' - ', DATE_FORMAT(s.end_time, '%l:%i %p')) as start_time,
                     GROUP_CONCAT(DISTINCT da.venue ORDER BY da.venue SEPARATOR ', ') as venues,
                     et.academic_year
                 FROM FinalEnrollments fe
-                LEFT JOIN courses c ON REPLACE(fe.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
-                LEFT JOIN exam_timetables et ON REPLACE(fe.course_code, ' ', '') = REPLACE(et.course_code, ' ', '')
+                JOIN exam_timetables et ON REPLACE(fe.course_code, ' ', '') = REPLACE(et.course_code, ' ', '') 
+                    AND fe.academic_year = et.academic_year
                 LEFT JOIN exam_slots s ON et.timetable_id = s.timetable_id
                 LEFT JOIN exam_draft_allocations da ON et.timetable_id = da.exam_id AND da.is_published = 1
                 GROUP BY 
@@ -84,7 +80,6 @@ exports.getAdmissionCards = async (req, res) => {
                     fe.student_name, 
                     fe.level, 
                     fe.course_code, 
-                    c.title,
                     et.academic_year,
                     et.date, 
                     s.start_time,
@@ -101,7 +96,6 @@ exports.getAdmissionCards = async (req, res) => {
                     h.student_name,
                     sd.level,
                     mrc.course_code,
-                    c.title as course_title,
                     DATE_FORMAT(et.date, '%W, %e %M, %Y') as exam_date,
                     CONCAT(DATE_FORMAT(s.start_time, '%l:%i %p'), ' - ', DATE_FORMAT(s.end_time, '%l:%i %p')) as start_time,
                     GROUP_CONCAT(DISTINCT da.venue ORDER BY da.venue SEPARATOR ', ') as venues,
@@ -109,22 +103,17 @@ exports.getAdmissionCards = async (req, res) => {
                 FROM medical_repeat_request_headers h
                 JOIN medical_repeat_requested_courses mrc ON h.id = mrc.header_id
                 JOIN student_details sd ON h.user_id = sd.user_id
-                LEFT JOIN courses c ON REPLACE(mrc.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
-                LEFT JOIN exam_timetables et ON REPLACE(mrc.course_code, ' ', '') = REPLACE(et.course_code, ' ', '')
+                JOIN exam_timetables et ON REPLACE(mrc.course_code, ' ', '') = REPLACE(et.course_code, ' ', '') 
+                    AND h.academic_year = et.academic_year
                 LEFT JOIN exam_slots s ON et.timetable_id = s.timetable_id
                 LEFT JOIN exam_draft_allocations da ON et.timetable_id = da.exam_id AND da.is_published = 1
                 WHERE h.status = 'Approved' AND sd.level = ?
-                AND EXISTS (
-                    SELECT 1 FROM batch_configurations bc 
-                    WHERE REPLACE(bc.course_code, ' ', '') = REPLACE(mrc.course_code, ' ', '')
-                )
                 GROUP BY 
                     h.user_id, 
                     h.student_number, 
                     h.student_name, 
                     sd.level,
                     mrc.course_code, 
-                    c.title,
                     et.academic_year,
                     et.date, 
                     s.start_time,
@@ -150,7 +139,6 @@ exports.getAdmissionCards = async (req, res) => {
             if (row.course_code) {
                 students[row.user_id].courses.push({
                     course_code: row.course_code,
-                    course_title: row.course_title,
                     date: row.exam_date,
                     time: row.start_time,
                     venue: row.venues
@@ -173,16 +161,17 @@ exports.getAttendanceSheets = async (req, res) => {
     }
 
     try {
-        // 1. Fetch Exam Data
+        // 1. Fetch Exam Data (Including Academic Year)
         const [exams] = await pool.query(`
             SELECT 
                 et.timetable_id, 
                 et.course_code, 
+                et.academic_year,
                 c.title as course_title,
                 DATE_FORMAT(et.date, '%W, %e %M, %Y') as exam_date,
                 CONCAT(DATE_FORMAT(s.start_time, '%l:%i %p'), ' - ', DATE_FORMAT(s.end_time, '%l:%i %p')) as start_time
             FROM exam_timetables et
-            LEFT JOIN courses c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+            LEFT JOIN modules c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '') AND et.academic_year = c.academic_year
             LEFT JOIN exam_slots s ON et.timetable_id = s.timetable_id
             WHERE REPLACE(et.course_code, ' ', '') = REPLACE(?, ' ', '')
         `, [courseCode]);
@@ -207,8 +196,7 @@ exports.getAttendanceSheets = async (req, res) => {
             return res.status(404).json({ message: 'No published venue allocations found for this exam.' });
         }
 
-        // 3. Fetch Non-Repeat Students directly registered for this course
-        // Using Similar CTE pattern as getAdmissionCards
+        // 3. Fetch Non-Repeat Students directly registered for this course (Filtered by Academic Year)
         const [nonRepeatRows] = await pool.query(`
             WITH AllEnrollments AS (
                 SELECT sd.student_number
@@ -216,6 +204,7 @@ exports.getAttendanceSheets = async (req, res) => {
                 JOIN registered_course_units rcu ON h.id = rcu.header_id
                 JOIN student_details sd ON h.user_id = sd.user_id
                 WHERE h.status = 'Approved' 
+                  AND h.academic_year = ?
                   AND REPLACE(rcu.course_code, ' ', '') = REPLACE(?, ' ', '')
                   
                 UNION DISTINCT
@@ -225,6 +214,7 @@ exports.getAttendanceSheets = async (req, res) => {
                 JOIN add_drop_requested_courses arc ON h.id = arc.header_id
                 JOIN student_details sd ON h.user_id = sd.user_id
                 WHERE h.status = 'Approved' 
+                  AND h.academic_year = ?
                   AND arc.action = 'Add'
                   AND REPLACE(arc.course_code, ' ', '') = REPLACE(?, ' ', '')
             ),
@@ -233,6 +223,7 @@ exports.getAttendanceSheets = async (req, res) => {
                 FROM add_drop_request_headers h
                 JOIN add_drop_requested_courses arc ON h.id = arc.header_id
                 WHERE h.status = 'Approved' 
+                  AND h.academic_year = ?
                   AND arc.action = 'Drop'
                   AND REPLACE(arc.course_code, ' ', '') = REPLACE(?, ' ', '')
             )
@@ -242,19 +233,20 @@ exports.getAttendanceSheets = async (req, res) => {
             LEFT JOIN ExcludedEnrollments ex ON sd.user_id = ex.user_id
             WHERE ex.user_id IS NULL
             ORDER BY e.student_number ASC
-        `, [courseCode, courseCode, courseCode]);
+        `, [exam.academic_year, courseCode, exam.academic_year, courseCode, exam.academic_year, courseCode]);
 
         const nonRepeatStudents = nonRepeatRows.map(r => r.student_number);
 
-        // 4. Fetch Repeat/Medical Students
+        // 4. Fetch Repeat/Medical Students (Filtered by Academic Year)
         const [repeatRows] = await pool.query(`
             SELECT h.student_number
             FROM medical_repeat_request_headers h
             JOIN medical_repeat_requested_courses mrc ON h.id = mrc.header_id
             WHERE h.status = 'Approved'
+              AND h.academic_year = ?
               AND REPLACE(mrc.course_code, ' ', '') = REPLACE(?, ' ', '')
             ORDER BY h.student_number ASC
-        `, [courseCode]);
+        `, [exam.academic_year, courseCode]);
 
         const repeatStudents = repeatRows.map(r => r.student_number);
 
@@ -313,16 +305,20 @@ exports.getExaminerCourses = async (req, res) => {
     }
 
     try {
-        const [courses] = await pool.query(`
+        // Query courses where the user is assigned as an examiner (Examiner 1 or 2)
+        // We join with modules to get the title and ensure the course exists.
+        // We filter by 'Active' status and show all active appointments regardless of the year.
+        const query = `
             SELECT DISTINCT ea.course_code, c.title as course_title 
             FROM examiner_appointments ea
-            JOIN courses c ON REPLACE(ea.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+            JOIN modules c ON REPLACE(ea.course_code, ' ', '') = REPLACE(c.course_code, ' ', '') 
+                AND ea.academic_year = c.academic_year
             WHERE ea.user_id = ? 
-            AND ea.examiner_role IN ('Examiner 1', 'Examiner 2') 
             AND ea.status = 'Active'
-            AND ea.academic_year = (SELECT MAX(academic_year) FROM examiner_appointments WHERE status = 'Active')
-        `, [userId]);
+            ORDER BY ea.course_code ASC
+        `;
 
+        const [courses] = await pool.query(query, [userId]);
         res.json(courses);
     } catch (error) {
         console.error('Error fetching examiner courses:', error);
@@ -357,5 +353,36 @@ exports.getCourseExaminers = async (req, res) => {
     } catch (error) {
         console.error('Error fetching course examiners:', error);
         res.status(500).json({ message: 'Error fetching course examiners', error: error.message });
+    }
+};
+
+exports.getExamDates = async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT DISTINCT DATE_FORMAT(date, '%Y-%m-%d') as date
+            FROM exam_slots 
+            ORDER BY date ASC
+        `);
+        res.json(rows.map(r => r.date));
+    } catch (error) {
+        console.error('Error fetching exam dates:', error);
+        res.status(500).json({ message: 'Error fetching exam dates', error: error.message });
+    }
+};
+
+exports.getExamCoursesByDate = async (req, res) => {
+    const { date } = req.params;
+    try {
+        const [rows] = await pool.query(`
+            SELECT DISTINCT es.course_code, m.title
+            FROM exam_slots es
+            LEFT JOIN modules m ON REPLACE(es.course_code, ' ', '') = REPLACE(m.course_code, ' ', '')
+            WHERE DATE_FORMAT(es.date, '%Y-%m-%d') = ?
+            ORDER BY es.course_code ASC
+        `, [date]);
+        res.json(rows);
+    } catch (error) {
+        console.error('Error fetching exam courses by date:', error);
+        res.status(500).json({ message: 'Error fetching exam courses by date', error: error.message });
     }
 };

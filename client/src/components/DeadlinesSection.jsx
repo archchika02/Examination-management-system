@@ -135,6 +135,7 @@ const DeadlinesSection = () => {
         'Academic Supervisor',
         'Department Staff',
         'Hall Attendant',
+        'Dean',
     ];
 
     const getMinDate = () => {
@@ -264,8 +265,7 @@ const DeadlinesSection = () => {
                                 <th className="p-4 text-left">Year</th>
                                 <th className="p-4 text-left">Deadline</th>
                                 <th className="p-4 text-left">Roles</th>
-                                <th className="p-4 text-left">Description</th>
-                                <th className="p-4 pr-6 text-right">Actions</th>
+                                <th className="p-4 pr-6 text-left">Description</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-sm">
@@ -283,19 +283,11 @@ const DeadlinesSection = () => {
                                             ))}
                                         </div>
                                     </td>
-                                    <td className="p-4 text-gray-500 max-w-xs truncate" title={deadline.description}>{deadline.description}</td>
-                                    <td className="p-4 pr-6 text-right">
-                                        <button
-                                            onClick={() => handleRemove(deadline.id)}
-                                            className="inline-flex items-center justify-center px-3 py-1.5 text-red-600 bg-red-50 hover:bg-red-600 hover:text-white rounded-md text-xs font-bold transition-all border border-red-100 hover:border-red-600 group/btn"
-                                        >
-                                            <span className="mr-1.5 group-hover/btn:animate-pulse">🗑️</span> Remove
-                                        </button>
-                                    </td>
+                                    <td className="p-4 pr-6 text-gray-500 max-w-xs truncate" title={deadline.description}>{deadline.description}</td>
                                 </tr>
                             ))}
                             {deadlines.length === 0 && (
-                                <tr>
+                                <tr key="empty">
                                     <td colSpan="5" className="p-12 text-center text-gray-400">
                                         <div className="flex flex-col items-center justify-center">
                                             <span className="text-4xl mb-3">📅</span>

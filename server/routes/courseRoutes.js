@@ -48,7 +48,7 @@ router.post('/add', async (req, res) => {
 
         // Check if course already exists
         const [existing] = await connection.execute(
-            'SELECT course_code FROM courses WHERE course_code = ?',
+            'SELECT course_code FROM modules WHERE course_code = ?',
             [code]
         );
 
@@ -57,19 +57,23 @@ router.post('/add', async (req, res) => {
             return res.status(409).json({ message: 'Course unit already exists' });
         }
 
+        // Extract level: The first digit in the course code (e.g., INTE 21234 -> 2)
+        const match = code.match(/\d/);
+        const extractedLevel = match ? parseInt(match[0]) : null;
+
         await connection.execute(
-            `INSERT INTO courses (
-                course_code, title, credits, type, semester, selection, year, non_written_type, academic_year
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [code, title, credits, type, semester, selection, year, nonWrittenType, academicYear]
+            `INSERT INTO modules (
+                course_code, title, credits, type, semester, selection, year, non_written_type, academic_year, level
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [code, title, credits, type, semester, selection, year, nonWrittenType, academicYear, extractedLevel]
         );
 
         await connection.commit();
-        res.status(201).json({ message: 'Course unit added successfully', course: { code, title, credits, isNonWritten, academicYear } });
+        res.status(201).json({ message: 'Module unit added successfully', course: { code, title, credits, isNonWritten, academicYear } });
     } catch (error) {
         await connection.rollback();
-        console.error('Error adding course unit:', error);
-        res.status(500).json({ message: 'Failed to add course unit', error: error.message });
+        console.error('Error adding module unit:', error);
+        res.status(500).json({ message: 'Failed to add module unit', error: error.message });
     } finally {
         connection.release();
     }
@@ -78,9 +82,9 @@ router.post('/add', async (req, res) => {
 // List course units
 router.get('/list', async (req, res) => {
     try {
-        const [rows] = await pool.execute('SELECT * FROM courses ORDER BY year, semester, course_code');
+        const [rows] = await pool.execute('SELECT * FROM modules ORDER BY year, semester, course_code');
         // Map database records to expected frontend format
-        const courses = rows.map(row => ({
+        const modules = rows.map(row => ({
             id: row.course_code, // Use course_code as a pseudo-id for keying
             code: row.course_code,
             title: row.title,
@@ -90,10 +94,10 @@ router.get('/list', async (req, res) => {
             semester: row.semester,
             academic_year: row.academic_year
         }));
-        res.json(courses);
+        res.json(modules);
     } catch (error) {
-        console.error('Error fetching course units:', error);
-        res.status(500).json({ message: 'Failed to fetch course units', error: error.message });
+        console.error('Error fetching module units:', error);
+        res.status(500).json({ message: 'Failed to fetch module units', error: error.message });
     }
 });
 

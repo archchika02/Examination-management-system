@@ -9,30 +9,40 @@ const GenerateReportsSection = () => {
     const [admissionType, setAdmissionType] = useState('Academic'); // 'Academic' or 'Medical'
 
     // State for Attendance Sheet
-    const [attendanceLevel, setAttendanceLevel] = useState('Level 1');
+    const [attendanceDate, setAttendanceDate] = useState('');
+    const [examDates, setExamDates] = useState([]);
     const [attendanceCourseUnit, setAttendanceCourseUnit] = useState('');
     const [attendanceCourseUnits, setAttendanceCourseUnits] = useState([]);
 
-    // Update attendance course units when attendanceLevel changes
+    // Fetch exam dates on mount
+    useEffect(() => {
+        const fetchDates = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/reports/exam-dates');
+                const data = await response.json();
+                setExamDates(data);
+                if (data.length > 0) {
+                    setAttendanceDate(data[0]);
+                }
+            } catch (error) {
+                console.error('Error fetching exam dates:', error);
+            }
+        };
+        fetchDates();
+    }, []);
+
+    // Update attendance course units when attendanceDate changes
     useEffect(() => {
         const fetchAttendanceCourses = async () => {
+            if (!attendanceDate) return;
             try {
-                const response = await fetch('http://localhost:5000/api/configurations/list');
+                // The date might be ISO string, but the endpoint expects it as a param
+                const response = await fetch(`http://localhost:5000/api/reports/exam-courses/${attendanceDate}`);
                 const data = await response.json();
 
-                // Parse "Level X" to number X
-                const levelNum = parseInt(attendanceLevel.replace('Level ', ''), 10);
-
-                // Filter configurations by level
-                const courses = data
-                    .filter(c => Number(c.level) === levelNum)
-                    .map(c => c.course_code);
-
-                // Remove duplicates
-                const uniqueCourses = [...new Set(courses)];
-                setAttendanceCourseUnits(uniqueCourses);
-                if (uniqueCourses.length > 0) {
-                    setAttendanceCourseUnit(uniqueCourses[0]);
+                setAttendanceCourseUnits(data);
+                if (data.length > 0) {
+                    setAttendanceCourseUnit(data[0].course_code);
                 } else {
                     setAttendanceCourseUnit('');
                 }
@@ -41,13 +51,8 @@ const GenerateReportsSection = () => {
             }
         };
 
-        if (attendanceLevel) {
-            fetchAttendanceCourses();
-        } else {
-            setAttendanceCourseUnits([]);
-            setAttendanceCourseUnit('');
-        }
-    }, [attendanceLevel]);
+        fetchAttendanceCourses();
+    }, [attendanceDate]);
 
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -415,13 +420,23 @@ const GenerateReportsSection = () => {
 
                         <div className="space-y-4 mb-8">
                             <div>
-                                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Select Level</label>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Select Date</label>
                                 <select
-                                    value={attendanceLevel}
-                                    onChange={(e) => setAttendanceLevel(e.target.value)}
+                                    value={attendanceDate}
+                                    onChange={(e) => setAttendanceDate(e.target.value)}
                                     className="w-full bg-gray-50 text-gray-800 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 border border-gray-200"
                                 >
-                                    {levels.map(level => <option key={level} value={level}>{level}</option>)}
+                                    {examDates.length === 0 && <option value="">No dates available</option>}
+                                    {examDates.map(date => (
+                                        <option key={date} value={date}>
+                                            {new Date(date).toLocaleDateString('en-GB', {
+                                                weekday: 'long',
+                                                day: 'numeric',
+                                                month: 'long',
+                                                year: 'numeric'
+                                            })}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                             <div>
@@ -432,8 +447,12 @@ const GenerateReportsSection = () => {
                                     className="w-full bg-gray-50 text-gray-800 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 border border-gray-200"
                                     disabled={attendanceCourseUnits.length === 0}
                                 >
-                                    {attendanceCourseUnits.length === 0 && <option value="">No configured courses</option>}
-                                    {attendanceCourseUnits.map(course => <option key={course} value={course}>{course}</option>)}
+                                    {attendanceCourseUnits.length === 0 && <option value="">No scheduled exams on this date</option>}
+                                    {attendanceCourseUnits.map(course => (
+                                        <option key={course.course_code} value={course.course_code}>
+                                            {course.course_code} - {course.title}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         </div>

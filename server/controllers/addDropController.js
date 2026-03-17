@@ -169,6 +169,36 @@ exports.getAddDropRequests = async (req, res) => {
     }
 };
 
+exports.getAddDropRequestById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Fetch header
+        const [headers] = await pool.execute('SELECT * FROM add_drop_request_headers WHERE id = ?', [id]);
+        
+        if (headers.length === 0) {
+            return res.status(404).json({ message: 'Request not found' });
+        }
+        
+        const header = headers[0];
+        
+        // Fetch courses
+        const [courses] = await pool.execute('SELECT course_code, action FROM add_drop_requested_courses WHERE header_id = ?', [id]);
+        
+        const added_courses = courses.filter(c => c.action === 'Add').map(c => c.course_code);
+        const dropped_courses = courses.filter(c => c.action === 'Drop').map(c => c.course_code);
+        
+        res.status(200).json({
+            ...header,
+            added_courses,
+            dropped_courses
+        });
+    } catch (error) {
+        console.error("Error fetching add/drop request by ID:", error);
+        res.status(500).json({ message: 'Server error while fetching request details' });
+    }
+};
+
 exports.updateAddDropStatus = async (req, res) => {
     try {
         const { id } = req.params;
@@ -179,12 +209,14 @@ exports.updateAddDropStatus = async (req, res) => {
         }
 
         let role = null;
+        let userId = null;
         const authHeader = req.headers.authorization;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const token = authHeader.split(' ')[1];
             try {
                 const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
                 role = decoded.role;
+                userId = decoded.user_id || decoded.id;
             } catch (err) {
                 return res.status(401).json({ message: 'Unauthorized access' });
             }
@@ -212,6 +244,19 @@ exports.updateAddDropStatus = async (req, res) => {
             'UPDATE add_drop_request_headers SET status = ?, reject_reason = ? WHERE id = ?',
             [newStatus, rejectReason, id]
         );
+
+        // Log activity if approved/rejected by Dean
+        if (role === 'Dean') {
+            const [request] = await pool.execute('SELECT student_number FROM add_drop_request_headers WHERE id = ?', [id]);
+            if (request.length > 0) {
+                const actionText = status === 'Approved' ? 'approved' : 'rejected';
+                const actionType = status === 'Approved' ? 'APPROVAL' : 'REJECTION';
+                await pool.execute(
+                    'INSERT INTO activities (user_id, description, type) VALUES (?, ?, ?)',
+                    [userId, `Student number ${request[0].student_number} Add/Drop form was ${actionText}`, actionType]
+                );
+            }
+        }
 
         res.status(200).json({ message: `Request ${id} updated to ${newStatus}` });
     } catch (error) {

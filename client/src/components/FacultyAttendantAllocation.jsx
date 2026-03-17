@@ -168,10 +168,33 @@ const FacultyAttendantAllocation = () => {
         }
     };
 
-    const handleSubmit = () => {
-        // Mock submit action
-        console.log("Submitting to Academic Supervisor:", exams);
-        alert("Configuration submitted to Academic Supervisor successfully!");
+    const handleSubmit = async () => {
+        if (!window.confirm("Are you sure you want to submit these hall attendant allocations to the Academic Supervisor?")) return;
+
+        const btn = document.getElementById('submit-to-as-btn');
+        const originalText = btn ? btn.innerText : "Submit to Academic Supervisor";
+        if (btn) btn.innerText = "Submitting...";
+
+        try {
+            const response = await fetch('http://localhost:5000/api/configurations/submit-to-as', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (response.ok) {
+                if (btn) btn.innerText = "Submitted! ✓";
+                alert("Configuration submitted to Academic Supervisor successfully!");
+                // Optionally refresh or redirect
+                setTimeout(() => { if (btn) btn.innerText = originalText; }, 3000);
+            } else {
+                alert("Failed to submit to Academic Supervisor.");
+                if (btn) btn.innerText = originalText;
+            }
+        } catch (err) {
+            console.error("Error submitting to AS:", err);
+            alert("An error occurred during submission.");
+            if (btn) btn.innerText = originalText;
+        }
     };
 
     const handleRequestAction = async (req, action) => {
@@ -423,6 +446,17 @@ const FacultyAttendantAllocation = () => {
 
                                                     {/* Editable Hall Attendants Selection */}
                                                     <td className="px-4 py-3 align-top relative min-w-[200px]">
+                                                        <div className="text-sm text-gray-700 mb-2 font-medium">
+                                                            {(alloc.attendantIds || []).length > 0 ? (
+                                                                (alloc.attendantIds || []).map(id => {
+                                                                    const ha = hallAttendantsList.find(h => Number(h.id) === Number(id));
+                                                                    return ha ? ha.name : `Staff #${id}`;
+                                                                }).join(', ')
+                                                            ) : (
+                                                                <span className="text-gray-400 italic">None assigned</span>
+                                                            )}
+                                                        </div>
+
                                                         <div className="relative">
                                                             <button
                                                                 onClick={(e) => {
@@ -431,12 +465,12 @@ const FacultyAttendantAllocation = () => {
                                                                 }}
                                                                 className="w-full flex items-center justify-between px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg shadow-sm hover:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
                                                             >
-                                                                <span className="truncate text-gray-700 font-medium">
+                                                                <span className="truncate text-gray-700 font-medium text-xs">
                                                                     {(alloc.attendantIds || []).length > 0
                                                                         ? `${(alloc.attendantIds || []).length} Selected`
-                                                                        : "Select Attendants..."}
+                                                                        : "Manage Selection..."}
                                                                 </span>
-                                                                <span className={`transition-transform duration-200 ${openDropdown === alloc.id ? 'rotate-180' : ''}`}>
+                                                                <span className={`text-[10px] transition-transform duration-200 ${openDropdown === alloc.id ? 'rotate-180' : ''}`}>
                                                                     ▼
                                                                 </span>
                                                             </button>
@@ -457,36 +491,24 @@ const FacultyAttendantAllocation = () => {
                                                                                         <input
                                                                                             type="checkbox"
                                                                                             className="peer h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 transition-all cursor-pointer"
-                                                                                            checked={(alloc.attendantIds || []).includes(ha.id)}
+                                                                                            checked={(alloc.attendantIds || []).some(id => Number(id) === Number(ha.id))}
                                                                                             onChange={() => toggleAttendant(exam.id, alloc.id, ha.id)}
                                                                                         />
                                                                                     </div>
-                                                                                    <span className={`text-sm transition-colors ${(alloc.attendantIds || []).includes(ha.id) ? 'text-indigo-600 font-bold' : 'text-gray-600 font-medium group-hover:text-gray-900'}`}>
+                                                                                    <span className={`text-sm transition-colors ${(alloc.attendantIds || []).some(id => Number(id) === Number(ha.id)) ? 'text-indigo-600 font-bold' : 'text-gray-600 font-medium group-hover:text-gray-900'}`}>
                                                                                         {ha.name}
                                                                                     </span>
                                                                                 </label>
                                                                             ))
                                                                         ) : (
                                                                             <div className="p-3 text-xs text-gray-500 text-center italic">
-                                                                                No Hall Attendants available.
+                                                                                No approved Hall Attendants.
                                                                             </div>
                                                                         )}
                                                                     </div>
                                                                 </div>
                                                             )}
                                                         </div>
-                                                        {(alloc.attendantIds || []).length > 0 && (
-                                                            <div className="mt-2 flex flex-wrap gap-1">
-                                                                {(alloc.attendantIds || []).map(id => {
-                                                                    const name = hallAttendantsList.find(ha => ha.id === id)?.name;
-                                                                    return name ? (
-                                                                        <span key={id} className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200 animate-fade-in">
-                                                                            {name}
-                                                                        </span>
-                                                                    ) : null;
-                                                                })}
-                                                            </div>
-                                                        )}
                                                     </td>
                                                 </tr>
                                             );
@@ -524,6 +546,7 @@ const FacultyAttendantAllocation = () => {
                         </button>
                     </div>
                     <button
+                        id="submit-to-as-btn"
                         onClick={handleSubmit}
                         className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 transform transition-all hover:-translate-y-0.5 active:translate-y-0 text-sm"
                     >

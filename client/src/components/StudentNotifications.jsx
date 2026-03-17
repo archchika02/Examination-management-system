@@ -13,18 +13,27 @@ const StudentNotifications = () => {
                 const token = localStorage.getItem('token') || sessionStorage.getItem('token');
                 const headers = { 'Authorization': `Bearer ${token}` };
 
-                // Fetch all 4 endpoints concurrently
-                const [courseRes, addDropRes, medicalRes, deadlineRes] = await Promise.all([
+                // Fetch all endpoints concurrently
+                const isBatchRep = user.role === 'BatchRepresentative';
+                const fetchPromises = [
                     fetch(`http://localhost:5000/api/course-registration/student/${user.user_id}`, { headers }),
                     fetch(`http://localhost:5000/api/add-drop/list`, { headers }),
                     fetch(`http://localhost:5000/api/medical-repeat/student/${user.user_id}`, { headers }),
                     fetch(`http://localhost:5000/api/deadlines/notifications?userId=${user.user_id}&role=${encodeURIComponent('Students')}`)
-                ]);
+                ];
+
+                if (isBatchRep) {
+                    fetchPromises.push(fetch(`http://localhost:5000/api/deadlines/notifications?userId=${user.user_id}&role=${encodeURIComponent('Batch Representative')}`));
+                }
+
+                const responses = await Promise.all(fetchPromises);
+                const [courseRes, addDropRes, medicalRes, deadlineRes, deadlineBRRes] = responses;
 
                 const courseData = courseRes.ok ? await courseRes.json() : [];
                 const addDropData = addDropRes.ok ? await addDropRes.json() : [];
                 const medicalData = medicalRes.ok ? await medicalRes.json() : [];
                 const deadlineData = deadlineRes.ok ? await deadlineRes.json() : [];
+                const deadlineBRData = (isBatchRep && deadlineBRRes && deadlineBRRes.ok) ? await deadlineBRRes.json() : [];
 
                 let allNotifications = [];
 
@@ -145,20 +154,43 @@ const StudentNotifications = () => {
                     isUnread: !n.is_read
                 }));
 
+                const mappedDeadlinesBR = deadlineBRData.map((n) => ({
+                    id: `deadline_br_${n.id}`,
+                    type: 'Deadline',
+                    title: `⏰ ${n.form_name}`,
+                    description: `${n.description || 'A new deadline has been set.'} Due: ${n.deadline ? n.deadline.substring(0, 10) : ''}`,
+                    dateObj: new Date(n.created_at),
+                    time: new Date(n.created_at).toLocaleDateString(),
+                    status: n.is_read ? 'Read' : 'New Reminder',
+                    statusColor: n.is_read ? 'gray' : 'blue',
+                    icon: '⏰',
+                    isUnread: !n.is_read
+                }));
+
                 // Merge and Sort by Date (newest first)
-                allNotifications = [...mappedCourses, ...mappedAddDrop, ...mappedMedical, ...mappedDeadlines];
+                allNotifications = [...mappedCourses, ...mappedAddDrop, ...mappedMedical, ...mappedDeadlines, ...mappedDeadlinesBR];
                 allNotifications.sort((a, b) => b.dateObj - a.dateObj);
 
                 setNotifications(allNotifications);
 
                 // Auto-mark deadlines as read
                 const unreadIds = deadlineData.filter(d => !d.is_read).map(d => d.id);
+                const unreadBRIds = deadlineBRData.filter(d => !d.is_read).map(d => d.id);
+
                 if (unreadIds.length > 0) {
                     fetch('http://localhost:5000/api/deadlines/mark-all-read', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ userId: user.user_id, role: 'Students' })
-                    }).catch(err => console.error('Failed to mark read', err));
+                    }).catch(err => console.error('Failed to mark Students read', err));
+                }
+
+                if (unreadBRIds.length > 0) {
+                    fetch('http://localhost:5000/api/deadlines/mark-all-read', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: user.user_id, role: 'Batch Representative' })
+                    }).catch(err => console.error('Failed to mark Batch Representative read', err));
                 }
 
             } catch (error) {
@@ -201,37 +233,6 @@ const StudentNotifications = () => {
                     <div>
                         <h1 className="text-2xl font-bold text-slate-800">Notifications & Alerts</h1>
                         <p className="text-sm text-slate-500 mt-1">Stay updated on your academics and course approvals.</p>
-                    </div>
-                </div>
-
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <div className="bg-white rounded-xl p-5 shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
-                            📬
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-500 font-medium">Total Messages</p>
-                            <p className="text-2xl font-bold text-slate-800">{totalNotifications}</p>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-xl p-5 shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center text-xl">
-                            ⚠️
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-500 font-medium">Urgent Alerts</p>
-                            <p className="text-2xl font-bold text-slate-800">{urgentAlerts}</p>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-xl p-5 shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-xl">
-                            ⏳
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-500 font-medium">Pending Approvals</p>
-                            <p className="text-2xl font-bold text-slate-800">{pendingApprovals}</p>
-                        </div>
                     </div>
                 </div>
 

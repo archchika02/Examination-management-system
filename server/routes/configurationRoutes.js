@@ -10,18 +10,18 @@ router.post('/save', async (req, res) => {
         return res.status(400).json({ message: 'No configurations provided' });
     }
 
-    const connection = await pool.getConnection();
-
+    let connection;
     try {
+        connection = await pool.getConnection();
         await connection.beginTransaction();
 
         for (const config of payload) {
-            const { batch_rep_id, course_code, preferred_dates, status, level } = config;
+            const { batch_rep_id, course_code, preferred_dates, status, level, academic_year } = config;
 
             // Preferred dates should be JSON stringified if not already
             const datesStr = typeof preferred_dates === 'string' ? preferred_dates : JSON.stringify(preferred_dates);
-            // Default level to 1 if not provided, favoring manual input then DB lookup if we wanted (but user asked for manual input preference)
             const finalLevel = level || 1;
+            const finalAcademicYear = academic_year || '';
 
             const [existing] = await connection.execute(
                 'SELECT id FROM batch_configurations WHERE batch_rep_id = ? AND course_code = ?',
@@ -31,14 +31,14 @@ router.post('/save', async (req, res) => {
             if (existing.length > 0) {
                 // Update
                 await connection.execute(
-                    'UPDATE batch_configurations SET preferred_dates = ?, status = ?, level = ? WHERE id = ?',
-                    [datesStr, status || 'DRAFT', finalLevel, existing[0].id]
+                    'UPDATE batch_configurations SET preferred_dates = ?, status = ?, level = ?, academic_year = ? WHERE id = ?',
+                    [datesStr, status || 'DRAFT', finalLevel, finalAcademicYear, existing[0].id]
                 );
             } else {
                 // Insert
                 await connection.execute(
-                    'INSERT INTO batch_configurations (batch_rep_id, course_code, preferred_dates, status, level) VALUES (?, ?, ?, ?, ?)',
-                    [batch_rep_id || 1, course_code, datesStr, status || 'DRAFT', finalLevel]
+                    'INSERT INTO batch_configurations (batch_rep_id, course_code, preferred_dates, status, level, academic_year) VALUES (?, ?, ?, ?, ?, ?)',
+                    [batch_rep_id || 1, course_code, datesStr, status || 'DRAFT', finalLevel, finalAcademicYear]
                 );
             }
         }
@@ -47,11 +47,11 @@ router.post('/save', async (req, res) => {
         res.json({ message: 'Configurations saved successfully', count: payload.length });
 
     } catch (err) {
-        await connection.rollback();
+        if (connection) await connection.rollback();
         console.error(err);
         res.status(500).json({ error: 'Server error saving configurations' });
     } finally {
-        connection.release();
+        if (connection) connection.release();
     }
 });
 
@@ -74,13 +74,14 @@ router.get('/list', async (req, res) => {
 // Get Global Dates
 router.get('/global-dates', async (req, res) => {
     try {
-        const [rows] = await pool.execute('SELECT allowed_dates, deadline FROM global_timetable_config LIMIT 1');
+        const [rows] = await pool.execute('SELECT allowed_dates, deadline, academic_year FROM global_timetable_config LIMIT 1');
         if (rows.length === 0) {
-            return res.json({ allowed_dates: [], deadline: '' });
+            return res.json({ allowed_dates: [], deadline: '', academic_year: '' });
         }
         res.json({
             allowed_dates: typeof rows[0].allowed_dates === 'string' ? JSON.parse(rows[0].allowed_dates) : rows[0].allowed_dates,
-            deadline: rows[0].deadline
+            deadline: rows[0].deadline,
+            academic_year: rows[0].academic_year || ''
         });
     } catch (err) {
         console.error(err);
@@ -91,12 +92,12 @@ router.get('/global-dates', async (req, res) => {
 // Save Global Dates
 router.post('/global-dates', async (req, res) => {
     try {
-        const { allowed_dates, deadline } = req.body;
+        const { allowed_dates, deadline, academic_year } = req.body;
         const datesStr = JSON.stringify(allowed_dates || []);
 
         await pool.execute(
-            'UPDATE global_timetable_config SET allowed_dates = ?, deadline = ? WHERE id = 1',
-            [datesStr, deadline || '']
+            'UPDATE global_timetable_config SET allowed_dates = ?, deadline = ?, academic_year = ? WHERE id = 1',
+            [datesStr, deadline || '', academic_year || '']
         );
         res.json({ message: 'Global dates saved successfully' });
     } catch (err) {
@@ -125,10 +126,27 @@ router.post('/faculty-submit', async (req, res) => {
         await connection.beginTransaction();
 
         // Clear existing timetables to completely overwrite the schedule with the new submission
-        // Need to delete exam_slots first because of foreign key constraints
+        // Need to delete dependencies in correct order because of foreign key constraints
+        console.log('Attempting to clear all existing timetable related data...');
+        
+        // 1. Clear Staff Concerns and Draft Allocations dependencies
+        await connection.execute('DELETE FROM staff_concerns');
+        await connection.execute('DELETE FROM exam_draft_attendants');
+        await connection.execute('DELETE FROM exam_draft_invigilators');
+        
+        // 2. Clear Draft Allocations (depends on exam_timetables)
+        await connection.execute('DELETE FROM exam_draft_allocations');
+        
+        // 3. Clear Feedback and Venue dependencies (depend on exam_slots)
+        await connection.execute('DELETE FROM department_concerns');
+        await connection.execute('DELETE FROM allocations');
+        await connection.execute('DELETE FROM venue_allocations');
+        
+        // 4. Finally clear main timetable tables
         await connection.execute('DELETE FROM exam_slots');
         await connection.execute('DELETE FROM exam_timetables');
 
+        console.log(`Starting insertion of ${exams.length} exams into exam_timetables...`);
         for (const exam of exams) {
             // Note: User requested removing 'status' column from exam_timetables
             // Added course_code and date to exam_timetables to match requirement
@@ -136,15 +154,41 @@ router.post('/faculty-submit', async (req, res) => {
                 'INSERT INTO exam_timetables (course_code, date, academic_year, semester, created_by) VALUES (?, ?, ?, ?, ?)',
                 [exam.code, exam.date, academicYear, 1, 1] // Providing default semester=1, created_by=1 to satisfy existing schema constraints
             );
+
+            // Parallel sync with batch_configurations to store chosen dates and academic year
+            await connection.execute(
+                'UPDATE batch_configurations SET preferred_dates = ?, academic_year = ?, status = ? WHERE course_code = ?',
+                [JSON.stringify([exam.date]), academicYear, 'SUBMITTED', exam.code]
+            );
         }
 
         await connection.commit();
+        
+        // Notify Faculty Staff
+        try {
+            const [facStaff] = await connection.execute('SELECT user_id FROM users WHERE role IN (?, ?)', ['FacultyStaff', 'Faculty']);
+            for (const staff of facStaff) {
+                await connection.execute(
+                    'INSERT INTO activities (user_id, description, type, created_at) VALUES (?, ?, ?, NOW())',
+                    [staff.user_id, 'Preferred timetable submitted to faculty for review.', 'notification']
+                );
+            }
+        } catch (notifyErr) {
+            console.error('Error notifying faculty staff:', notifyErr);
+        }
+
+        console.log('Final timetable submitted to Faculty successfully!');
         res.json({ message: 'Preferred timetable submitted to Faculty successfully!' });
 
     } catch (error) {
         await connection.rollback();
-        console.error('Error submitting to faculty:', error);
-        res.status(500).json({ message: 'Failed to submit timetable to faculty', error: error.message });
+        console.error('Error during timetable submission transaction:', error);
+        res.status(500).json({ 
+            message: 'Failed to submit timetable to faculty', 
+            error: error.message,
+            sqlMessage: error.sqlMessage,
+            code: error.code 
+        });
     } finally {
         connection.release();
     }
@@ -191,6 +235,133 @@ router.get('/final-timetables', async (req, res) => {
         res.status(500).json({ message: 'Failed to fetch final timetables', error: error.message });
     }
 });
+
+// Fetch pending medical/repeat exams that have not been scheduled in the timetable
+router.get('/pending-medical-repeat', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                mrc.course_code, 
+                mrc.course_title as title, 
+                mrr.academic_year, 
+                COUNT(DISTINCT mrr.user_id) as totalRepeatCount
+            FROM medical_repeat_requested_courses mrc
+            JOIN medical_repeat_request_headers mrr ON mrc.header_id = mrr.id
+            WHERE mrr.status = 'Approved'
+            AND NOT EXISTS (
+                SELECT 1 FROM exam_timetables et 
+                WHERE REPLACE(et.course_code, ' ', '') = REPLACE(mrc.course_code, ' ', '')
+                AND et.academic_year = mrr.academic_year
+            )
+            GROUP BY mrc.course_code, mrc.course_title, mrr.academic_year
+            ORDER BY mrr.academic_year DESC, mrc.course_code ASC
+        `;
+        const [rows] = await pool.execute(query);
+        res.json(rows);
+    } catch (err) {
+        console.error('Error fetching pending medical/repeat exams:', err);
+        res.status(500).json({ error: 'Server error fetching pending medical/repeat exams' });
+    }
+});
+
+// Schedule a specific exam (add it to exam_timetables)
+router.post('/schedule-exam', async (req, res) => {
+    const { courseCode, date, academicYear } = req.body;
+
+    if (!courseCode || !date || !academicYear) {
+        return res.status(400).json({ message: 'Course code, date, and academic year are required' });
+    }
+
+    const connection = await pool.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // Check if already scheduled for this year
+        const [existing] = await connection.execute(
+            'SELECT timetable_id FROM exam_timetables WHERE REPLACE(course_code, " ", "") = REPLACE(?, " ", "") AND academic_year = ?',
+            [courseCode, academicYear]
+        );
+
+        if (existing.length > 0) {
+            return res.status(400).json({ message: 'Exam is already scheduled for this academic year' });
+        }
+
+        // Insert new record
+        const [result] = await connection.execute(
+            'INSERT INTO exam_timetables (course_code, date, academic_year, semester, created_by) VALUES (?, ?, ?, ?, ?)',
+            [courseCode, date, academicYear, 1, 1] // Semester=1, Created_by=1 defaults
+        );
+
+        await connection.commit();
+        res.json({ message: 'Exam scheduled successfully', timetableId: result.insertId });
+
+    } catch (error) {
+        await connection.rollback();
+        console.error('Error scheduling exam:', error);
+        res.status(500).json({ message: 'Failed to schedule exam', error: error.message });
+    } finally {
+        connection.release();
+    }
+});
+
+// --- FORM CONFIGURATION ENDPOINTS ---
+
+/**
+ * @route GET /api/configurations/forms
+ * @desc Fetch all form configurations
+ */
+router.get('/forms', async (req, res) => {
+    try {
+        const [rows] = await pool.execute('SELECT * FROM form_configurations ORDER BY name ASC');
+        res.json(rows);
+    } catch (err) {
+        console.error('Error fetching form configs:', err);
+        res.status(500).json({ error: 'Server error fetching form configurations' });
+    }
+});
+
+/**
+ * @route GET /api/configurations/forms/:formName
+ * @desc Fetch a specific form configuration structure
+ */
+router.get('/forms/:formName', async (req, res) => {
+    const { formName } = req.params;
+    try {
+        const [rows] = await pool.execute('SELECT structure FROM form_configurations WHERE name = ?', [formName]);
+        if (rows.length === 0) {
+            return res.status(404).json({ error: `Form configuration for ${formName} not found` });
+        }
+        res.json(rows[0].structure);
+    } catch (err) {
+        console.error(`Error fetching form config for ${formName}:`, err);
+        res.status(500).json({ error: 'Server error fetching form configuration' });
+    }
+});
+
+/**
+ * @route PUT /api/configurations/forms/:formName
+ * @desc Update a specific form configuration structure
+ */
+router.put('/forms/:formName', async (req, res) => {
+    const { formName } = req.params;
+    const { structure } = req.body;
+
+    if (!structure) {
+        return res.status(400).json({ error: 'Structure is required' });
+    }
+
+    try {
+        const structureStr = typeof structure === 'string' ? structure : JSON.stringify(structure);
+        await pool.execute('UPDATE form_configurations SET structure = ? WHERE name = ?', [structureStr, formName]);
+        res.json({ message: `Form configuration for ${formName} updated successfully` });
+    } catch (err) {
+        console.error(`Error updating form config for ${formName}:`, err);
+        res.status(500).json({ error: 'Server error updating form configuration' });
+    }
+});
+
+// --- END FORM CONFIGURATION ENDPOINTS ---
 
 // Fetch raw active student enrollments per course (used for frontend real-time conflict checking)
 router.get('/course-enrollments', async (req, res) => {
@@ -421,7 +592,14 @@ router.get('/allocations-dashboard', async (req, res) => {
                 ea.user_id AS examiner1Id
             FROM exam_timetables t
             JOIN exam_slots s ON t.timetable_id = s.timetable_id
-            LEFT JOIN courses c ON REPLACE(t.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+            LEFT JOIN (
+                SELECT m1.course_code, m1.title, m1.academic_year
+                FROM modules m1
+                WHERE m1.academic_year = (
+                    SELECT MAX(m2.academic_year) FROM modules m2 
+                    WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', '') 
+                )
+            ) c ON REPLACE(t.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
             LEFT JOIN examiner_appointments ea 
                 ON REPLACE(t.course_code, ' ', '') = REPLACE(ea.course_code, ' ', '') 
                 AND t.academic_year = ea.academic_year 
@@ -444,7 +622,7 @@ router.get('/allocation-staff', async (req, res) => {
         const query = `
             SELECT user_id as id, name, role as dept 
             FROM users 
-            WHERE role IN ('DeptStaff', 'AcademicSupervisor') 
+            WHERE role IN ('DeptStaff', 'AcademicSupervisor', 'HallAttendant') 
             AND approval_status = 'Approved' 
             AND is_verified = 1
         `;
@@ -509,7 +687,7 @@ router.post('/save-allocation-draft', async (req, res) => {
     const { exams } = req.body;
 
     if (!exams || !Array.isArray(exams)) {
-        return res.status(400).json({ message: 'Invalid payload' });
+        return res.status(400).json({ message: 'Invalid payload: exams array is required' });
     }
 
     const connection = await pool.getConnection();
@@ -517,8 +695,10 @@ router.post('/save-allocation-draft', async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        const examIds = exams.map(e => e.id);
+        const examIds = exams.map(e => e.id).filter(id => id);
         if (examIds.length > 0) {
+            console.log(`[SaveDraft] Wiping old data for exams: ${examIds.join(', ')}`);
+            
             // Force wipe Old Invigilators associated with these exams first to avoid orphaned records
             await connection.query(`
                 DELETE FROM exam_draft_invigilators 
@@ -535,6 +715,14 @@ router.post('/save-allocation-draft', async (req, res) => {
                 )
             `, [examIds]);
 
+            // Force wipe Old Concerns
+            await connection.query(`
+                DELETE FROM staff_concerns 
+                WHERE alloc_id IN (
+                    SELECT alloc_id FROM exam_draft_allocations WHERE exam_id IN (?)
+                )
+            `, [examIds]);
+
             // Then wipe the old allocations
             await connection.query('DELETE FROM exam_draft_allocations WHERE exam_id IN (?)', [examIds]);
         }
@@ -546,17 +734,20 @@ router.post('/save-allocation-draft', async (req, res) => {
             AND approval_status = 'Approved' 
             AND is_verified = 1
         `);
+        
         const validSupervisors = new Set(validStaff.filter(s => ['DeptStaff', 'AcademicSupervisor'].includes(s.role)).map(u => Number(u.user_id)));
         const validAttendants = new Set(validStaff.filter(s => s.role === 'HallAttendant').map(u => Number(u.user_id)));
 
         for (const exam of exams) {
+            if (!exam.id) continue;
+
             for (const alloc of exam.allocations) {
                 // Ensure supervisor is still valid
                 const supervisorId = (alloc.supervisor && validSupervisors.has(Number(alloc.supervisor)))
                     ? alloc.supervisor
                     : null;
 
-                const [result] = await connection.execute(
+                const [result] = await connection.query(
                     `INSERT INTO exam_draft_allocations 
                     (exam_id, venue, assigned_non_repeat, assigned_repeat, supervisor_id) 
                     VALUES (?, ?, ?, ?, ?)`,
@@ -573,25 +764,29 @@ router.post('/save-allocation-draft', async (req, res) => {
 
                 // Handle multiple invigilators explicitly validating each
                 if (alloc.invigilators && Array.isArray(alloc.invigilators)) {
-                    for (const invigId of alloc.invigilators) {
-                        if (invigId && validSupervisors.has(Number(invigId))) {
-                            await connection.execute(
-                                `INSERT INTO exam_draft_invigilators (alloc_id, invigilator_id) VALUES (?, ?)`,
-                                [newAllocId, invigId]
-                            );
-                        }
+                    const validInvigIds = alloc.invigilators
+                        .filter(invigId => invigId && validSupervisors.has(Number(invigId)));
+                    
+                    if (validInvigIds.length > 0) {
+                        const invigValues = validInvigIds.map(id => [newAllocId, id]);
+                        await connection.query(
+                            `INSERT INTO exam_draft_invigilators (alloc_id, invigilator_id) VALUES ?`,
+                            [invigValues]
+                        );
                     }
                 }
 
                 // Handle multiple attendants explicitly validating each
                 if (alloc.attendants && Array.isArray(alloc.attendants)) {
-                    for (const attendantId of alloc.attendants) {
-                        if (attendantId && validAttendants.has(Number(attendantId))) {
-                            await connection.execute(
-                                `INSERT INTO exam_draft_attendants (alloc_id, attendant_id) VALUES (?, ?)`,
-                                [newAllocId, attendantId]
-                            );
-                        }
+                    const validAttendantIds = alloc.attendants
+                        .filter(attId => attId && validAttendants.has(Number(attId)));
+                    
+                    if (validAttendantIds.length > 0) {
+                        const attendantValues = validAttendantIds.map(id => [newAllocId, id]);
+                        await connection.query(
+                            `INSERT INTO exam_draft_attendants (alloc_id, attendant_id) VALUES ?`,
+                            [attendantValues]
+                        );
                     }
                 }
             }
@@ -612,6 +807,18 @@ router.post('/save-allocation-draft', async (req, res) => {
 router.post('/publish-timetables', async (req, res) => {
     try {
         await pool.query('UPDATE exam_draft_allocations SET is_published = 1');
+
+        // Notify Department Staff
+        const [deptStaff] = await pool.query('SELECT user_id FROM users WHERE role = ? OR role = ?', ['DeptStaff', 'Department Staff']);
+        if (deptStaff.length > 0) {
+            const values = deptStaff.map(staff => [
+                'Personalized Timetable Released',
+                staff.user_id,
+                'notification'
+            ]);
+            await pool.query('INSERT INTO activities (description, user_id, type) VALUES ?', [values]);
+        }
+
         res.json({ message: 'Timetables published successfully!' });
     } catch (err) {
         console.error('Error publishing timetables:', err);
@@ -651,7 +858,14 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                 FROM exam_draft_allocations a
                 JOIN exam_timetables et ON a.exam_id = et.timetable_id
                 JOIN exam_slots s ON et.timetable_id = s.timetable_id
-                LEFT JOIN courses c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+                LEFT JOIN (
+                    SELECT m1.course_code, m1.title, m1.academic_year
+                    FROM modules m1
+                    WHERE m1.academic_year = (
+                        SELECT MAX(m2.academic_year) FROM modules m2 
+                        WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', '')
+                    )
+                ) c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
                 WHERE a.is_published_to_students = 1
                 AND (
                     /* Registered Course Units Match */
@@ -714,7 +928,14 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                 FROM exam_draft_allocations a
                 JOIN exam_timetables et ON a.exam_id = et.timetable_id
                 JOIN exam_slots s ON et.timetable_id = s.timetable_id
-                LEFT JOIN courses c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+                LEFT JOIN (
+                    SELECT m1.course_code, m1.title, m1.academic_year
+                    FROM modules m1
+                    WHERE m1.academic_year = (
+                        SELECT MAX(m2.academic_year) FROM modules m2 
+                        WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', '')
+                    )
+                ) c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
                 WHERE a.is_published = 1
                 AND (
                     a.supervisor_id = ? 
@@ -818,6 +1039,19 @@ router.post('/report-concern', async (req, res) => {
                 `INSERT INTO staff_concerns (alloc_id, exam_id, staff_id, role, reason, status) VALUES (?, ?, ?, ?, ?, ?)`,
                 [aId, eId, sId, rle, rsn, 'Pending']
             );
+
+            // Fetch reporter name for notification
+            const [reporter] = await connection.execute('SELECT name FROM users WHERE user_id = ?', [sId]);
+            const reporterName = reporter.length > 0 ? reporter[0].name : 'A staff member';
+
+            // Notify all Academic Supervisors
+            const [supervisors] = await connection.execute('SELECT user_id FROM users WHERE role = ?', ['AcademicSupervisor']);
+            for (const supervisor of supervisors) {
+                await connection.execute(
+                    'INSERT INTO activities (user_id, description, type) VALUES (?, ?, ?)',
+                    [supervisor.user_id, `${reporterName} reported a concern: ${rsn}`, 'notification']
+                );
+            }
         }
         await connection.commit();
         res.json({ message: 'Concerns reported successfully' });
@@ -879,7 +1113,14 @@ router.get('/staff-concerns', async (req, res) => {
                 FROM exam_slots
                 GROUP BY timetable_id
             ) s ON et.timetable_id = s.timetable_id
-            LEFT JOIN courses c2 ON REPLACE(et.course_code, ' ', '') = REPLACE(c2.course_code, ' ', '')
+            LEFT JOIN (
+                SELECT m1.course_code, m1.title, m1.academic_year
+                FROM modules m1
+                WHERE m1.academic_year = (
+                    SELECT MAX(m2.academic_year) FROM modules m2 
+                    WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', '') 
+                )
+            ) c2 ON REPLACE(et.course_code, ' ', '') = REPLACE(c2.course_code, ' ', '')
             ${whereClause}
             ORDER BY c.created_at DESC
         `;
@@ -955,6 +1196,22 @@ router.post('/resolve-concern', async (req, res) => {
             [actualStatus, actualReplacementId || null, actualConcernId]
         );
 
+        // Notify reporter (old staff) if Approved/Resolved
+        if (actualStatus === 'Approved' || actualStatus === 'Resolved') {
+            await connection.execute(
+                'INSERT INTO activities (user_id, description, type) VALUES (?, ?, ?)',
+                [oldStaffId, 'Concern report was approved', 'notification']
+            );
+
+            // Notify newly appointed staff if any
+            if (actualReplacementId) {
+                await connection.execute(
+                    'INSERT INTO activities (user_id, description, type) VALUES (?, ?, ?)',
+                    [actualReplacementId, 'New schedule was appointed', 'notification']
+                );
+            }
+        }
+
         await connection.commit();
         res.json({ message: `Concern ${actualStatus} successfully` });
     } catch (err) {
@@ -996,7 +1253,14 @@ router.get('/my-concerns/:userId', async (req, res) => {
             JOIN exam_draft_allocations a ON c.alloc_id = a.alloc_id
             JOIN exam_timetables et ON a.exam_id = et.timetable_id
             JOIN exam_slots s ON et.timetable_id = s.timetable_id
-            LEFT JOIN courses c2 ON REPLACE(et.course_code, ' ', '') = REPLACE(c2.course_code, ' ', '')
+            LEFT JOIN (
+                SELECT m1.course_code, m1.title, m1.academic_year
+                FROM modules m1
+                WHERE m1.academic_year = (
+                    SELECT MAX(m2.academic_year) FROM modules m2 
+                    WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', '') 
+                )
+            ) c2 ON REPLACE(et.course_code, ' ', '') = REPLACE(c2.course_code, ' ', '')
             LEFT JOIN users u2 ON c.replacement_staff_id = u2.user_id
             WHERE c.staff_id = ?
             ORDER BY c.created_at DESC
@@ -1037,7 +1301,7 @@ router.get('/examiner-courses', async (req, res) => {
     try {
         const query = `
             SELECT course_code, title 
-            FROM courses
+            FROM modules
             ORDER BY course_code ASC
         `;
         const [rows] = await pool.query(query);
@@ -1063,7 +1327,7 @@ router.get('/examiner-appointments', async (req, res) => {
                 a.status,
                 c.title as courseTitle
             FROM examiner_appointments a
-            LEFT JOIN courses c ON a.course_code = c.course_code
+            LEFT JOIN modules c ON a.course_code = c.course_code
         `;
         const [rows] = await pool.query(query);
         const formatted = rows.map(row => ({
@@ -1131,10 +1395,50 @@ router.post('/examiner-appointments', async (req, res) => {
 router.post('/submit-to-faculty', async (req, res) => {
     try {
         await pool.query('UPDATE exam_draft_allocations SET is_submitted_to_faculty = 1 WHERE is_published = 1');
+        
+        // Notify Faculty Staff
+        try {
+            const [facStaff] = await pool.query('SELECT user_id FROM users WHERE role IN (?, ?)', ['FacultyStaff', 'Faculty']);
+            for (const staff of facStaff) {
+                await pool.query(
+                    'INSERT INTO activities (user_id, description, type, created_at) VALUES (?, ?, ?, NOW())',
+                    [staff.user_id, 'Final examination allocations submitted to faculty.', 'notification']
+                );
+            }
+        } catch (notifyErr) {
+            console.error('Error notifying faculty staff:', notifyErr);
+        }
+
         res.json({ message: 'Allocations submitted to faculty successfully' });
     } catch (err) {
         console.error('Error submitting to faculty:', err);
         res.status(500).json({ message: 'Error submitting to faculty', error: err.message });
+    }
+});
+
+// Submit/Return allocations from Faculty back to AS (mark as finalized by faculty)
+router.post('/submit-to-as', async (req, res) => {
+    try {
+        // Marks them as submitted back to AS (is_submitted_to_faculty = 2)
+        await pool.query('UPDATE exam_draft_allocations SET is_submitted_to_faculty = 2 WHERE is_submitted_to_faculty = 1');
+        
+        // Notify Academic Supervisors
+        try {
+            const [asStaff] = await pool.query('SELECT user_id FROM users WHERE role = ?', ['AcademicSupervisor']);
+            for (const staff of asStaff) {
+                await pool.query(
+                    'INSERT INTO activities (user_id, description, type, created_at) VALUES (?, ?, ?, NOW())',
+                    [staff.user_id, 'Hall attendant configurations submitted by faculty.', 'notification']
+                );
+            }
+        } catch (notifyErr) {
+            console.error('Error notifying academic supervisors:', notifyErr);
+        }
+
+        res.json({ message: 'Submitted to Academic Supervisor successfully' });
+    } catch (err) {
+        console.error('Error submitting to AS:', err);
+        res.status(500).json({ message: 'Error submitting to AS', error: err.message });
     }
 });
 
@@ -1160,9 +1464,16 @@ router.get('/faculty-attendant-allocations', async (req, res) => {
             FROM exam_draft_allocations a
             JOIN exam_timetables et ON a.exam_id = et.timetable_id
             JOIN exam_slots s ON et.timetable_id = s.timetable_id
-            LEFT JOIN courses c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+            LEFT JOIN (
+                SELECT m1.course_code, m1.title, m1.academic_year
+                FROM modules m1
+                WHERE m1.academic_year = (
+                    SELECT MAX(m2.academic_year) FROM modules m2 
+                    WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', '') 
+                )
+            ) c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
             LEFT JOIN users u_sup ON a.supervisor_id = u_sup.user_id
-            WHERE a.is_submitted_to_faculty = 1
+            WHERE a.is_submitted_to_faculty IN (1, 2)
             ORDER BY et.date ASC, s.start_time ASC
         `;
         const [rows] = await pool.query(query);
@@ -1312,7 +1623,7 @@ router.get('/attendant-published-exams', async (req, res) => {
             JOIN exam_draft_allocations a ON eda.alloc_id = a.alloc_id
             JOIN exam_timetables et ON a.exam_id = et.timetable_id
             LEFT JOIN exam_slots s ON et.timetable_id = s.timetable_id
-            LEFT JOIN courses c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '')
+            LEFT JOIN modules c ON REPLACE(et.course_code, ' ', '') = REPLACE(c.course_code, ' ', '') AND et.academic_year = c.academic_year
             LEFT JOIN users u_sup ON a.supervisor_id = u_sup.user_id
             WHERE eda.attendant_id = ? AND eda.is_published = 1
             ORDER BY et.date ASC, s.start_time ASC

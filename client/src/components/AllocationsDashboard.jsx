@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
+const Icons = {
+    Calendar: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+    ),
+    Send: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" x2="11" y1="2" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    ),
+    MessageSquare: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    )
+};
+
 const AllocationsDashboard = () => {
     const [staffList, setStaffList] = useState([]);
     const [attendantList, setAttendantList] = useState([]);
@@ -362,8 +374,9 @@ const AllocationsDashboard = () => {
                     <div>
                         <button
                             onClick={handlePublishTimetables}
-                            className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-all text-sm flex items-center">
-                            <span className="mr-2">🗓️</span> Publish Personalized Timetable
+                            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg shadow-blue-200 transition-all text-[10px] uppercase tracking-widest flex items-center gap-2 group active:scale-95">
+                            <Icons.Calendar />
+                            Publish Personalized
                         </button>
                     </div>
                 </div>
@@ -563,33 +576,21 @@ const AllocationsDashboard = () => {
                                                             </div>
                                                         </td>
 
-                                                        {/* Staffing: Attendants (Multiple Selection) */}
+                                                        {/* Staffing: Attendants (Read-Only) */}
                                                         <td className="px-4 py-3 align-top relative">
-                                                            <div className="w-full max-h-24 overflow-y-auto border border-gray-200 rounded-md bg-white p-1">
-                                                                {attendantList.length === 0 && <div className="text-xs text-gray-400 p-1">No staff</div>}
-                                                                {[...attendantList].sort((a, b) => {
-                                                                    const aSelected = (alloc.attendants || []).includes(String(a.id));
-                                                                    const bSelected = (alloc.attendants || []).includes(String(b.id));
-                                                                    if (aSelected && !bSelected) return -1;
-                                                                    if (!aSelected && bSelected) return 1;
-                                                                    return a.name.localeCompare(b.name);
-                                                                }).map(a => (
-                                                                    <label key={a.id} className="flex items-center space-x-2 text-xs p-1 hover:bg-gray-50 rounded cursor-pointer">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-3 h-3"
-                                                                            checked={(alloc.attendants || []).includes(String(a.id))}
-                                                                            onChange={(e) => {
-                                                                                const current = alloc.attendants || [];
-                                                                                const newValues = e.target.checked
-                                                                                    ? [...current, String(a.id)]
-                                                                                    : current.filter(id => id !== String(a.id));
-                                                                                updateAllocation(exam.id, alloc.id, 'attendants', newValues);
-                                                                            }}
-                                                                        />
-                                                                        <span>{a.name}</span>
-                                                                    </label>
-                                                                ))}
+                                                            <div className="w-full max-h-24 overflow-y-auto border border-gray-100 rounded-md bg-transparent p-1 space-y-1">
+                                                                {(alloc.attendants || []).length > 0 ? (
+                                                                    (alloc.attendants || []).map(id => {
+                                                                        const ha = attendantList.find(h => Number(h.id) === Number(id));
+                                                                        return (
+                                                                            <div key={id} className="text-[10px] font-bold text-gray-700 bg-gray-50 px-2 py-1 rounded border border-gray-200 truncate">
+                                                                                {ha ? ha.name : `Staff #${id}`}
+                                                                            </div>
+                                                                        );
+                                                                    })
+                                                                ) : (
+                                                                    <div className="text-[10px] text-gray-400 italic p-1">No attendants</div>
+                                                                )}
                                                             </div>
                                                         </td>
 
@@ -617,33 +618,35 @@ const AllocationsDashboard = () => {
 
                 {/* Footer Actions */}
                 <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
-                    <div className="flex space-x-3">
+                    <div className="flex items-center gap-3">
                         <button
                             id="save-draft-btn"
                             onClick={handleSaveDraft}
-                            className="px-6 py-2 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors w-32"
+                            className="px-6 py-3 border-2 border-slate-200 rounded-xl text-xs font-black text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all w-36 uppercase tracking-widest active:scale-95"
                         >
                             Save Draft
                         </button>
                         <button
                             onClick={handleOpenConcerns}
-                            className="px-6 py-2 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-sm font-semibold hover:bg-amber-100 transition-colors flex flex-col items-center justify-center"
+                            className="group relative px-6 py-3 bg-white border-2 border-amber-100 rounded-xl text-xs font-black text-amber-700 hover:bg-amber-50 hover:border-amber-200 transition-all flex flex-col items-center justify-center active:scale-95"
                         >
-                            <div className="flex items-center">
-                                <span className="mr-2">💬</span> Department Staff Concerns
+                            <div className="flex items-center gap-2">
+                                <Icons.MessageSquare />
+                                <span>STAFF CONCERNS</span>
                             </div>
                             {departmentConcerns.filter(c => c.status === 'Pending').length > 0 && (
-                                <span className="mt-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                    {departmentConcerns.filter(c => c.status === 'Pending').length} Request slots to be changed
-                                </span>
+                                <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[9px] font-black px-2 py-1 rounded-full shadow-lg border-2 border-white animate-bounce">
+                                    {departmentConcerns.filter(c => c.status === 'Pending').length}
+                                </div>
                             )}
                         </button>
                     </div>
                     <button
                         id="submit-to-faculty-btn"
                         onClick={handleSubmitToFaculty}
-                        className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 transform transition-all hover:-translate-y-0.5 active:translate-y-0 text-sm"
+                        className="px-10 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-xl shadow-emerald-200 transition-all transform hover:-translate-y-0.5 active:scale-95 text-[10px] uppercase tracking-widest flex items-center gap-2"
                     >
+                        <Icons.Send />
                         Submit to Faculty
                     </button>
                 </div>

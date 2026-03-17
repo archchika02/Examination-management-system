@@ -1,6 +1,34 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 
+// Local SVG Icon Library
+const Icons = {
+    Book: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" /><path d="M8 7h6" /><path d="M8 11h8" /></svg>
+    ),
+    FileText: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><line x1="16" x2="8" y1="13" y2="13" /><line x1="16" x2="8" y1="17" y2="17" /><line x1="10" x2="8" y1="9" y2="9" /></svg>
+    ),
+    Hospital: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 12h6" /><path d="M12 9v6" /></svg>
+    ),
+    Calendar: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg>
+    ),
+    Clock: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+    ),
+    Bell: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
+    ),
+    Check: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+    ),
+    Alert: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" /></svg>
+    )
+};
+
 /**
  * RoleNotificationsPanel
  * Fetches per-user deadline notifications from the DB API.
@@ -9,22 +37,24 @@ import { useAuth } from '../context/AuthContext';
  * Props:
  *   roleName {string} — The DB role_name to filter by (e.g. 'Academic Supervisor')
  */
-const RoleNotificationsPanel = ({ roleName, hideHeader = false }) => {
+const RoleNotificationsPanel = ({ roleName, hideHeader = false, onNavigate }) => {
     const { user } = useAuth();
-    const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [combinedItems, setCombinedItems] = useState([]);
 
-    const loadNotifications = useCallback(async () => {
+    const loadData = useCallback(async () => {
         if (!user?.user_id || !roleName) return;
+        setLoading(true);
         try {
-            const res = await fetch(
+            // Fetch notifications (deadlines)
+            const notifRes = await fetch(
                 `http://localhost:5000/api/deadlines/notifications?userId=${user.user_id}&role=${encodeURIComponent(roleName)}`
             );
-            if (res.ok) {
-                const data = await res.json();
-                setNotifications(data);
+            let notifs = [];
+            if (notifRes.ok) {
+                notifs = await notifRes.json();
 
-                const unreadIds = data.filter(d => !d.is_read).map(d => d.id);
+                const unreadIds = notifs.filter(d => !d.is_read).map(d => d.id);
                 if (unreadIds.length > 0) {
                     fetch('http://localhost:5000/api/deadlines/mark-all-read', {
                         method: 'POST',
@@ -33,28 +63,81 @@ const RoleNotificationsPanel = ({ roleName, hideHeader = false }) => {
                     }).catch(err => console.error('Failed to mark read:', err));
                 }
             }
+
+            // If Dean, Academic Supervisor or FacultyStaff, also fetch activities
+            let activities = [];
+            if (roleName === 'Dean' || roleName === 'Academic Supervisor' || roleName === 'FacultyStaff' || roleName === 'Faculty Staff') {
+                const activityRes = await fetch(`http://localhost:5000/api/dashboard/activities?userId=${user.user_id}`);
+                if (activityRes.ok) {
+                    activities = await activityRes.json();
+                }
+            }
+
+            // Combine and format
+            const standardNotifs = notifs.map(n => ({
+                id: `notif-${n.id}`,
+                title: n.form_name,
+                description: n.description || 'A new deadline has been set for this form.',
+                date: n.created_at,
+                type: 'NOTIFICATION',
+                icon: getFormIcon(n.form_name),
+                deadline: n.deadline,
+                is_read: n.is_read,
+                status: getStatusText(n.deadline),
+                statusColor: getStatusBadgeColor(n.deadline)
+            }));
+
+            const activityItems = activities.map((a, idx) => ({
+                id: `activity-${a.id || idx}`,
+                realId: a.id,
+                title: a.type === 'APPROVAL' ? 'Approval Finalized' : a.type === 'REJECTION' ? 'Form Declined' : 'System Alert',
+                description: a.description,
+                date: a.created_at,
+                type: a.type,
+                icon: a.type === 'APPROVAL' ? <Icons.Check /> : a.type === 'REJECTION' ? <Icons.Alert /> : <Icons.Bell />,
+                is_read: a.is_read !== undefined ? a.is_read : true,
+                status: a.type === 'APPROVAL' ? 'Approved' : a.type === 'REJECTION' ? 'Declined' : 'Update',
+                statusColor: a.type === 'APPROVAL' ? 'green' : a.type === 'REJECTION' ? 'red' : 'blue'
+            }));
+
+            // If Academic Supervisor, FacultyStaff or Faculty Staff, mark activities as read
+            if (roleName === 'Academic Supervisor' || roleName === 'FacultyStaff' || roleName === 'Faculty Staff') {
+                const unreadActs = activityItems.filter(a => !a.is_read && a.realId);
+                for (const act of unreadActs) {
+                    fetch(`http://localhost:5000/api/dashboard/activities/${act.realId}/mark-read`, {
+                        method: 'POST'
+                    }).catch(err => console.error('Failed to mark activity read:', err));
+                }
+            }
+
+            const merged = [...standardNotifs, ...activityItems]
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            setCombinedItems(merged);
         } catch (err) {
-            console.error('Failed to load notifications:', err);
+            console.error('Failed to load data:', err);
         } finally {
             setLoading(false);
         }
     }, [user?.user_id, roleName]);
 
     useEffect(() => {
-        loadNotifications();
-    }, [loadNotifications]);
+        loadData();
+    }, [loadData]);
 
-    const getStatusColor = (deadlineDate) => {
+    const getStatusBadgeColor = (deadlineDate) => {
+        if (!deadlineDate) return 'blue';
         const today = new Date();
         const due = new Date(deadlineDate);
         const diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
-        if (diffDays < 0) return 'bg-gray-100 text-gray-500 border-gray-200';
-        if (diffDays <= 3) return 'bg-red-50 text-red-600 border-red-200';
-        if (diffDays <= 7) return 'bg-orange-50 text-orange-600 border-orange-200';
-        return 'bg-blue-50 text-blue-600 border-blue-200';
+        if (diffDays < 0) return 'gray';
+        if (diffDays <= 3) return 'red';
+        if (diffDays <= 7) return 'orange';
+        return 'blue';
     };
 
     const getStatusText = (deadlineDate) => {
+        if (!deadlineDate) return 'Update';
         const today = new Date();
         const due = new Date(deadlineDate);
         const diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
@@ -62,6 +145,22 @@ const RoleNotificationsPanel = ({ roleName, hideHeader = false }) => {
         if (diffDays === 0) return 'Due Today';
         if (diffDays === 1) return 'Tomorrow';
         return `${diffDays} Days Left`;
+    };
+
+    const getStatusBadge = (status, color) => {
+        if (!status) return null;
+        const colors = {
+            green: 'bg-emerald-600 text-white border-emerald-700',
+            blue: 'bg-blue-700 text-white border-blue-800',
+            orange: 'bg-amber-500 text-white border-amber-600',
+            red: 'bg-rose-600 text-white border-rose-700',
+            gray: 'bg-slate-600 text-white border-slate-700',
+        };
+        return (
+            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${colors[color] || colors.gray}`}>
+                {status}
+            </span>
+        );
     };
 
     const formatTimeAgo = (isoString) => {
@@ -76,76 +175,116 @@ const RoleNotificationsPanel = ({ roleName, hideHeader = false }) => {
 
     const getFormIcon = (formName) => {
         switch (formName) {
-            case 'Academic Course Unit': return '📚';
-            case 'Add/Drop Form': return '📝';
-            case 'Medical/Repeat Form': return '🏥';
-            case 'Timetable Finalization': return '📅';
-            default: return '⏰';
+            case 'Academic Course Unit': return <Icons.Book />;
+            case 'Add/Drop Form': return <Icons.FileText />;
+            case 'Medical/Repeat Form': return <Icons.Hospital />;
+            case 'Timetable Finalization': return <Icons.Calendar />;
+            default: return <Icons.Clock />;
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Loading notifications...</div>;
+    if (loading) return (
+        <div className="bg-white rounded-2xl p-12 border shadow-sm text-center max-w-4xl mx-auto">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-slate-500 font-medium">Loading notifications...</p>
+        </div>
+    );
 
     return (
-        <div className="max-w-4xl mx-auto animate-fade-in-up space-y-6">
-            {/* Header */}
+        <div className="max-w-5xl mx-auto animate-fade-in-up space-y-10">
+            {/* Professional Header Section */}
             {!hideHeader && (
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-800">Notifications &amp; Alerts</h2>
-                    <p className="text-gray-500 text-sm mt-1">Deadline reminders for {roleName}</p>
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-blue-50/50 rounded-full -mr-24 -mt-24 blur-2xl"></div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-2 mb-3">
+                            <span className="px-3 py-1 bg-blue-700 text-white text-[9px] font-bold uppercase tracking-wider rounded-full">Official Feed</span>
+                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{roleName} Portal</span>
+                        </div>
+                        <h2 className="text-2xl font-semibold text-slate-900 tracking-tight">Intelligence & Communications</h2>
+                        <p className="text-sm text-slate-600 mt-2 font-medium max-w-2xl leading-relaxed italic border-l-2 border-blue-100 pl-4">
+                            Real-time synchronization of academic deadlines, administrative approvals, and faculty communications.
+                        </p>
+                    </div>
                 </div>
             )}
 
-            {/* Notification Cards */}
-            {notifications.length > 0 ? (
+            {/* Notification Stream */}
+            {combinedItems.length > 0 ? (
                 <div className="space-y-4">
-                    {notifications.map((notif) => (
+                    {combinedItems.map((item) => (
                         <div
-                            key={notif.id}
-                            className={`bg-white rounded-xl border shadow-sm p-5 transition-all relative overflow-hidden ${notif.is_read ? 'border-gray-100 opacity-80' : 'border-blue-200'}`}
+                            key={item.id}
+                            className={`bg-white p-3 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 flex gap-4 items-start border border-slate-200 relative group
+                                ${!item.is_read ? 'bg-blue-50/20 ring-1 ring-blue-100' : ''}`}
                         >
-                            {!notif.is_read && (
-                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-l-xl"></div>
-                            )}
-                            <div className="flex items-start justify-between gap-4 pl-2">
-                                <div className="flex items-start gap-4 flex-1 min-w-0">
-                                    <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${notif.is_read ? 'bg-gray-100' : 'bg-blue-50'}`}>
-                                        {getFormIcon(notif.form_name)}
+                            <div className="flex-shrink-0 w-10 h-10 bg-slate-50 rounded-lg flex items-center justify-center text-lg text-slate-600 border border-slate-100 group-hover:bg-white group-hover:scale-105 transition-all">
+                                {item.icon}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-4 mb-1">
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-semibold text-slate-900 text-lg tracking-tight">
+                                            {item.title}
+                                        </h3>
+                                        {!item.is_read && (
+                                            <span className="px-1.5 py-0.5 bg-blue-700 text-white text-[8px] font-bold uppercase rounded tracking-wider">New</span>
+                                        )}
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-2">{formatTimeAgo(item.date)}</span>
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center flex-wrap gap-2 mb-1">
-                                            <h4 className="font-bold text-gray-900 text-base">{notif.form_name}</h4>
-                                            {!notif.is_read && (
-                                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full border border-blue-200">New</span>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-gray-600 mb-2">
-                                            {notif.description || 'A new deadline has been set for this form.'}
-                                        </p>
-                                        <div className="flex items-center flex-wrap gap-3 text-xs text-gray-400">
-                                            <span className="flex items-center gap-1">🕐 {formatTimeAgo(notif.created_at)}</span>
-                                            <span className="flex items-center gap-1 font-medium text-gray-600">
-                                                📅 Due: <span className="font-mono">{notif.deadline ? notif.deadline.substring(0, 10) : ''}</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
+                                                {new Date(item.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                                             </span>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex-shrink-0">
-                                    <span className={`px-3 py-1 text-xs font-bold rounded-full border ${getStatusColor(notif.deadline)}`}>
-                                        {getStatusText(notif.deadline)}
+
+                                <p className="text-xs text-slate-600 mb-2 font-medium leading-normal max-w-3xl" dangerouslySetInnerHTML={{
+                                    __html: item.description
+                                        .replace(/([A-Z]{2,}\/\d{4,}\/\d+)/g, '<span class="font-bold text-slate-900">$1</span>')
+                                        .replace(/([A-Z][a-z]+ [A-Z][a-z]+)/g, '<span class="text-slate-900">$1</span>')
+                                }} />
+
+                                <div className="flex items-center gap-4 border-t border-slate-50 pt-3">
+                                    {getStatusBadge(item.status, item.statusColor)}
+                                    <div className="h-4 w-px bg-slate-100"></div>
+                                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 px-2 py-0.5 rounded">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                                        {item.type}
                                     </span>
+                                    {item.deadline && (
+                                        <div className="flex items-center gap-2 ml-auto">
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Due Window:</span>
+                                            <span className="text-[10px] font-bold text-slate-700 bg-slate-50 px-2.5 py-0.5 rounded">
+                                                {new Date(item.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
+
+                            {/* Visual Accent */}
+                            <div className="absolute right-0 top-0 h-full w-1 bg-blue-700 opacity-0 group-hover:opacity-100 rounded-r-2xl transition-opacity"></div>
                         </div>
                     ))}
                 </div>
             ) : (
-                <div className="py-20 text-center bg-white rounded-xl border border-dashed border-gray-300">
-                    <span className="text-5xl block mb-3">🔔</span>
-                    <h3 className="text-lg font-bold text-gray-800">No Notifications Yet</h3>
-                    <p className="text-gray-500 mt-1 text-sm">
-                        When Faculty Staff post deadlines tagged to {roleName}, they&apos;ll appear here.
-                    </p>
+                <div className="bg-white rounded-3xl p-16 border border-dashed border-slate-200 text-center flex flex-col items-center justify-center group">
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
+                        <span className="text-slate-300 group-hover:text-blue-500 transition-all">
+                            <Icons.Bell />
+                        </span>
+                    </div>
+                    <div className="space-y-2">
+                        <h3 className="text-xl font-bold text-slate-900 tracking-tight">Intelligence Stream Empty</h3>
+                        <p className="text-slate-500 text-xs font-medium uppercase tracking-widest max-w-sm mx-auto leading-relaxed">
+                            No critical updates or communications discovered at this time.
+                        </p>
+                    </div>
                 </div>
             )}
         </div>
