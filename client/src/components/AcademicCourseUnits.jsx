@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { generateCourseUnitPDF } from '../utils/pdfGenerator';
+import { fetchDeadlines, getDeadlineForForm } from '../utils/deadlineHelper';
 
 const Icons = {
     Search: () => (
@@ -50,7 +51,7 @@ const AcademicCourseUnits = () => {
                     studentNumber: stNo,
                     studentName: dbRow.student_name,
                     formName: `CourseReg_${stNo.replace(/[^a-zA-Z0-9]/g, '')}`,
-                    courseUnits: dbRow.courses || [],
+                    courseUnits: dbRow.modules || [],
                     totalCredits: dbRow.total_credits,
                     dateSubmitted: new Date(dbRow.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
                     status: dbRow.status,
@@ -59,6 +60,8 @@ const AcademicCourseUnits = () => {
                     mobile: dbRow.mobile || '',
                     email: dbRow.email || '',
                     rejectReason: dbRow.reject_reason || '',
+                    academic_year: dbRow.academic_year || '',
+                    level: dbRow.level || '',
                     form_data: typeof dbRow.form_data === 'string' ? JSON.parse(dbRow.form_data) : dbRow.form_data
                 };
             });
@@ -125,7 +128,16 @@ const AcademicCourseUnits = () => {
 
     const initiateView = async (reg) => {
         try {
-            const doc = await generateCourseUnitPDF(reg);
+            // 1. Fetch Deadlines for the PDF header
+            const deadlines = await fetchDeadlines();
+
+            // Inject deadline into the registration data for the PDF generator
+            const academicYear = reg.academic_year || reg.academicYear || reg.form_data?.academicYear || '';
+            let deadlineDate = getDeadlineForForm('Academic Course Unit', academicYear, deadlines);
+
+            const regWithDeadline = { ...reg, deadlineDate };
+
+            const doc = await generateCourseUnitPDF(regWithDeadline);
             window.open(doc.output('bloburl'), '_blank');
         } catch (error) {
             console.error("PDF Preview Error:", error);

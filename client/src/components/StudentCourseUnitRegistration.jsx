@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import SignatureCanvas from 'react-signature-canvas';
 
 const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
     const { user } = useAuth();
@@ -11,8 +10,38 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
     const [deadlineDate, setDeadlineDate] = useState('Not Set');
     const [dynamicStructure, setDynamicStructure] = useState([]);
     const [loading, setLoading] = useState(true);
-    const sigCanvas = useRef(null);
     const isReadOnly = !!readOnlyData;
+
+    const formatDate = (dateString, separator = '-') => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}${separator}${month}${separator}${year}`;
+    };
+
+    const DatePickerField = ({ id, value, onChange, isReadOnly, placeholder = "DD/MM/YYYY" }) => {
+        const uniqueId = `date-picker-${id}`;
+        return (
+            <div className="relative w-full">
+                <input
+                    type="text"
+                    readOnly
+                    placeholder={placeholder}
+                    className="h-8 border-b border-black border-dashed mb-1 w-full text-center focus:bg-blue-50 outline-none font-serif cursor-pointer"
+                    value={value ? formatDate(value, '/') : ''}
+                    onClick={() => !isReadOnly && document.getElementById(uniqueId).showPicker()}
+                />
+                {!isReadOnly && (
+                    <input
+                        type="date"
+                        id={uniqueId}
+                        className="absolute opacity-0 pointer-events-none"
+                        value={value || ''}
+                        onChange={(e) => onChange(e.target.value)}
+                    />
+                )}
+            </div>
+        );
+    };
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -83,8 +112,8 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                 ...prev,
                 st_name_cr: user.name || '',
                 email_cr: user.email || '',
-                level: '1',
-                mobile: '0712345678'
+                level: user.level || '1',
+                mobile: user.mobile || '0712345678'
             }));
         }
     }, [user, isReadOnly]);
@@ -97,25 +126,103 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
         }));
     };
 
+    // Credit Calculation Logic
+    useEffect(() => {
+        if (isReadOnly || loading) return;
+
+        // Helper to get credits from a row, checking multiple possible ID patterns
+        const getCreditsFromRow = (prefix, r, cols) => {
+            let digits = "";
+            // Common potential prefixes for grids
+            const potentialPrefixes = [
+                prefix,                          // Standard (e.g. Grid_Comp_S1)
+                `course_grids_layout_l_${prefix === 'Grid_Comp_S1' ? 0 : 2}`, // Layout-based Comp
+                `course_grids_layout_r_${prefix === 'Grid_Opt_S1' ? 0 : prefix === 'Grid_Opt_S2' ? 2 : prefix === 'Grid_Aux_S1' ? 5 : 6}` // Layout-based Opt/Aux
+            ];
+
+            // Map standard prefixes to their specific layout indices found in migrate_form_configs.js
+            const layoutMap = {
+                'Grid_Comp_S1': 'course_grids_layout_l_0',
+                'Grid_Comp_S2': 'course_grids_layout_l_2',
+                'Grid_Opt_S1': 'course_grids_layout_r_0',
+                'Grid_Opt_S2': 'course_grids_layout_r_2',
+                'Grid_Aux_S1': 'course_grids_layout_r_5',
+                'Grid_Aux_S2': 'course_grids_layout_r_6'
+            };
+
+            const actualPrefix = layoutMap[prefix] || prefix;
+
+            for (let c = 0; c < cols; c++) {
+                // Try layout-based first, then standard prefix
+                const val = formData[`${actualPrefix}_${r}_${c}`] || formData[`${prefix}_${r}_${c}`] || "";
+                if (/[0-9]/.test(val)) {
+                    digits += val;
+                }
+            }
+            // 5th digit is index 4
+            return digits.length >= 5 ? parseInt(digits[4]) || 0 : 0;
+        };
+
+        const calculateSectionTotal = (prefix, rows, cols) => {
+            let total = 0;
+            for (let r = 0; r < rows; r++) {
+                total += getCreditsFromRow(prefix, r, cols);
+            }
+            return total;
+        };
+
+        const comp1 = calculateSectionTotal('Grid_Comp_S1', 10, 12);
+        const comp2 = calculateSectionTotal('Grid_Comp_S2', 10, 12);
+        const opt1 = calculateSectionTotal('Grid_Opt_S1', 6, 12);
+        const opt2 = calculateSectionTotal('Grid_Opt_S2', 6, 12);
+        const aux1 = calculateSectionTotal('Grid_Aux_S1', 3, 12);
+        const aux2 = calculateSectionTotal('Grid_Aux_S2', 3, 12);
+
+        const compTotal = comp1 + comp2;
+        const optTotal = opt1 + opt2;
+        const auxTotal = aux1 + aux2;
+
+        const totalCredits = compTotal + optTotal + auxTotal;
+
+        const updates = {};
+        // Individual Semester Totals
+        if (formData.cred_comp_1 !== String(comp1)) updates.cred_comp_1 = String(comp1);
+        if (formData.cred_comp_2 !== String(comp2)) updates.cred_comp_2 = String(comp2);
+        if (formData.cred_opt_1 !== String(opt1)) updates.cred_opt_1 = String(opt1);
+        if (formData.cred_opt_2 !== String(opt2)) updates.cred_opt_2 = String(opt2);
+        if (formData.cred_aux_1 !== String(aux1)) updates.cred_aux_1 = String(aux1);
+        if (formData.cred_aux_2 !== String(aux2)) updates.cred_aux_2 = String(aux2);
+        
+        // Combined Section Totals (What the USER specifically asked for)
+        if (formData.cred_comp_total !== String(compTotal)) updates.cred_comp_total = String(compTotal);
+        if (formData.cred_opt_total !== String(optTotal)) updates.cred_opt_total = String(optTotal);
+        if (formData.cred_aux_total !== String(auxTotal)) updates.cred_aux_total = String(auxTotal);
+        
+        // Grand Total
+        if (formData.total_creds_box !== String(totalCredits)) updates.total_creds_box = String(totalCredits);
+
+        if (Object.keys(updates).length > 0) {
+            setFormData(prev => ({ ...prev, ...updates }));
+        }
+    }, [formData, isReadOnly, loading]);
+
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
         if (isReadOnly) return;
 
-        if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
-            alert("Please provide your digital signature before submitting.");
+        if (!formData.sig_1 || !formData.sig_1.trim()) {
+            alert("Please provide your signature by typing your name.");
             return;
         }
 
         setSubmitted(true);
 
         try {
-            const signatureBase64 = sigCanvas.current.getCanvas().toDataURL('image/png');
-            console.log("Form Data Submitted:", formData);
-
             const payload = {
                 user_id: user?.user_id || null,
                 form_data: formData,
-                signature: signatureBase64,
+                signature: formData.sig_1,
+                date_submitted: formData.sig_0, // Use the date from the form
                 academicYear: academicYear
             };
 
@@ -133,7 +240,6 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
             }
 
             alert("Registration Form Submitted Successfully!");
-            sigCanvas.current.clear();
         } catch (error) {
             console.error('Error submitting form:', error);
             alert("Error submitting form. Please try again.");
@@ -261,36 +367,20 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                         {element.labels.map((label, idx) => (
                             <div key={idx} className="flex-1 text-center">
                                 {label.includes('SIGNATURE') ? (
-                                    <div className="border-b border-black border-dashed mb-1 w-full bg-white relative flex flex-col justify-end" style={{ height: '80px' }}>
-                                        {isReadOnly ? (
-                                            formData.signature && (
-                                                <img src={formData.signature} className="absolute inset-0 object-contain w-full h-full p-2" alt="Signature" />
-                                            )
-                                        ) : (
-                                            <>
-                                                <div className="absolute inset-0">
-                                                    <SignatureCanvas
-                                                        ref={sigCanvas}
-                                                        canvasProps={{ className: 'signature-canvas w-full h-full' }}
-                                                    />
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => sigCanvas?.current?.clear()}
-                                                    className="absolute bottom-1 right-1 text-[8px] bg-gray-200 px-1 py-0.5 rounded hover:bg-gray-300 no-print z-10"
-                                                >
-                                                    Clear
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
-                                ) : (
                                     <input
                                         type="text"
                                         readOnly={isReadOnly}
-                                        value={formData[`sig_${idx}`] || (isReadOnly ? formData.dateSubmitted : '') || ''}
+                                        placeholder="Type Name as Digital Signature"
+                                        value={formData[`sig_${idx}`] || ''}
                                         className="h-8 border-b border-black border-dashed mb-1 w-full text-center focus:bg-blue-50 outline-none font-serif"
                                         onChange={(e) => handleInputChange(`sig_${idx}`, e.target.value)}
+                                    />
+                                ) : (
+                                    <DatePickerField
+                                        id={`sig_${idx}`}
+                                        isReadOnly={isReadOnly}
+                                        value={formData[`sig_${idx}`] || (isReadOnly ? formData.dateSubmitted : '') || ''}
+                                        onChange={(val) => handleInputChange(`sig_${idx}`, val)}
                                     />
                                 )}
                                 <div className="text-sm font-serif font-bold uppercase pt-2">{label}</div>
@@ -457,13 +547,6 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                         <h2 className="text-2xl font-bold text-gray-800">Academic Course Unit Registration</h2>
                         <p className="text-gray-500 text-sm mt-1">Please fill the form below in block capitals.</p>
                     </div>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={submitted}
-                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg flex items-center gap-2"
-                    >
-                        {submitted ? 'Submitting...' : 'Submit Registration'}
-                    </button>
                 </div>
             )}
 
@@ -471,6 +554,28 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                 {/* Paper Form Container */}
                 {formStructure.map(element => renderFormElement(element))}
             </div>
+
+            {!isReadOnly && (
+                <div className="mt-12 flex justify-end no-print">
+                    <button
+                        onClick={handleSubmit}
+                        disabled={submitted}
+                        className="px-8 py-3 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2 active:scale-95"
+                    >
+                        {submitted ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                Submitting...
+                            </>
+                        ) : (
+                            <>
+                                <span>📄</span>
+                                Submit Registration
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

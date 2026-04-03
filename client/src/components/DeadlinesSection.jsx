@@ -144,6 +144,12 @@ const DeadlinesSection = () => {
         return tomorrow.toISOString().split('T')[0];
     };
 
+    const formatDate = (dateString, separator = '-') => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}${separator}${month}${separator}${year}`;
+    };
+
     const handleRemove = (id) => {
         setDeadlines(deadlines.filter(item => item.id !== id));
     };
@@ -273,7 +279,7 @@ const DeadlinesSection = () => {
                                 <tr key={deadline.id} className="hover:bg-blue-50/30 transition-colors group text-sm">
                                     <td className="p-4 pl-6 font-semibold text-gray-800">{deadline.formName}</td>
                                     <td className="p-4 text-gray-600 font-medium whitespace-nowrap">{deadline.academicYear}</td>
-                                    <td className="p-4 text-gray-600 font-medium font-mono">{deadline.deadline}</td>
+                                    <td className="p-4 text-gray-600 font-medium font-mono">{formatDate(deadline.deadline, '/')}</td>
                                     <td className="p-4">
                                         <div className="flex flex-wrap gap-1.5">
                                             {deadline.roles.map((role, index) => (
@@ -351,15 +357,30 @@ const DeadlinesSection = () => {
                         <label htmlFor="deadline" className="block text-sm font-semibold text-gray-700 mb-1">
                             Deadline Date <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            type="date"
-                            id="deadline"
-                            min={getMinDate()}
-                            className={`block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border transition-colors ${touched.deadline && errors.deadline ? 'border-red-300 bg-red-50' : ''}`}
-                            value={newDeadline.deadline}
-                            onChange={(e) => setNewDeadline({ ...newDeadline, deadline: e.target.value })}
-                            onBlur={() => setTouched({ ...touched, deadline: true })}
-                        />
+                        <div className="relative">
+                            <input
+                                type="text"
+                                readOnly
+                                placeholder="DD/MM/YYYY"
+                                className={`block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border transition-colors bg-white cursor-pointer ${touched.deadline && errors.deadline ? 'border-red-300 bg-red-50' : ''}`}
+                                value={newDeadline.deadline ? formatDate(newDeadline.deadline, '/') : ''}
+                                onClick={() => document.getElementById('native-datepicker').showPicker()}
+                            />
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <input
+                                type="date"
+                                id="native-datepicker"
+                                min={getMinDate()}
+                                className="absolute opacity-0 pointer-events-none"
+                                value={newDeadline.deadline}
+                                onChange={(e) => setNewDeadline({ ...newDeadline, deadline: e.target.value })}
+                                onBlur={() => setTouched({ ...touched, deadline: true })}
+                            />
+                        </div>
                         {touched.deadline && errors.deadline && <p className="mt-1 text-xs text-red-600 font-medium">{errors.deadline}</p>}
                     </div>
 

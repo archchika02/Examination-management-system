@@ -138,7 +138,6 @@ const TimetableConfiguration = () => {
 
     const [deadlineDate, setDeadlineDate] = useState('');
     const [academicYear, setAcademicYear] = useState(''); // New state for academic year
-    const [batchRepPreferences, setBatchRepPreferences] = useState([]);
 
     const formatDateToUK = (dateString) => {
         if (!dateString) return '';
@@ -146,12 +145,9 @@ const TimetableConfiguration = () => {
         return `${day}/${month}/${year}`;
     };
 
-    // Fetch batch rep preferences and global config
-    const fetchBatchRepPreferences = async () => {
+    // Fetch global configuration
+    const fetchGlobalConfiguration = async () => {
         try {
-            const respPref = await fetch('http://localhost:5000/api/configurations/list');
-            if (respPref.ok) setBatchRepPreferences(await respPref.json());
-
             const respConfig = await fetch('http://localhost:5000/api/configurations/global-dates');
             const configData = await respConfig.json();
             if (configData.allowed_dates) setSelectedExamDates(new Set(configData.allowed_dates));
@@ -164,7 +160,7 @@ const TimetableConfiguration = () => {
 
     // Fetch holidays dynamically
     useEffect(() => {
-        fetchBatchRepPreferences();
+        fetchGlobalConfiguration();
         const fetchHolidays = async () => {
             setLoadingHolidays(true);
             try {
@@ -473,33 +469,6 @@ const TimetableConfiguration = () => {
                         </div>
                     </div>
                 </div>
-
-                {/* Batch Rep Preferences */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                    <div className="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
-                        <Icons.Clock />
-                        <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Solicited Preferences</h3>
-                    </div>
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                        {batchRepPreferences.length === 0 ? (
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center py-8 italic">No preferences received</p>
-                        ) : (
-                            batchRepPreferences.map((pref, idx) => (
-                                <div key={idx} className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                                    <div>
-                                        <div className="text-[10px] font-black text-slate-900 uppercase tracking-tight mb-0.5">{pref.course_code}</div>
-                                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                                            <Icons.Calendar />
-                                            {Array.isArray(pref.preferred_dates) ? pref.preferred_dates[0] : pref.preferred_dates}
-                                        </div>
-                                    </div>
-                                    <div className="text-[8px] font-black px-2 py-0.5 bg-blue-100 text-blue-600 rounded uppercase">LVL {pref.level}</div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-
                 <div className="bg-slate-900 rounded-2xl shadow-xl p-8 flex flex-col gap-5 border border-slate-800">
                     <div>
                         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Configuration Controls</h3>

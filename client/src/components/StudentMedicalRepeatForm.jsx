@@ -12,6 +12,35 @@ const StudentMedicalRepeatForm = () => {
     const [dynamicStructure, setDynamicStructure] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const formatDate = (dateString, separator = '-') => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}${separator}${month}${separator}${year}`;
+    };
+
+    const DatePickerField = ({ id, value, onChange, placeholder = "DD/MM/YYYY" }) => {
+        const uniqueId = `date-picker-${id}`;
+        return (
+            <div className="relative w-full">
+                <input
+                    type="text"
+                    readOnly
+                    placeholder={placeholder}
+                    className="h-8 border-b border-dotted border-black w-full text-center focus:bg-blue-50 outline-none font-serif cursor-pointer"
+                    value={value ? formatDate(value, '/') : ''}
+                    onClick={() => document.getElementById(uniqueId).showPicker()}
+                />
+                <input
+                    type="date"
+                    id={uniqueId}
+                    className="absolute opacity-0 pointer-events-none"
+                    value={value || ''}
+                    onChange={(e) => onChange(e.target.value)}
+                />
+            </div>
+        );
+    };
+
     useEffect(() => {
         const loadInitialData = async () => {
             try {
@@ -351,15 +380,24 @@ const StudentMedicalRepeatForm = () => {
 
                             return (
                                 <div key={idx} className="flex-1 text-center w-full">
-                                    <input
-                                        type={isDate ? 'date' : 'text'}
-                                        placeholder={!isDate ? 'Digital Signature (Type Name)' : ''}
-                                        className="h-8 border-b border-dotted border-black w-full text-center focus:bg-blue-50 outline-none font-serif"
-                                        onChange={(e) => handleInputChange(`sig_${idx}`, e.target.value)}
-                                    />
+                                    {isDate ? (
+                                        <DatePickerField
+                                            id={`sig_${idx}`}
+                                            value={formData[`sig_${idx}`] || ''}
+                                            onChange={(val) => handleInputChange(`sig_${idx}`, val)}
+                                        />
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            placeholder="Digital Signature (Type Name)"
+                                            className="h-8 border-b border-dotted border-black w-full text-center focus:bg-blue-50 outline-none font-serif"
+                                            value={formData[`sig_${idx}`] || ''}
+                                            onChange={(e) => handleInputChange(`sig_${idx}`, e.target.value)}
+                                        />
+                                    )}
                                     <div className="text-sm font-serif font-bold pt-2 text-left">{label}</div>
                                 </div>
-                            )
+                            );
                         })}
                     </div>
                 );
@@ -411,17 +449,30 @@ const StudentMedicalRepeatForm = () => {
                     <h2 className="text-2xl font-bold text-gray-800">Repeat / Medical Application</h2>
                     <p className="text-gray-500 text-sm mt-1">Submit application for repeat or medical examinations.</p>
                 </div>
-                <button
-                    onClick={handleSubmit}
-                    disabled={submitted}
-                    className={`px-6 py-2 ${submitted ? 'bg-gray-400' : 'bg-purple-600 hover:bg-purple-700'} text-white font-bold rounded-lg shadow-lg flex items-center gap-2 transition-colors`}
-                >
-                    {submitted ? 'Submitting...' : 'Submit Application'}
-                </button>
             </div>
 
             <div className="bg-white p-12 shadow-xl border border-gray-200 min-h-screen relative mx-auto w-full max-w-[210mm]">
                 {formStructure.map(element => renderFormElement(element))}
+            </div>
+
+            <div className="mt-12 flex justify-end no-print">
+                <button
+                    onClick={handleSubmit}
+                    disabled={submitted}
+                    className={`px-8 py-3 ${submitted ? 'bg-gray-400' : 'bg-blue-700 hover:bg-blue-800'} text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2 active:scale-95`}
+                >
+                    {submitted ? (
+                        <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Submitting...
+                        </>
+                    ) : (
+                        <>
+                            <span>📝</span>
+                            Submit Application
+                        </>
+                    )}
+                </button>
             </div>
         </div>
     );

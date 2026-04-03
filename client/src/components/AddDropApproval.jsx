@@ -27,6 +27,7 @@ const Icons = {
 };
 
 import { generateAddDropPDF } from '../utils/pdfGenerator';
+import { fetchDeadlines, getDeadlineForForm } from '../utils/deadlineHelper';
 
 const AddDropApproval = () => {
     const { user } = useAuth();
@@ -185,7 +186,14 @@ const AddDropApproval = () => {
 
     const openViewModal = async (request) => {
         try {
-            const doc = await generateAddDropPDF(request);
+            const requestWithRaw = { ...request };
+            
+            // Fetch deadlines and inject the matching deadline Date
+            const deadlines = await fetchDeadlines();
+            const academicYear = requestWithRaw.academic_year || requestWithRaw.year || '';
+            requestWithRaw.deadlineDate = getDeadlineForForm('Add/Drop Form', academicYear, deadlines);
+
+            const doc = await generateAddDropPDF(requestWithRaw);
             window.open(doc.output('bloburl'), '_blank');
         } catch (error) {
             console.error("PDF Preview Error:", error);
@@ -207,7 +215,7 @@ const AddDropApproval = () => {
             <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 no-print">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div>
-                        <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Course Modifications</h2>
+                        <h2 className="text-xl font-semibold text-slate-900 tracking-tight">Course code Modifications</h2>
                         <p className="text-sm text-slate-500 mt-1 font-medium">Review and validate student requests for course additions and drops.</p>
                     </div>
 

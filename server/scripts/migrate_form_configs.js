@@ -53,6 +53,7 @@ const formConfigurations = [
                 type: 'two_column_layout',
                 left: [
                     {
+                        id: 'Grid_Comp_S1',
                         type: 'grid_section',
                         title: 'COMPULSORY COURSE UNITS',
                         subtitle: 'SEMESTER 1',
@@ -65,6 +66,7 @@ const formConfigurations = [
                         fields: [{ id: 'cred_comp_1', label: 'CREDITS', type: 'box_small' }]
                     },
                     {
+                        id: 'Grid_Comp_S2',
                         type: 'grid_section',
                         subtitle: 'SEMESTER 2',
                         rows: 10,
@@ -83,6 +85,7 @@ const formConfigurations = [
                 ],
                 right: [
                     {
+                        id: 'Grid_Opt_S1',
                         type: 'grid_section',
                         title: 'OPTIONAL COURSE UNITS',
                         subtitle: 'SEMESTER 1',
@@ -95,6 +98,7 @@ const formConfigurations = [
                         fields: [{ id: 'cred_opt_1', label: 'CREDITS', type: 'box_small' }]
                     },
                     {
+                        id: 'Grid_Opt_S2',
                         type: 'grid_section',
                         subtitle: 'SEMESTER 2',
                         rows: 6,
@@ -111,6 +115,7 @@ const formConfigurations = [
                         fields: [{ id: 'cred_opt_total', label: 'OPTIONAL CREDITS', type: 'box_small' }]
                     },
                     {
+                        id: 'Grid_Aux_S1',
                         type: 'grid_section',
                         title: 'AUXILIARY COURSE UNITS',
                         subtitle: 'SEMESTER 1',
@@ -118,6 +123,7 @@ const formConfigurations = [
                         cols: 12
                     },
                     {
+                        id: 'Grid_Aux_S2',
                         type: 'grid_section',
                         subtitle: 'SEMESTER 2',
                         rows: 3,
