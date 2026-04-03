@@ -40,7 +40,6 @@ const PreferredTimetable = () => {
     const [submitStatus, setSubmitStatus] = useState('');
     const [facultyAcademicYear, setFacultyAcademicYear] = useState('');
 
-    // Mock Data for Exams
     const [exams, setExams] = useState({
         1: [],
         2: [],

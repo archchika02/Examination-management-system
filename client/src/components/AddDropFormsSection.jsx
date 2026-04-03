@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { generateAddDropPDF } from '../utils/pdfGenerator';
+import { fetchDeadlines, getDeadlineForForm } from '../utils/deadlineHelper';
 
 const Icons = {
     Search: () => (
@@ -89,7 +90,14 @@ const AddDropFormsSection = () => {
 
     const handleViewPDF = async (formData) => {
         try {
-            const doc = await generateAddDropPDF(formData);
+            const formDataWithRaw = { ...formData.rawData };
+            
+            // Fetch deadlines and inject the matching deadline Date
+            const deadlines = await fetchDeadlines();
+            const academicYear = formDataWithRaw.academic_year || formDataWithRaw.year || '';
+            formDataWithRaw.deadlineDate = getDeadlineForForm('Add/Drop Form', academicYear, deadlines);
+
+            const doc = await generateAddDropPDF(formDataWithRaw);
             window.open(doc.output('bloburl'), '_blank');
         } catch (error) {
             console.error("PDF Preview Error:", error);

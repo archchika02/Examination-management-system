@@ -32,7 +32,8 @@ router.post('/add', async (req, res) => {
     }
 
     const year = parseInt(numericPart[0]);
-    const semester = parseInt(numericPart[1]);
+    const semesterDigit = parseInt(numericPart[1]);
+    const semester = (semesterDigit === 1 || semesterDigit === 2) ? semesterDigit : null;
     const credits = parseInt(numericPart[numericPart.length - 1]);
 
     // non_written_type maps to isNonWritten

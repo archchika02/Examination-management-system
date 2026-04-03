@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { generateAddDropPDF, generateCourseUnitPDF, generateMedicalRepeatPDF } from '../utils/pdfGenerator';
+import { fetchDeadlines, getDeadlineForForm } from '../utils/deadlineHelper';
 
 const StudentNotifications = () => {
     const { user } = useAuth();
@@ -67,7 +69,8 @@ const StudentNotifications = () => {
                         time: new Date(reg.created_at).toLocaleDateString(),
                         status: reg.status,
                         statusColor,
-                        icon
+                        icon,
+                        rawData: reg
                     };
                 });
 
@@ -101,7 +104,8 @@ const StudentNotifications = () => {
                         time: new Date(reg.created_at).toLocaleDateString(),
                         status: reg.status,
                         statusColor,
-                        icon
+                        icon,
+                        rawData: reg
                     };
                 });
 
@@ -136,7 +140,8 @@ const StudentNotifications = () => {
                         time: new Date(reg.created_at).toLocaleDateString(),
                         status: reg.status,
                         statusColor,
-                        icon
+                        icon,
+                        rawData: reg
                     };
                 });
 
@@ -203,6 +208,54 @@ const StudentNotifications = () => {
         fetchNotifications();
     }, [user?.user_id]);
 
+    const handleViewForm = async (notif) => {
+        try {
+            let doc;
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            // 1. Fetch Deadlines to get the correct due_date
+            const deadlines = await fetchDeadlines();
+
+            if (notif.type === 'Registration') {
+                const reg = { ...notif.rawData };
+                if (typeof reg.form_data === 'string') {
+                    reg.form_data = JSON.parse(reg.form_data);
+                }
+                
+                // Get the most specific academic year available
+                const academicYear = reg.academic_year || reg.academicYear || reg.form_data?.academicYear || '';
+                
+                reg.deadlineDate = getDeadlineForForm('Academic Course Unit', academicYear, deadlines);
+                doc = await generateCourseUnitPDF(reg);
+            } else if (notif.type === 'Add/Drop') {
+                const addDrop = { ...notif.rawData };
+                const academicYear = addDrop.academic_year || '';
+                addDrop.deadlineDate = getDeadlineForForm('Add/Drop Form', academicYear, deadlines);
+                
+                doc = await generateAddDropPDF(addDrop);
+            } else if (notif.type === 'Medical' || notif.type === 'Repeat') {
+                const res = await fetch(`http://localhost:5000/api/medical-repeat/${notif.rawData.id}`, { headers });
+                if (res.ok) {
+                    const fullData = await res.json();
+                    const academicYear = fullData.academic_year || '';
+                    
+                    fullData.deadlineDate = getDeadlineForForm('Medical/Repeat Form', academicYear, deadlines);
+                    doc = await generateMedicalRepeatPDF(fullData);
+                } else {
+                    throw new Error("Failed to fetch application details");
+                }
+            }
+
+            if (doc) {
+                window.open(doc.output('bloburl'), '_blank');
+            }
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            alert("Could not generate PDF. Please try again later.");
+        }
+    };
+
     // Derived State for Summary Cards
     const totalNotifications = notifications.length;
     const urgentAlerts = notifications.filter(n => n.status === 'Rescheduled' || n.status === 'Alert' || n.isUnread).length;
@@ -263,6 +316,18 @@ const StudentNotifications = () => {
                                             {notif.type}
                                         </span>
                                     </div>
+                                    {(notif.type === 'Registration' || notif.type === 'Add/Drop' || notif.type === 'Medical' || notif.type === 'Repeat') && (
+                                        <button 
+                                            onClick={() => handleViewForm(notif)}
+                                            className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors group"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                            View My Form
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}

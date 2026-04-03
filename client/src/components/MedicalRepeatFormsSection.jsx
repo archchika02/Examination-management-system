@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { generateMedicalRepeatPDF } from '../utils/pdfGenerator';
+import { fetchDeadlines, getDeadlineForForm } from '../utils/deadlineHelper';
 
 const Icons = {
     Search: () => (
@@ -147,6 +148,12 @@ const MedicalRepeatFormsSection = () => {
             });
             if (response.ok) {
                 const data = await response.json();
+                
+                // Fetch deadlines and inject the matching deadline Date
+                const deadlines = await fetchDeadlines();
+                const academicYear = data.academic_year || '';
+                data.deadlineDate = getDeadlineForForm('Medical/Repeat Form', academicYear, deadlines);
+
                 const doc = await generateMedicalRepeatPDF(data);
                 window.open(doc.output('bloburl'), '_blank');
             }

@@ -14,12 +14,21 @@ export const generateAddDropPDF = async (data) => {
     doc.text('UNIVERSITY OF KELANIYA - SRI LANKA', 105, 15, { align: 'center' });
     doc.setFontSize(11);
     doc.text('FACULTY OF SCIENCE', 105, 20, { align: 'center' });
-    
+
+    // Instructional Text & Deadline (Top Left)
+    doc.setFontSize(9);
+    const closingDate = data.deadlineDate || 'Not Set';
+    doc.text(`Application closing date: ${closingDate}`, 15, 12);
+    doc.setFont('times', 'italic');
+    doc.setFontSize(8);
+    doc.text('(Use block capitals only)', 15, 16);
+
+    doc.setFont('times', 'bold');
     doc.setFontSize(12);
     doc.text('APPLICATION TO ADD/ DROP COURSE UNITS', 105, 28, { align: 'center' });
     // Underline for title
     const titleWidth = doc.getTextWidth('APPLICATION TO ADD/ DROP COURSE UNITS');
-    doc.line(105 - (titleWidth/2), 29, 105 + (titleWidth/2), 29);
+    doc.line(105 - (titleWidth / 2), 29, 105 + (titleWidth / 2), 29);
 
     doc.setFontSize(11);
     doc.text(`SEMESTER II - ACADEMIC YEAR ${data.academic_year || '2023/2024'}`, 105, 35, { align: 'center' });
@@ -78,14 +87,14 @@ export const generateAddDropPDF = async (data) => {
             [{ content: 'TO ADD A COURSE UNIT', colSpan: 2, styles: { halign: 'left', fontStyle: 'bolditalic', fillColor: [245, 245, 245] } }],
             ['Course Unit', 'Recommendation of the relevant Senior Academic Advisor (Signature)']
         ],
-        body: addedRows.map(course => [course, '']),
+        body: addedRows.map(course => [(course || '').toUpperCase(), '']),
         theme: 'grid',
-        headStyles: { 
-            fillColor: [255, 255, 255], 
-            textColor: [0, 0, 0], 
-            fontStyle: 'bold', 
-            halign: 'center', 
-            font: 'times', 
+        headStyles: {
+            fillColor: [255, 255, 255],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            halign: 'center',
+            font: 'times',
             fontSize: 9,
             lineWidth: 0.1,
             lineColor: [0, 0, 0]
@@ -105,14 +114,14 @@ export const generateAddDropPDF = async (data) => {
             [{ content: 'TO DROP A COURSE UNIT', colSpan: 2, styles: { halign: 'left', fontStyle: 'bolditalic', fillColor: [245, 245, 245] } }],
             ['Course Unit', 'Recommendation of the relevant Senior Academic Advisor (Signature)']
         ],
-        body: droppedRows.map(course => [course, '']),
+        body: droppedRows.map(course => [(course || '').toUpperCase(), '']),
         theme: 'grid',
-        headStyles: { 
-            fillColor: [255, 255, 255], 
-            textColor: [0, 0, 0], 
-            fontStyle: 'bold', 
-            halign: 'center', 
-            font: 'times', 
+        headStyles: {
+            fillColor: [255, 255, 255],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            halign: 'center',
+            font: 'times',
             fontSize: 9,
             lineWidth: 0.1,
             lineColor: [0, 0, 0]
@@ -125,7 +134,7 @@ export const generateAddDropPDF = async (data) => {
     // Credits Summary
     const finalY = doc.lastAutoTable.finalY + 10;
     doc.setFont('times', 'normal');
-    
+
     // Label column starts at 20 to match the wider layout and preserve margin
     const labelX = 20;
     const colonX = 160;
@@ -136,7 +145,7 @@ export const generateAddDropPDF = async (data) => {
     doc.text(':', colonX, finalY);
     doc.text('=', equalsX, finalY);
     doc.text(`${data.sem1_credits || '0.0'}`, valueX, finalY, { align: 'right' });
-    
+
     doc.text('Number of credits registered for Semester II', labelX, finalY + 5);
     doc.text(':', colonX, finalY + 5);
     doc.text('=', equalsX, finalY + 5);
@@ -178,12 +187,12 @@ export const generateAddDropPDF = async (data) => {
     doc.setFont('times', 'normal');
     doc.line(15, deanY, 70, deanY);
     doc.text('Date', 42.5, deanY + 4, { align: 'center' });
-    
+
     doc.line(130, deanY, 195, deanY);
     doc.text('Signature of the Dean', 162.5, deanY + 4, { align: 'center' });
 
     doc.setFontSize(8);
-    doc.text('Office of the Dean - Faculty of Science, University of Kelaniya', 105, 285, { align: 'center' });
+    doc.text('Office of the Dean - Faculty of Science, University of Kelaniya', 105, 292, { align: 'center' });
 
     return doc;
 };
@@ -196,26 +205,29 @@ export const generateCourseUnitPDF = async (reg) => {
     });
 
     const data = reg.form_data || {};
-
-    // Header (Matching EditFormsSection.jsx template)
-    doc.setFont('times', 'bold');
-    doc.setFontSize(9);
-    doc.text('Application closing date: 17.02.2025', 18, 15);
+    const academicYear = reg.academic_year || reg.academicYear || data.academicYear || '2023/2024';
 
     doc.setFontSize(14);
     doc.text('UNIVERSITY OF KELANIYA - SRI LANKA', 105, 22, { align: 'center' });
     doc.setFontSize(12);
     doc.text('FACULTY OF SCIENCE', 105, 28, { align: 'center' });
-    doc.text(`${reg.academicYear || data.academicYear || '2023/2024'} ACADEMIC YEAR`, 105, 34, { align: 'center' });
-    
+    doc.text(`${academicYear} ACADEMIC YEAR`, 105, 34, { align: 'center' });
+
+    // Instructional Text & Deadline (Top Left)
+    doc.setFont('times', 'bold');
+    doc.setFontSize(9);
+    const closingDate = reg.deadlineDate || data.deadlineDate || 'Not Set';
+    doc.text(`Application closing date: ${closingDate}`, 15, 12);
+
+    doc.setFont('times', 'italic');
+    doc.setFontSize(8);
+    doc.text('(Use block capitals only)', 15, 16);
+
+    doc.setFont('times', 'bold');
     doc.setFontSize(13);
     doc.text('REGISTRATION FORM FOR COURSE UNITS', 105, 42, { align: 'center' });
     const titleWidth = doc.getTextWidth('REGISTRATION FORM FOR COURSE UNITS');
-    doc.line(105 - (titleWidth/2), 43, 105 + (titleWidth/2), 43);
-    
-    doc.setFontSize(9);
-    doc.setFont('times', 'bolditalic');
-    doc.text('(Use block capitals only)', 15, 48);
+    doc.line(105 - (titleWidth / 2), 43, 105 + (titleWidth / 2), 43);
 
     doc.setFont('times', 'normal');
     doc.setFontSize(10);
@@ -227,7 +239,7 @@ export const generateCourseUnitPDF = async (reg) => {
     doc.rect(52, 43, 7, 7); doc.text('I', 55.5, 48, { align: 'center' });
     doc.rect(59, 43, 7, 7); doc.text('M', 62.5, 48, { align: 'center' });
     doc.rect(66, 43, 7, 7); doc.text('/', 69.5, 48, { align: 'center' });
-    
+
     for (let i = 0; i < 8; i++) {
         const x = 73 + (i * 7);
         const val = data[`st_no_cr_${i}`] || '';
@@ -268,7 +280,7 @@ export const generateCourseUnitPDF = async (reg) => {
     doc.text('COURSE UNIT COMBINATION:', 15, 82);
     doc.rect(70, 78, 20, 7);
     doc.setFont('times', 'bold');
-    doc.text(data.course_combo || '', 80, 82, { align: 'center' });
+    doc.text((data.course_combo || '').toUpperCase(), 80, 82, { align: 'center' });
 
     // Course Grids Layout Helper
     const generateGridData = (prefix, rows, cols) => {
@@ -287,27 +299,27 @@ export const generateCourseUnitPDF = async (reg) => {
             for (let c = 0; c < cols; c++) {
                 rowStr += (data[`${prefix}_${r}_${c}`] || '');
             }
-            
+
             // Fallback to structured course list (legacy submissions)
             if (!rowStr.trim() && legacyCourses[r]) {
                 rowStr = legacyCourses[r].course_code || '';
             }
 
-            body.push([rowStr]);
+            body.push([rowStr.toUpperCase()]);
         }
         return body;
     };
 
     // Split Page into two columns for grids
     const midX = 105;
-    
+
     // Left Column: Compulsory
     doc.setFont('times', 'bold');
     doc.setFontSize(9);
     doc.text('COMPULSORY COURSE UNITS', 15, 92);
     doc.setFontSize(8);
     doc.text('SEMESTER 1', 15, 96);
-    
+
     autoTable(doc, {
         startY: 98,
         body: generateGridData('Grid_Comp_S1', 10, 12),
@@ -316,7 +328,7 @@ export const generateCourseUnitPDF = async (reg) => {
         columnStyles: { 0: { cellWidth: 80 } },
         margin: { left: 15 }
     });
-    
+
     doc.setFontSize(9);
     doc.text('CREDITS:', 65, doc.lastAutoTable.finalY + 5);
     doc.rect(80, doc.lastAutoTable.finalY + 1, 15, 6);
@@ -420,20 +432,34 @@ export const generateCourseUnitPDF = async (reg) => {
     const sigY = finalY + 20;
     doc.line(15, sigY, 70, sigY);
     doc.text('DATE', 42.5, sigY + 5, { align: 'center' });
-    doc.text(reg.dateSubmitted || '', 42.5, sigY - 2, { align: 'center' });
+
+    // Display signature_date or fallback to dateSubmitted
+    const displayDate = reg.signature_date ? new Date(reg.signature_date).toLocaleDateString() : (reg.dateSubmitted || '');
+    doc.text(displayDate, 42.5, sigY - 2, { align: 'center' });
 
     doc.line(130, sigY, 195, sigY);
     doc.text('SIGNATURE OF APPLICANT', 162.5, sigY + 5, { align: 'center' });
+
     if (reg.signature) {
-        doc.addImage(reg.signature, 'PNG', 140, sigY - 20, 45, 18);
+        if (reg.signature.startsWith('data:image')) {
+            // Legacy base64 image signature
+            doc.addImage(reg.signature, 'PNG', 140, sigY - 20, 45, 18);
+        } else {
+            // New text-based signature
+            doc.setFont('times', 'bold');
+            doc.setFontSize(12);
+            doc.text(reg.signature, 162.5, sigY - 2, { align: 'center' });
+            doc.setFontSize(10);
+            doc.setFont('times', 'normal');
+        }
     }
 
     doc.setFont('times', 'italic');
     doc.setFontSize(8);
     doc.text('ANY CHANGE TO THE REGISTERED COURSES WILL NOT BE DONE AFTER TWO WEEKS OF THE COMMENCEMENT OF THE SEMESTER.', 15, sigY + 15);
-    
+
     doc.setFont('times', 'normal');
-    doc.text('Office of the Dean - Faculty of Science, University of Kelaniya', 105, 285, { align: 'center' });
+    doc.text('Office of the Dean - Faculty of Science, University of Kelaniya', 105, 292, { align: 'center' });
 
     return doc;
 };
@@ -455,7 +481,8 @@ export const generateMedicalRepeatPDF = async (details) => {
     doc.text(`ACADEMIC YEAR ${details.academic_year || '2023/2024'} - SEMESTER I`, 105, 33, { align: 'center' });
 
     doc.setFontSize(10);
-    doc.text(`Closing date of Application: ${details.deadline || 'N/A'}`, 15, 42);
+    const medClosingDate = details.deadlineDate || details.deadline || 'Not Set';
+    doc.text(`Closing date of Application: ${medClosingDate}`, 15, 42);
 
     // Form Details Section
     doc.setFont('times', 'normal');
@@ -485,11 +512,11 @@ export const generateMedicalRepeatPDF = async (details) => {
     // Courses Table
     doc.setFont('times', 'bold');
     doc.text('05. Course unit applying for:', 15, 78);
-    
+
     autoTable(doc, {
         startY: 82,
         head: [['#', 'Course Code', 'Course Title', 'Results obtained', 'Academic Year']],
-        body: (details.courses || []).map((c, i) => [i + 1, c.course_code, c.course_title, c.results_obtained, c.academic_year]),
+        body: (details.courses || []).map((c, i) => [i + 1, (c.course_code || '').toUpperCase(), c.course_title, c.results_obtained, c.academic_year]),
         theme: 'grid',
         headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center' },
         styles: { font: 'times', fontSize: 9, halign: 'center' },
@@ -503,10 +530,10 @@ export const generateMedicalRepeatPDF = async (details) => {
     doc.setFont('times', 'bold');
     doc.text('06. EVIDENCE & ATTACHMENTS', 15, finalY);
     doc.line(15, finalY + 1, 75, finalY + 1);
-    
+
     doc.setFontSize(10);
     doc.setFont('times', 'normal');
-    
+
     finalY += 10;
     if (details.medical_certificate_url) {
         doc.text('Medical Certificate Attached: YES', 15, finalY);
@@ -544,7 +571,7 @@ export const generateMedicalRepeatPDF = async (details) => {
 
     doc.setFont('times', 'normal');
     doc.setFontSize(8);
-    doc.text('Office of the Dean - Faculty of Science, University of Kelaniya', 105, 285, { align: 'center' });
+    doc.text('Office of the Dean - Faculty of Science, University of Kelaniya', 105, 292, { align: 'center' });
 
     return doc;
 };

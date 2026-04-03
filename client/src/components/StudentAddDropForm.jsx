@@ -9,6 +9,35 @@ const StudentAddDropForm = () => {
     const [dynamicStructure, setDynamicStructure] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const formatDate = (dateString, separator = '-') => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}${separator}${month}${separator}${year}`;
+    };
+
+    const DatePickerField = ({ id, value, onChange, placeholder = "DD/MM/YYYY" }) => {
+        const uniqueId = `date-picker-${id}`;
+        return (
+            <div className="relative w-full">
+                <input
+                    type="text"
+                    readOnly
+                    placeholder={placeholder}
+                    className="h-8 border-b border-dashed border-black w-full text-center focus:bg-blue-50 outline-none font-serif cursor-pointer"
+                    value={value ? formatDate(value, '/') : ''}
+                    onClick={() => document.getElementById(uniqueId).showPicker()}
+                />
+                <input
+                    type="date"
+                    id={uniqueId}
+                    className="absolute opacity-0 pointer-events-none"
+                    value={value || ''}
+                    onChange={(e) => onChange(e.target.value)}
+                />
+            </div>
+        );
+    };
+
     useEffect(() => {
         const loadInitialData = async () => {
             try {
@@ -56,7 +85,8 @@ const StudentAddDropForm = () => {
             setFormData(prev => ({
                 ...prev,
                 st_name: user.name || '',
-                email: user.email || ''
+                email: user.email || '',
+                year: user.level || '1'
             }));
         }
     }, [user]);
@@ -229,13 +259,21 @@ const StudentAddDropForm = () => {
                             <div key={idx} className="flex-1 text-center">
                                 {/* Only enable Applicant Signature */}
                                 {['Signature', 'Date'].some(txt => label === txt) && element.id === 'signatures' ? (
-                                    <input
-                                        type={label === 'Date' ? 'date' : 'text'}
-                                        placeholder={label === 'Signature' ? 'Type Name as Digital Signature' : ''}
-                                        className="h-8 border-b border-dashed border-black w-full text-center focus:bg-blue-50 outline-none font-serif"
-                                        value={formData[`${element.id}_${label}`] || ''}
-                                        onChange={(e) => handleInputChange(`${element.id}_${label}`, e.target.value)}
-                                    />
+                                    label === 'Date' ? (
+                                        <DatePickerField
+                                            id={`${element.id}_${label}`}
+                                            value={formData[`${element.id}_${label}`] || ''}
+                                            onChange={(val) => handleInputChange(`${element.id}_${label}`, val)}
+                                        />
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            placeholder="Type Name as Digital Signature"
+                                            className="h-8 border-b border-dashed border-black w-full text-center focus:bg-blue-50 outline-none font-serif"
+                                            value={formData[`${element.id}_${label}`] || ''}
+                                            onChange={(e) => handleInputChange(`${element.id}_${label}`, e.target.value)}
+                                        />
+                                    )
                                 ) : (
                                     <div className="h-8 border-b border-dashed border-black w-full bg-gray-50"></div>
                                 )}
@@ -337,13 +375,6 @@ const StudentAddDropForm = () => {
                     <h2 className="text-2xl font-bold text-gray-800">Add / Drop Course Request</h2>
                     <p className="text-gray-500 text-sm mt-1">Submit a request to add or drop course units.</p>
                 </div>
-                <button
-                    onClick={handleSubmit}
-                    disabled={submitted}
-                    className={`px-6 py-2 ${submitted ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold rounded-lg shadow-lg flex items-center gap-2 transition-colors`}
-                >
-                    {submitted ? 'Sending...' : 'Submit Request'}
-                </button>
             </div>
 
             <div className="bg-white p-12 shadow-xl border border-gray-200 min-h-screen relative mx-auto w-full max-w-[210mm]">
@@ -354,6 +385,26 @@ const StudentAddDropForm = () => {
                     }
                     return renderFormElement(element);
                 })}
+            </div>
+
+            <div className="mt-12 flex justify-end no-print">
+                <button
+                    onClick={handleSubmit}
+                    disabled={submitted}
+                    className={`px-8 py-3 ${submitted ? 'bg-gray-400' : 'bg-blue-700 hover:bg-blue-800'} text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2 active:scale-95`}
+                >
+                    {submitted ? (
+                        <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Sending...
+                        </>
+                    ) : (
+                        <>
+                            <span>➕</span>
+                            Submit Request
+                        </>
+                    )}
+                </button>
             </div>
         </div>
     );
