@@ -164,12 +164,12 @@ const FacultyStaffDashboard = () => {
 
     const menuItems = [
         { name: 'Home', icon: <Icons.Dashboard />, label: 'Dashboard' },
+        { name: 'Course unit list', icon: <Icons.Book />, label: 'Course Unit List' },
         { name: 'Timetable', icon: <Icons.Calendar />, label: 'Exam Timetable' },
         { name: 'Hall Attendants Allocation & Final Timetable', icon: <Icons.Users />, label: 'Staff Allocation' },
         { name: 'Generate Reports', icon: <Icons.Report />, label: 'Generate Reports' },
         { name: 'Add/Drop Forms', icon: <Icons.Approvals />, label: 'Add/Drop Forms' },
         { name: 'Academic Course Units', icon: <Icons.Book />, label: 'Academic Course Units' },
-        { name: 'Course unit list', icon: <Icons.Book />, label: 'Course Unit List' },
         { name: 'Medical/Repeat Forms', icon: <Icons.Alert />, label: 'Medical/Repeat' },
         { name: 'Deadlines', icon: <Icons.Activity />, label: 'Manage Deadlines' },
         { name: 'Edit Forms', icon: <Icons.Edit />, label: 'Edit Forms' },
