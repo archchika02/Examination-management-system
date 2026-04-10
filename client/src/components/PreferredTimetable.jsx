@@ -481,11 +481,11 @@ const PreferredTimetable = () => {
 
                         {submitStatus && (
                             <div className={`px-4 py-3 rounded-xl flex items-center gap-2 border shadow-sm animate-fade-in
-                                ${submitStatus.includes('success')
+                                ${submitStatus.toLowerCase().includes('succes')
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                                     : 'bg-rose-50 text-rose-700 border-rose-100'}
                             `}>
-                                {submitStatus.includes('success') ? <Icons.CheckCircle /> : <Icons.Info />}
+                                {submitStatus.toLowerCase().includes('succes') ? <Icons.CheckCircle /> : <Icons.Info />}
                                 <span className="text-[10px] font-black uppercase tracking-widest">{submitStatus}</span>
                             </div>
                         )}

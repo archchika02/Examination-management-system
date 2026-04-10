@@ -71,8 +71,11 @@ const AddDropApproval = () => {
                                 if (req.status === 'Pending Dean') tabStatus = 'Pending';
                                 else if (req.status === 'Approved') tabStatus = 'Approved';
                                 else if (['Rejected by Dean', 'Rejected'].includes(req.status)) tabStatus = 'Rejected';
-                            } else if (role === 'FacultyStaff') {
-                                if (req.status === 'Approved') tabStatus = 'Approved';
+                            } else if (role === 'FacultyStaff' || role === 'Faculty Staff') {
+                                if (req.status.includes('Pending')) tabStatus = 'Pending';
+                                else if (req.status === 'Approved') tabStatus = 'Approved';
+                                else if (req.status.includes('Rejected')) tabStatus = 'Rejected';
+                                else tabStatus = req.status; // Fallback
                             }
 
                             return {
@@ -301,7 +304,7 @@ const AddDropApproval = () => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            {request.tabStatus === 'Pending' ? (
+                                            {request.tabStatus === 'Pending' && user?.role !== 'Faculty Staff' && user?.role !== 'FacultyStaff' ? (
                                                 <div className="flex items-center justify-end space-x-2">
                                                     <button
                                                         onClick={() => handleApprove(request.id)}
@@ -318,7 +321,9 @@ const AddDropApproval = () => {
                                                 </div>
                                             ) : (
                                                 <span className="text-slate-400 text-[10px] font-bold italic uppercase tracking-wider pr-4">
-                                                    Record Archived
+                                                    {(user?.role === 'Faculty Staff' || user?.role === 'FacultyStaff') && request.tabStatus === 'Pending' 
+                                                        ? 'AWAITING APPROVAL' 
+                                                        : 'Record Archived'}
                                                 </span>
                                             )}
                                         </td>

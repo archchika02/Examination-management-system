@@ -34,6 +34,9 @@ const Icons = {
     Calendar: () => (
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg>
     ),
+    Check: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+    ),
     X: () => (
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" x2="6" y1="6" y2="18" /><line x1="6" x2="18" y1="6" y2="18" /></svg>
     )
@@ -58,13 +61,27 @@ const HallAttendantDashboard = () => {
         const refresh = async () => {
             if (!user?.user_id) return;
             try {
+                // Fetch Deadline unread count
                 const res = await fetch(
                     `http://localhost:5000/api/deadlines/unread-count?userId=${user.user_id}&role=${encodeURIComponent('Hall Attendant')}`
                 );
+
+                // Fetch Activity unread count
+                const activityRes = await fetch(
+                    `http://localhost:5000/api/dashboard/activities/unread-count?userId=${user.user_id}`
+                );
+
+                let totalCount = 0;
                 if (res.ok) {
                     const { count } = await res.json();
-                    setUnreadCount(count);
+                    totalCount += count;
                 }
+                if (activityRes.ok) {
+                    const { count } = await activityRes.json();
+                    totalCount += count;
+                }
+
+                setUnreadCount(totalCount);
             } catch { /* ignore */ }
         };
         refresh();
@@ -560,7 +577,7 @@ const HallAttendantDashboard = () => {
                             </div>
 
                             <div className="space-y-3">
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Reason for Adjustment</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Reason for Concern</label>
                                 <textarea
                                     className="w-full px-6 py-4 bg-slate-50 border-none rounded-3xl focus:ring-2 focus:ring-blue-500/20 transition-all font-bold text-slate-900 placeholder:text-slate-300 text-sm resize-none"
                                     rows="4"

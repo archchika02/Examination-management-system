@@ -158,7 +158,7 @@ router.post('/faculty-submit', async (req, res) => {
             // Parallel sync with batch_configurations to store chosen dates and academic year
             await connection.execute(
                 'UPDATE batch_configurations SET preferred_dates = ?, academic_year = ?, status = ? WHERE course_code = ?',
-                [JSON.stringify([exam.date]), academicYear, 'SUBMITTED', exam.code]
+                [JSON.stringify([exam.date]), academicYear, 'SENT', exam.code]
             );
         }
 
@@ -206,24 +206,24 @@ router.get('/final-timetables', async (req, res) => {
                     SELECT COUNT(DISTINCT cur.user_id) 
                     FROM registered_course_units rcu 
                     JOIN course_unit_registration_headers cur ON rcu.header_id = cur.id 
-                    WHERE REPLACE(rcu.course_code, ' ', '') = REPLACE(t.course_code, ' ', '') AND cur.status = 'Approved'
+                    WHERE REPLACE(rcu.course_code, ' ', '') = REPLACE(t.course_code, ' ', '') AND cur.status = 'Approved' AND cur.academic_year = t.academic_year
                 ) + (
                     SELECT COUNT(DISTINCT adr.user_id) 
                     FROM add_drop_requested_courses adc 
                     JOIN add_drop_request_headers adr ON adc.header_id = adr.id 
-                    WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(t.course_code, ' ', '') AND adc.action = 'Add' AND adr.status = 'Approved'
+                    WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(t.course_code, ' ', '') AND adc.action = 'Add' AND adr.status = 'Approved' AND adr.academic_year = t.academic_year
                 ) - (
                     SELECT COUNT(DISTINCT adr.user_id) 
                     FROM add_drop_requested_courses adc 
                     JOIN add_drop_request_headers adr ON adc.header_id = adr.id 
-                    WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(t.course_code, ' ', '') AND adc.action = 'Drop' AND adr.status = 'Approved'
+                    WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(t.course_code, ' ', '') AND adc.action = 'Drop' AND adr.status = 'Approved' AND adr.academic_year = t.academic_year
                 )
             ) AS stdNonRepeat,
             (
                 SELECT COUNT(DISTINCT mrr.user_id) 
                 FROM medical_repeat_requested_courses mrc 
                 JOIN medical_repeat_request_headers mrr ON mrc.header_id = mrr.id 
-                WHERE REPLACE(mrc.course_code, ' ', '') = REPLACE(t.course_code, ' ', '') AND mrr.status = 'Approved'
+                WHERE REPLACE(mrc.course_code, ' ', '') = REPLACE(t.course_code, ' ', '') AND mrr.status = 'Approved' AND mrr.academic_year = t.academic_year
             ) AS stdRepeat
             FROM exam_timetables t 
             LEFT JOIN exam_slots s ON t.timetable_id = s.timetable_id
@@ -364,35 +364,73 @@ router.put('/forms/:formName', async (req, res) => {
 // --- END FORM CONFIGURATION ENDPOINTS ---
 
 // Fetch raw active student enrollments per course (used for frontend real-time conflict checking)
+// Refined to only include students from the Correct Staggered Academic Year for each level
 router.get('/course-enrollments', async (req, res) => {
     try {
+        // 1. Get Global Current Year
+        const [gtc] = await pool.execute('SELECT academic_year FROM global_timetable_config LIMIT 1');
+        const baseYear = gtc.length > 0 ? gtc[0].academic_year : '2024/2025';
+
+        // 2. Fetch all enrollments with Level and Year filtering
+        // Logic: Include Regular batch students (staggered) OR Medical/Repeat/Add students (current session)
         const query = `
-            SELECT 
-                REPLACE(course_code, ' ', '') AS course_code,
-                user_id 
-            FROM (
-                SELECT cur.user_id, rcu.course_code
+            WITH BaseYear AS (
+                SELECT academic_year AS base_year FROM global_timetable_config LIMIT 1
+            ),
+            CourseMetadata AS (
+                SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(level) as level
+                FROM modules
+                GROUP BY REPLACE(course_code, ' ', '')
+            ),
+            AllEnrollments AS (
+                -- Regular registrations (Academic Course Unit Form)
+                SELECT cur.user_id, rcu.course_code, cur.academic_year, 'Academic' as source
                 FROM registered_course_units rcu 
                 JOIN course_unit_registration_headers cur ON rcu.header_id = cur.id 
                 WHERE cur.status = 'Approved'
-                UNION
-                SELECT adr.user_id, adc.course_code
+                UNION ALL
+                -- Add/Drop registrations (Adjustment to Academic Form)
+                SELECT adr.user_id, adc.course_code, adr.academic_year, 'Academic' as source
                 FROM add_drop_requested_courses adc 
                 JOIN add_drop_request_headers adr ON adc.header_id = adr.id 
                 WHERE adc.action = 'Add' AND adr.status = 'Approved'
-                UNION
-                SELECT mrr.user_id, mrc.course_code
+                UNION ALL
+                -- Medical/Repeat registrations (Medical/Repeat Form)
+                SELECT mrr.user_id, mrc.course_code, mrr.academic_year, 'Medical/Repeat' as source
                 FROM medical_repeat_requested_courses mrc 
                 JOIN medical_repeat_request_headers mrr ON mrc.header_id = mrr.id 
                 WHERE mrr.status = 'Approved'
-            ) AS AllEnrollments
-            WHERE user_id NOT IN (
+            )
+            SELECT 
+                REPLACE(ae.course_code, ' ', '') AS course_code,
+                ae.user_id 
+            FROM AllEnrollments ae
+            INNER JOIN CourseMetadata m ON REPLACE(ae.course_code, ' ', '') = m.norm_code
+            CROSS JOIN BaseYear byr
+            WHERE ae.user_id NOT IN (
+                -- Exclude dropped courses specifically for the same session/batch the student is in
                 SELECT adr.user_id 
                 FROM add_drop_requested_courses adc 
                 JOIN add_drop_request_headers adr ON adc.header_id = adr.id 
-                WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(AllEnrollments.course_code, ' ', '') 
+                WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(ae.course_code, ' ', '') 
                   AND adc.action = 'Drop' 
                   AND adr.status = 'Approved'
+                  AND adr.academic_year = ae.academic_year
+            )
+            AND (
+                -- 1. Academic Students: Must match the staggered intake year for that module's level
+                -- OR match the current global base year (for current session registrations)
+                (ae.source = 'Academic' AND (
+                    ae.academic_year = CONCAT(
+                        CAST(SUBSTRING_INDEX(byr.base_year, '/', 1) AS SIGNED) - (m.level - 1),
+                        '/',
+                        CAST(SUBSTRING_INDEX(byr.base_year, '/', -1) AS SIGNED) - (m.level - 1)
+                    )
+                    OR ae.academic_year = byr.base_year
+                ))
+                OR
+                -- 2. Medical/Repeat Students: Must match the CURRENT active year as session year
+                (ae.source = 'Medical/Repeat' AND ae.academic_year = byr.base_year)
             )
         `;
 
@@ -475,40 +513,65 @@ router.post('/save-exam-slots', async (req, res) => {
                         // To keep the query performant and reliable, we'll check the combined pool of active enrollments.
                         // For a perfectly accurate "active" list, we subtract dropped users:
                         const accurateOverlapQuery = `
-                            WITH ActiveUsersA AS (
-                                SELECT user_id FROM (
-                                    SELECT cur.user_id FROM registered_course_units rcu JOIN course_unit_registration_headers cur ON rcu.header_id = cur.id WHERE REPLACE(rcu.course_code, ' ', '') = REPLACE(?, ' ', '') AND cur.status = 'Approved'
-                                    UNION
-                                    SELECT adr.user_id FROM add_drop_requested_courses adc JOIN add_drop_request_headers adr ON adc.header_id = adr.id WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(?, ' ', '') AND adc.action = 'Add' AND adr.status = 'Approved'
-                                    UNION
-                                    SELECT mrr.user_id FROM medical_repeat_requested_courses mrc JOIN medical_repeat_request_headers mrr ON mrc.header_id = mrr.id WHERE REPLACE(mrc.course_code, ' ', '') = REPLACE(?, ' ', '') AND mrr.status = 'Approved'
-                                ) AS PoolA
-                                WHERE user_id NOT IN (
-                                    SELECT adr.user_id FROM add_drop_requested_courses adc JOIN add_drop_request_headers adr ON adc.header_id = adr.id WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(?, ' ', '') AND adc.action = 'Drop' AND adr.status = 'Approved'
-                                )
+                            WITH BaseYear AS (
+                                SELECT academic_year AS base_year FROM global_timetable_config LIMIT 1
                             ),
-                            ActiveUsersB AS (
-                                SELECT user_id FROM (
-                                    SELECT cur.user_id FROM registered_course_units rcu JOIN course_unit_registration_headers cur ON rcu.header_id = cur.id WHERE REPLACE(rcu.course_code, ' ', '') = REPLACE(?, ' ', '') AND cur.status = 'Approved'
-                                    UNION
-                                    SELECT adr.user_id FROM add_drop_requested_courses adc JOIN add_drop_request_headers adr ON adc.header_id = adr.id WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(?, ' ', '') AND adc.action = 'Add' AND adr.status = 'Approved'
-                                    UNION
-                                    SELECT adr.user_id FROM add_drop_requested_courses adc JOIN add_drop_request_headers adr ON adc.header_id = adr.id WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(?, ' ', '') AND adc.action = 'Add' AND adr.status = 'Approved'
-                                    UNION
-                                    SELECT mrr.user_id FROM medical_repeat_requested_courses mrc JOIN medical_repeat_request_headers mrr ON mrc.header_id = mrr.id WHERE REPLACE(mrc.course_code, ' ', '') = REPLACE(?, ' ', '') AND mrr.status = 'Approved'
-                                ) AS PoolB
-                                WHERE user_id NOT IN (
-                                    SELECT adr.user_id FROM add_drop_requested_courses adc JOIN add_drop_request_headers adr ON adc.header_id = adr.id WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(?, ' ', '') AND adc.action = 'Drop' AND adr.status = 'Approved'
+                            CourseMetadata AS (
+                                SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(level) as level
+                                FROM modules
+                                GROUP BY REPLACE(course_code, ' ', '')
+                            ),
+                            ActiveUsers AS (
+                                SELECT ae.user_id, m.norm_code
+                                FROM (
+                                    -- Regular registrations tagging (Academic Form)
+                                    SELECT cur.user_id, rcu.course_code, cur.academic_year, 'Academic' as source
+                                    FROM registered_course_units rcu 
+                                    JOIN course_unit_registration_headers cur ON rcu.header_id = cur.id 
+                                    WHERE cur.status = 'Approved'
+                                    UNION ALL
+                                    -- Add/Drop registrations tagging (Academic Form Adjustment)
+                                    SELECT adr.user_id, adc.course_code, adr.academic_year, 'Academic' as source
+                                    FROM add_drop_requested_courses adc 
+                                    JOIN add_drop_request_headers adr ON adc.header_id = adr.id 
+                                    WHERE adc.action = 'Add' AND adr.status = 'Approved'
+                                    UNION ALL
+                                    -- Medical/Repeat registrations tagging (Medical/Repeat Form)
+                                    SELECT mrr.user_id, mrc.course_code, mrr.academic_year, 'Medical/Repeat' as source
+                                    FROM medical_repeat_requested_courses mrc 
+                                    JOIN medical_repeat_request_headers mrr ON mrc.header_id = mrr.id 
+                                    WHERE mrr.status = 'Approved'
+                                ) AS ae
+                                INNER JOIN CourseMetadata m ON REPLACE(ae.course_code, ' ', '') = m.norm_code
+                                CROSS JOIN BaseYear byr
+                                WHERE ae.user_id NOT IN (
+                                    -- Subtract Dropped Students
+                                    SELECT adr.user_id FROM add_drop_requested_courses adc JOIN add_drop_request_headers adr ON adc.header_id = adr.id 
+                                    WHERE REPLACE(adc.course_code, ' ', '') = REPLACE(ae.course_code, ' ', '') AND adc.action = 'Drop' AND adr.status = 'Approved' AND adr.academic_year = ae.academic_year
+                                )
+                                AND (
+                                    -- 1. Academic Students: Staggered batch
+                                    -- OR match the current global base year (for current session registrations)
+                                    (ae.source = 'Academic' AND (
+                                        ae.academic_year = CONCAT(
+                                            CAST(SUBSTRING_INDEX(byr.base_year, '/', 1) AS SIGNED) - (m.level - 1),
+                                            '/',
+                                            CAST(SUBSTRING_INDEX(byr.base_year, '/', -1) AS SIGNED) - (m.level - 1)
+                                        )
+                                        OR ae.academic_year = byr.base_year
+                                    ))
+                                    OR
+                                    -- 2. Medical/Repeat Students: Current session
+                                    (ae.source = 'Medical/Repeat' AND ae.academic_year = byr.base_year)
                                 )
                             )
-                            SELECT COUNT(*) as overlap_count FROM ActiveUsersA JOIN ActiveUsersB ON ActiveUsersA.user_id = ActiveUsersB.user_id
+                            SELECT COUNT(*) as overlap_count 
+                            FROM ActiveUsers a
+                            JOIN ActiveUsers b ON a.user_id = b.user_id
+                            WHERE a.norm_code = REPLACE(?, ' ', '') AND b.norm_code = REPLACE(?, ' ', '')
                         `;
 
-                        const [overlapResult] = await connection.execute(accurateOverlapQuery, [
-                            slotA.code, slotA.code, slotA.code, slotA.code, // Params for A
-                            slotB.code, slotB.code, slotB.code, slotB.code  // Params for B
-                        ]);
-
+                        const [overlapResult] = await connection.execute(accurateOverlapQuery, [slotA.code, slotB.code]);
                         const overlapCount = overlapResult[0].overlap_count;
 
                         if (overlapCount > 0) {
@@ -593,14 +656,18 @@ router.get('/allocations-dashboard', async (req, res) => {
             FROM exam_timetables t
             JOIN exam_slots s ON t.timetable_id = s.timetable_id
             LEFT JOIN (
-                SELECT course_code, MAX(level) as level
+                SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(level) as level
                 FROM modules
-                GROUP BY course_code
-            ) ml ON REPLACE(t.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+                GROUP BY REPLACE(course_code, ' ', '')
+            ) ml ON REPLACE(t.course_code, ' ', '') = ml.norm_code
             CROSS JOIN (
                 SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
             ) gtc
-            LEFT JOIN modules m_map ON REPLACE(t.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+            LEFT JOIN (
+                SELECT REPLACE(course_code, ' ', '') as norm_code, academic_year, MAX(title) as title
+                FROM modules
+                GROUP BY REPLACE(course_code, ' ', ''), academic_year
+            ) m_map ON REPLACE(t.course_code, ' ', '') = m_map.norm_code
                 AND m_map.academic_year = (
                     SELECT CONCAT(
                         CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
@@ -609,15 +676,18 @@ router.get('/allocations-dashboard', async (req, res) => {
                     )
                 )
             LEFT JOIN (
-                SELECT m1.course_code, m1.title, m1.academic_year
-                FROM modules m1
-                WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
-            ) m_latest ON REPLACE(t.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
-            LEFT JOIN examiner_appointments ea 
-                ON REPLACE(t.course_code, ' ', '') = REPLACE(ea.course_code, ' ', '') 
+                SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(title) as title
+                FROM modules
+                GROUP BY REPLACE(course_code, ' ', '')
+            ) m_latest ON REPLACE(t.course_code, ' ', '') = m_latest.norm_code
+            LEFT JOIN (
+                SELECT REPLACE(course_code, ' ', '') as norm_code, academic_year, MAX(user_id) as user_id
+                FROM examiner_appointments
+                WHERE examiner_role = 'Examiner 1' AND status = 'Active'
+                GROUP BY REPLACE(course_code, ' ', ''), academic_year
+            ) ea 
+                ON REPLACE(t.course_code, ' ', '') = ea.norm_code 
                 AND t.academic_year = ea.academic_year 
-                AND ea.examiner_role = 'Examiner 1' 
-                AND ea.status = 'Active'
             WHERE t.is_submitted = TRUE AND s.start_time IS NOT NULL AND s.end_time IS NOT NULL
             ORDER BY t.date ASC, s.start_time ASC
         `;
@@ -872,14 +942,18 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                 JOIN exam_timetables et ON a.exam_id = et.timetable_id
                 JOIN exam_slots s ON et.timetable_id = s.timetable_id
                 LEFT JOIN (
-                    SELECT course_code, MAX(level) as level
+                    SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(level) as level
                     FROM modules
-                    GROUP BY course_code
-                ) ml ON REPLACE(et.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+                    GROUP BY REPLACE(course_code, ' ', '')
+                ) ml ON REPLACE(et.course_code, ' ', '') = ml.norm_code
                 CROSS JOIN (
                     SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
                 ) gtc
-                LEFT JOIN modules m_map ON REPLACE(et.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+                LEFT JOIN (
+                    SELECT REPLACE(course_code, ' ', '') as norm_code, academic_year, MAX(title) as title
+                    FROM modules
+                    GROUP BY REPLACE(course_code, ' ', ''), academic_year
+                ) m_map ON REPLACE(et.course_code, ' ', '') = m_map.norm_code
                     AND m_map.academic_year = (
                         SELECT CONCAT(
                             CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
@@ -888,10 +962,10 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                         )
                     )
                 LEFT JOIN (
-                    SELECT m1.course_code, m1.title, m1.academic_year
-                    FROM modules m1
-                    WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
-                ) m_latest ON REPLACE(et.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
+                    SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(title) as title
+                    FROM modules
+                    GROUP BY REPLACE(course_code, ' ', '')
+                ) m_latest ON REPLACE(et.course_code, ' ', '') = m_latest.norm_code
                 WHERE a.is_published_to_students = 1
                 AND (
                     /* Registered Course Units Match */
@@ -955,14 +1029,18 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                 JOIN exam_timetables et ON a.exam_id = et.timetable_id
                 JOIN exam_slots s ON et.timetable_id = s.timetable_id
                 LEFT JOIN (
-                    SELECT course_code, MAX(level) as level
+                    SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(level) as level
                     FROM modules
-                    GROUP BY course_code
-                ) ml ON REPLACE(et.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+                    GROUP BY REPLACE(course_code, ' ', '')
+                ) ml ON REPLACE(et.course_code, ' ', '') = ml.norm_code
                 CROSS JOIN (
                     SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
                 ) gtc
-                LEFT JOIN modules m_map ON REPLACE(et.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+                LEFT JOIN (
+                    SELECT REPLACE(course_code, ' ', '') as norm_code, academic_year, MAX(title) as title
+                    FROM modules
+                    GROUP BY REPLACE(course_code, ' ', ''), academic_year
+                ) m_map ON REPLACE(et.course_code, ' ', '') = m_map.norm_code
                     AND m_map.academic_year = (
                         SELECT CONCAT(
                             CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
@@ -971,10 +1049,10 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                         )
                     )
                 LEFT JOIN (
-                    SELECT m1.course_code, m1.title, m1.academic_year
-                    FROM modules m1
-                    WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
-                ) m_latest ON REPLACE(et.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
+                    SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(title) as title
+                    FROM modules
+                    GROUP BY REPLACE(course_code, ' ', '')
+                ) m_latest ON REPLACE(et.course_code, ' ', '') = m_latest.norm_code
                 WHERE a.is_published = 1
                 AND (
                     a.supervisor_id = ? 
@@ -1083,12 +1161,15 @@ router.post('/report-concern', async (req, res) => {
             const [reporter] = await connection.execute('SELECT name FROM users WHERE user_id = ?', [sId]);
             const reporterName = reporter.length > 0 ? reporter[0].name : 'A staff member';
 
-            // Notify all Academic Supervisors
-            const [supervisors] = await connection.execute('SELECT user_id FROM users WHERE role = ?', ['AcademicSupervisor']);
-            for (const supervisor of supervisors) {
+            // Notify all Academic Supervisors and Faculty Staff
+            const [staffToNotify] = await connection.execute(
+                'SELECT user_id FROM users WHERE role = ? OR role = ?',
+                ['AcademicSupervisor', 'FacultyStaff']
+            );
+            for (const staff of staffToNotify) {
                 await connection.execute(
                     'INSERT INTO activities (user_id, description, type) VALUES (?, ?, ?)',
-                    [supervisor.user_id, `${reporterName} reported a concern: ${rsn}`, 'notification']
+                    [staff.user_id, `${reporterName} reported a concern: ${rsn}`, 'notification']
                 );
             }
         }
@@ -1293,13 +1374,10 @@ router.get('/my-concerns/:userId', async (req, res) => {
             JOIN exam_timetables et ON a.exam_id = et.timetable_id
             JOIN exam_slots s ON et.timetable_id = s.timetable_id
             LEFT JOIN (
-                SELECT m1.course_code, m1.title, m1.academic_year
-                FROM modules m1
-                WHERE m1.academic_year = (
-                    SELECT MAX(m2.academic_year) FROM modules m2 
-                    WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', '') 
-                )
-            ) c2 ON REPLACE(et.course_code, ' ', '') = REPLACE(c2.course_code, ' ', '')
+                SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(title) as title
+                FROM modules
+                GROUP BY REPLACE(course_code, ' ', '')
+            ) c2 ON REPLACE(et.course_code, ' ', '') = c2.norm_code
             LEFT JOIN users u2 ON c.replacement_staff_id = u2.user_id
             WHERE c.staff_id = ?
             ORDER BY c.created_at DESC
@@ -1366,7 +1444,11 @@ router.get('/examiner-appointments', async (req, res) => {
                 a.status,
                 c.title as courseTitle
             FROM examiner_appointments a
-            LEFT JOIN modules c ON a.course_code = c.course_code
+            LEFT JOIN (
+                SELECT course_code, MAX(title) as title
+                FROM modules
+                GROUP BY course_code
+            ) c ON a.course_code = c.course_code
         `;
         const [rows] = await pool.query(query);
         const formatted = rows.map(row => ({
@@ -1504,14 +1586,18 @@ router.get('/faculty-attendant-allocations', async (req, res) => {
             JOIN exam_timetables et ON a.exam_id = et.timetable_id
             JOIN exam_slots s ON et.timetable_id = s.timetable_id
             LEFT JOIN (
-                SELECT course_code, MAX(level) as level
+                SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(level) as level
                 FROM modules
-                GROUP BY course_code
-            ) ml ON REPLACE(et.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+                GROUP BY REPLACE(course_code, ' ', '')
+            ) ml ON REPLACE(et.course_code, ' ', '') = ml.norm_code
             CROSS JOIN (
                 SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
             ) gtc
-            LEFT JOIN modules m_map ON REPLACE(et.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+            LEFT JOIN (
+                SELECT REPLACE(course_code, ' ', '') as norm_code, academic_year, MAX(title) as title
+                FROM modules
+                GROUP BY REPLACE(course_code, ' ', ''), academic_year
+            ) m_map ON REPLACE(et.course_code, ' ', '') = m_map.norm_code
                 AND m_map.academic_year = (
                     SELECT CONCAT(
                         CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
@@ -1520,10 +1606,10 @@ router.get('/faculty-attendant-allocations', async (req, res) => {
                     )
                 )
             LEFT JOIN (
-                SELECT m1.course_code, m1.title, m1.academic_year
-                FROM modules m1
-                WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
-            ) m_latest ON REPLACE(et.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
+                SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(title) as title
+                FROM modules
+                GROUP BY REPLACE(course_code, ' ', '')
+            ) m_latest ON REPLACE(et.course_code, ' ', '') = m_latest.norm_code
             LEFT JOIN users u_sup ON a.supervisor_id = u_sup.user_id
             WHERE a.is_submitted_to_faculty IN (1, 2)
             ORDER BY et.date ASC, s.start_time ASC
@@ -1676,14 +1762,18 @@ router.get('/attendant-published-exams', async (req, res) => {
             JOIN exam_timetables et ON a.exam_id = et.timetable_id
             LEFT JOIN exam_slots s ON et.timetable_id = s.timetable_id
             LEFT JOIN (
-                SELECT course_code, MAX(level) as level
+                SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(level) as level
                 FROM modules
-                GROUP BY course_code
-            ) ml ON REPLACE(et.course_code, ' ', '') = REPLACE(ml.course_code, ' ', '')
+                GROUP BY REPLACE(course_code, ' ', '')
+            ) ml ON REPLACE(et.course_code, ' ', '') = ml.norm_code
             CROSS JOIN (
                 SELECT academic_year as base_year FROM global_timetable_config LIMIT 1
             ) gtc
-            LEFT JOIN modules m_map ON REPLACE(et.course_code, ' ', '') = REPLACE(m_map.course_code, ' ', '')
+            LEFT JOIN (
+                SELECT REPLACE(course_code, ' ', '') as norm_code, academic_year, MAX(title) as title
+                FROM modules
+                GROUP BY REPLACE(course_code, ' ', ''), academic_year
+            ) m_map ON REPLACE(et.course_code, ' ', '') = m_map.norm_code
                 AND m_map.academic_year = (
                     SELECT CONCAT(
                         CAST(SUBSTRING_INDEX(gtc.base_year, '/', 1) AS SIGNED) - (ml.level - 1),
@@ -1692,10 +1782,10 @@ router.get('/attendant-published-exams', async (req, res) => {
                     )
                 )
             LEFT JOIN (
-                SELECT m1.course_code, m1.title, m1.academic_year
-                FROM modules m1
-                WHERE m1.academic_year = (SELECT MAX(m2.academic_year) FROM modules m2 WHERE REPLACE(m2.course_code, ' ', '') = REPLACE(m1.course_code, ' ', ''))
-            ) m_latest ON REPLACE(et.course_code, ' ', '') = REPLACE(m_latest.course_code, ' ', '')
+                SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(title) as title
+                FROM modules
+                GROUP BY REPLACE(course_code, ' ', '')
+            ) m_latest ON REPLACE(et.course_code, ' ', '') = m_latest.norm_code
             LEFT JOIN users u_sup ON a.supervisor_id = u_sup.user_id
             WHERE eda.attendant_id = ? AND eda.is_published = 1
             ORDER BY et.date ASC, s.start_time ASC

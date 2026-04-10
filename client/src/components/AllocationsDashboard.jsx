@@ -617,29 +617,41 @@ const AllocationsDashboard = () => {
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                        <button
-                            id="save-draft-btn"
-                            onClick={handleSaveDraft}
-                            className="px-6 py-3 border-2 border-slate-200 rounded-xl text-xs font-black text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all w-36 uppercase tracking-widest active:scale-95"
-                        >
-                            Save Draft
-                        </button>
-                        <button
-                            onClick={handleOpenConcerns}
-                            className="group relative px-6 py-3 bg-white border-2 border-amber-100 rounded-xl text-xs font-black text-amber-700 hover:bg-amber-50 hover:border-amber-200 transition-all flex flex-col items-center justify-center active:scale-95"
-                        >
-                            <div className="flex items-center gap-2">
-                                <Icons.MessageSquare />
-                                <span>STAFF CONCERNS</span>
-                            </div>
-                            {departmentConcerns.filter(c => c.status === 'Pending').length > 0 && (
-                                <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[9px] font-black px-2 py-1 rounded-full shadow-lg border-2 border-white animate-bounce">
-                                    {departmentConcerns.filter(c => c.status === 'Pending').length}
+                <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-end">
+                    <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-1.5 ml-1">
+                            <p className="text-red-600 text-[10px] font-black uppercase tracking-widest animate-pulse flex items-center gap-1.5">
+                                <span className="text-sm">⚠️</span>
+                                Click the save draft button before publish the personalized timetable
+                            </p>
+                            <p className="text-red-600 text-[10px] font-black uppercase tracking-widest animate-pulse flex items-center gap-1.5">
+                                <span className="text-sm">⚠️</span>
+                                After finalizing the timetable click the submit to faculty button
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button
+                                id="save-draft-btn"
+                                onClick={handleSaveDraft}
+                                className="px-6 py-3 border-2 border-slate-200 rounded-xl text-xs font-black text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all w-36 uppercase tracking-widest active:scale-95"
+                            >
+                                Save Draft
+                            </button>
+                            <button
+                                onClick={handleOpenConcerns}
+                                className="group relative px-6 py-3 bg-white border-2 border-amber-100 rounded-xl text-xs font-black text-amber-700 hover:bg-amber-50 hover:border-amber-200 transition-all flex flex-col items-center justify-center active:scale-95"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Icons.MessageSquare />
+                                    <span>STAFF CONCERNS</span>
                                 </div>
-                            )}
-                        </button>
+                                {departmentConcerns.filter(c => c.status === 'Pending').length > 0 && (
+                                    <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[9px] font-black px-2 py-1 rounded-full shadow-lg border-2 border-white animate-bounce">
+                                        {departmentConcerns.filter(c => c.status === 'Pending').length}
+                                    </div>
+                                )}
+                            </button>
+                        </div>
                     </div>
                     <button
                         id="submit-to-faculty-btn"

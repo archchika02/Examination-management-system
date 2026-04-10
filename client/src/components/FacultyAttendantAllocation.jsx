@@ -521,29 +521,41 @@ const FacultyAttendantAllocation = () => {
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
-                    <div className="flex space-x-3">
-                        <button
-                            id="save-draft-btn"
-                            onClick={handleSaveDraft}
-                            className="px-6 py-2 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors w-32"
-                        >
-                            Save Draft
-                        </button>
-                        <button
-                            id="publish-btn"
-                            onClick={handlePublish}
-                            className="px-6 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all shadow-sm"
-                        >
-                            Publish Personalized Timetable
-                        </button>
-                        <button
-                            id="publish-students-btn"
-                            onClick={handlePublishToStudents}
-                            className="px-6 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-bold hover:bg-emerald-100 transition-all shadow-sm"
-                        >
-                            Publish timetables to Students
-                        </button>
+                <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-end">
+                    <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-1.5 ml-1">
+                            <p className="text-red-600 text-[10px] font-black uppercase tracking-widest animate-pulse flex items-center gap-1.5">
+                                <span className="text-sm">⚠️</span>
+                                Click the save draft button before publish the personalized timetable
+                            </p>
+                            <p className="text-red-600 text-[10px] font-black uppercase tracking-widest animate-pulse flex items-center gap-1.5">
+                                <span className="text-sm">⚠️</span>
+                                Click the submit to academic supervisor button after finalized the timetable
+                            </p>
+                        </div>
+                        <div className="flex space-x-3">
+                            <button
+                                id="save-draft-btn"
+                                onClick={handleSaveDraft}
+                                className="px-6 py-2 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors w-32"
+                            >
+                                Save Draft
+                            </button>
+                            <button
+                                id="publish-btn"
+                                onClick={handlePublish}
+                                className="px-6 py-2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all shadow-sm"
+                            >
+                                Publish Personalized Timetable
+                            </button>
+                            <button
+                                id="publish-students-btn"
+                                onClick={handlePublishToStudents}
+                                className="px-6 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-bold hover:bg-emerald-100 transition-all shadow-sm"
+                            >
+                                Publish timetables to Students
+                            </button>
+                        </div>
                     </div>
                     <button
                         id="submit-to-as-btn"

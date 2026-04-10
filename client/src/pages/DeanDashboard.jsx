@@ -587,17 +587,6 @@ const DeanDashboard = () => {
                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Faculty Dean Portal</p>
                         </div>
 
-                        {/* Integrated Stats in Header */}
-                        <div className="hidden md:flex items-center gap-4 pl-6 border-l border-slate-200">
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Queue:</span>
-                                <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-bold">{stats.pendingDeanAddDrop + stats.pendingFacultyStaff}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Alerts:</span>
-                                <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded text-[10px] font-bold">{unreadCount}</span>
-                            </div>
-                        </div>
                     </div>
 
                     <div className="flex items-center gap-6">
