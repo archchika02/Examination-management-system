@@ -485,8 +485,7 @@ const TimetableConfiguration = () => {
                                         value={academicYear}
                                         onChange={(e) => setAcademicYear(e.target.value)}
                                         placeholder="e.g. 2024/2025"
-                                        readOnly
-                                        className="w-full pl-11 pr-4 py-3 bg-slate-800/50 border-none rounded-xl text-slate-400 text-xs font-bold focus:ring-0 transition-all cursor-default"
+                                        className="w-full pl-11 pr-4 py-3 bg-slate-800 border-none rounded-xl text-white text-xs font-bold focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-600"
                                     />
                                 </div>
                             </div>

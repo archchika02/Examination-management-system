@@ -413,7 +413,7 @@ const Icons = {
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
     ),
     FileWarning: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
     )
 };
 
@@ -707,19 +707,44 @@ const AcademicSupervisorDashboard = () => {
                                 className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-all group cursor-pointer relative overflow-hidden"
                                 onClick={() => setActiveSection('Add Course Unit')}
                             >
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110"></div>
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110"></div>
                                 <div className="flex items-center justify-between mb-4 relative z-10">
-                                    <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Course Units</h3>
+                                    <div className="flex flex-col">
+                                        <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Course Registry</h3>
+                                        <p className="text-[9px] text-blue-600 font-black tracking-tighter uppercase mt-0.5">Academic year: {stats.latestAcademicYear || '---'}</p>
+                                    </div>
                                     <span className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-blue-100 transition-colors">
                                         <Icons.Plus />
                                     </span>
                                 </div>
-                                <div className="text-4xl font-extrabold text-slate-900 mb-1">{stats.totalCourseUnits}</div>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
-                                        {stats.latestAcademicYear ? `AY ${stats.latestAcademicYear}` : 'ACTIVE SESSION'}
-                                    </span>
-                                    <p className="text-xs text-slate-400 font-medium">Currently under management</p>
+
+                                <div className="flex items-baseline gap-2 mb-4">
+                                    <div className="text-3xl font-extrabold text-slate-900">{stats.totalCourseUnits}</div>
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Modules</div>
+                                </div>
+
+                                <div className="space-y-2.5 border-t border-slate-50 pt-4">
+                                    {[1, 2, 3, 4].map((lvl) => {
+                                        const data = stats.levelBreakdown?.[lvl] || { written: 0, nonWritten: 0, year: '---' };
+                                        return (
+                                            <div key={lvl} className="flex items-center justify-between group/row">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight">Level {lvl}</span>
+                                                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{data.year}</span>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-100/50">
+                                                        <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
+                                                        <span className="text-[9px] font-black text-emerald-700">W: {data.written}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-purple-50 rounded-lg border border-purple-100/50">
+                                                        <span className="w-1 h-1 rounded-full bg-purple-500"></span>
+                                                        <span className="text-[9px] font-black text-purple-700">NW: {data.nonWritten}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </section>

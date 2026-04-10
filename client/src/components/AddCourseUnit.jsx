@@ -38,9 +38,25 @@ const AddCourseUnit = ({ isReadOnly = false }) => {
         academicYear: 'All'
     });
 
+    const [globalYear, setGlobalYear] = useState('');
+    const [showSummary, setShowSummary] = useState(false);
+
     useEffect(() => {
         fetchCourses();
+        fetchGlobalConfig();
     }, []);
+
+    const fetchGlobalConfig = async () => {
+        try {
+            const res = await fetch('http://localhost:5000/api/configurations/global-dates');
+            if (res.ok) {
+                const data = await res.json();
+                setGlobalYear(data.academic_year);
+            }
+        } catch (error) {
+            console.error('Error fetching global config:', error);
+        }
+    };
 
     const fetchCourses = async () => {
         try {
@@ -270,8 +286,104 @@ const AddCourseUnit = ({ isReadOnly = false }) => {
                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Count:</span>
                                     <span className="text-xs font-black text-blue-600">{filteredCourses.length}</span>
                                 </div>
+
+                                <button
+                                    onClick={() => setShowSummary(true)}
+                                    className="px-4 py-2 bg-slate-900 border border-slate-800 text-white rounded-xl shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all flex items-center gap-2 group ml-4"
+                                >
+                                    <Icons.Layers />
+                                    <span className="text-[9px] font-black uppercase tracking-widest">Show course code for academic year: {globalYear || '---'}</span>
+                                </button>
                             </div>
                         </div>
+
+                        {/* Summary Modal */}
+                        {showSummary && (
+                            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                                <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-in border border-white/20">
+                                    <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-3 bg-blue-600 rounded-2xl text-white">
+                                                <Icons.BookOpen />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-widest text-xs">Course Catalog Summary</h3>
+                                                <p className="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest">Year: {globalYear}</p>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={() => setShowSummary(false)}
+                                            className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-2xl transition-all font-bold text-sm"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+
+                                    <div className="p-10">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                                            {[1, 2, 3, 4].map((lvl) => {
+                                                const subtractYears = (ay, offset) => {
+                                                    if (!ay || !ay.includes('/')) return ay;
+                                                    const parts = ay.split('/');
+                                                    const y1 = parseInt(parts[0]);
+                                                    const y2 = parseInt(parts[1]);
+                                                    return isNaN(y1) || isNaN(y2) ? ay : `${y1 - offset}/${y2 - offset}`;
+                                                };
+
+                                                const targetYear = subtractYears(globalYear, lvl - 1);
+
+                                                const levelCourses = courses.filter(c => {
+                                                    const match = c.code.match(/\d/);
+                                                    const extractedLevel = match ? parseInt(match[0]) : null;
+                                                    return extractedLevel === lvl && c.academic_year === targetYear;
+                                                });
+
+                                                return (
+                                                    <div key={lvl} className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100/50 flex flex-col h-full">
+                                                        <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-100">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Level</span>
+                                                                <span className="text-2xl font-black text-slate-900">{lvl}</span>
+                                                                <span className="text-[8px] font-black text-blue-600 uppercase tracking-tighter mt-1">{targetYear || 'N/A'}</span>
+                                                            </div>
+                                                            <span className="px-2.5 py-1 bg-white border border-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-widest shadow-sm">
+                                                                {levelCourses.length} Units
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex-1 space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
+                                                            {levelCourses.length > 0 ? (
+                                                                levelCourses.map(c => (
+                                                                    <div key={c.id} className="p-3 bg-white rounded-xl border border-slate-100 shadow-sm group hover:border-blue-200 transition-all">
+                                                                        <div className="flex items-center justify-between gap-2">
+                                                                            <div className="text-[10px] font-black text-slate-900 group-hover:text-blue-600 transition-colors uppercase">{c.code}</div>
+                                                                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md ${c.isNonWritten === 'Yes' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                                                {c.isNonWritten === 'Yes' ? 'NW' : 'W'}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="text-[9px] font-bold text-slate-400 truncate uppercase mt-0.5">{c.title}</div>
+                                                                    </div>
+                                                                ))
+                                                            ) : (
+                                                                <div className="text-[9px] font-bold text-slate-300 italic uppercase py-4">No courses registered for {targetYear}</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+                                        <button 
+                                            onClick={() => setShowSummary(false)}
+                                            className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-200"
+                                        >
+                                            Close Summary
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">

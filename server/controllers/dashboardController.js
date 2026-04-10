@@ -15,12 +15,47 @@ exports.getStats = async (req, res) => {
             "SELECT COUNT(*) as count FROM users WHERE role = 'FacultyStaff' AND approval_status = 'Pending'"
         );
 
-        // Get the latest academic year and its course count from the modules table
-        const [latestYear] = await pool.execute(
-            "SELECT academic_year, COUNT(*) as count FROM modules WHERE academic_year IS NOT NULL GROUP BY academic_year ORDER BY academic_year DESC LIMIT 1"
-        );
-        const courseUnitCount = latestYear.length > 0 ? latestYear[0].count : 0;
-        const latestAcademicYear = latestYear.length > 0 ? latestYear[0].academic_year : null;
+        // Get the global current academic year from configuration
+        const [globalConfig] = await pool.execute('SELECT academic_year FROM global_timetable_config LIMIT 1');
+        const currentAY = globalConfig.length > 0 ? globalConfig[0].academic_year : '2024/2025';
+
+        const subtractYears = (ay, offset) => {
+            if (!ay || !ay.includes('/')) return ay;
+            const parts = ay.split('/');
+            const y1 = parseInt(parts[0]);
+            const y2 = parseInt(parts[1]);
+            return isNaN(y1) || isNaN(y2) ? ay : `${y1 - offset}/${y2 - offset}`;
+        };
+
+        const levelMapping = {
+            1: currentAY,
+            2: subtractYears(currentAY, 1),
+            3: subtractYears(currentAY, 2),
+            4: subtractYears(currentAY, 3)
+        };
+
+        const levelStats = {};
+        let totalCountAllLevels = 0;
+
+        for (const [level, year] of Object.entries(levelMapping)) {
+            const [data] = await pool.execute(`
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN non_written_type = 'Non-written' THEN 1 ELSE 0 END) as nonWritten,
+                    SUM(CASE WHEN non_written_type = 'Written' OR non_written_type IS NULL THEN 1 ELSE 0 END) as written
+                FROM modules 
+                WHERE level = ? AND academic_year = ?
+            `, [level, year]);
+
+            const row = data[0];
+            levelStats[level] = {
+                year: year,
+                total: row.total || 0,
+                written: row.written || 0,
+                nonWritten: row.nonWritten || 0
+            };
+            totalCountAllLevels += (row.total || 0);
+        }
 
         const [alertCount] = await pool.execute(
             'SELECT COUNT(*) as count FROM alerts WHERE is_active = TRUE'
@@ -31,8 +66,9 @@ exports.getStats = async (req, res) => {
             pendingDeanAddDrop: deanAddDropCount[0].count,
             totalFacultyStaff: totalFacultyStaff[0].count,
             pendingFacultyStaff: pendingFacultyStaff[0].count,
-            totalCourseUnits: courseUnitCount,
-            latestAcademicYear: latestAcademicYear,
+            totalCourseUnits: totalCountAllLevels,
+            latestAcademicYear: currentAY,
+            levelBreakdown: levelStats,
             activeAlerts: alertCount[0].count
         });
     } catch (error) {

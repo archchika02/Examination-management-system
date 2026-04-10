@@ -64,9 +64,9 @@ const RoleNotificationsPanel = ({ roleName, hideHeader = false, onNavigate }) =>
                 }
             }
 
-            // If Dean, Academic Supervisor or FacultyStaff, also fetch activities
+            // If Dean, Academic Supervisor, Faculty Staff or Hall Attendant, also fetch activities
             let activities = [];
-            if (roleName === 'Dean' || roleName === 'Academic Supervisor' || roleName === 'FacultyStaff' || roleName === 'Faculty Staff') {
+            if (roleName === 'Dean' || roleName === 'Academic Supervisor' || roleName === 'FacultyStaff' || roleName === 'Faculty Staff' || roleName === 'Hall Attendant') {
                 const activityRes = await fetch(`http://localhost:5000/api/dashboard/activities?userId=${user.user_id}`);
                 if (activityRes.ok) {
                     activities = await activityRes.json();
@@ -100,8 +100,8 @@ const RoleNotificationsPanel = ({ roleName, hideHeader = false, onNavigate }) =>
                 statusColor: a.type === 'APPROVAL' ? 'green' : a.type === 'REJECTION' ? 'red' : 'blue'
             }));
 
-            // If Academic Supervisor, FacultyStaff or Faculty Staff, mark activities as read
-            if (roleName === 'Academic Supervisor' || roleName === 'FacultyStaff' || roleName === 'Faculty Staff') {
+            // If Academic Supervisor, FacultyStaff, Dean or Hall Attendant, mark activities as read
+            if (roleName === 'Academic Supervisor' || roleName === 'FacultyStaff' || roleName === 'Faculty Staff' || roleName === 'Dean' || roleName === 'Hall Attendant') {
                 const unreadActs = activityItems.filter(a => !a.is_read && a.realId);
                 for (const act of unreadActs) {
                     fetch(`http://localhost:5000/api/dashboard/activities/${act.realId}/mark-read`, {

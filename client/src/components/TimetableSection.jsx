@@ -578,20 +578,26 @@ const TimetableSection = () => {
                 </div>
             </div>
 
-            <div className="flex justify-between pt-4 items-center gap-4">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={handleSaveTimetable}
-                        disabled={isSaving}
-                        className="bg-slate-900 text-white px-6 py-2 rounded-lg font-semibold shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-all active:scale-95 flex items-center disabled:opacity-50"
-                    >
-                        <span className="mr-2">💾</span> {isSaving ? 'Saving...' : 'Save Timetable Details'}
-                    </button>
-                    {saveStatus && (
-                        <span className={`text-sm font-semibold ${saveStatus.includes('Error') || saveStatus.includes('Failed') ? 'text-red-500' : 'text-green-500'} animate-fade-in`}>
-                            {saveStatus}
-                        </span>
-                    )}
+            <div className="flex justify-between pt-4 items-end gap-4">
+                <div className="flex flex-col gap-2">
+                    <p className="text-red-600 text-[11px] font-black uppercase tracking-widest animate-pulse flex items-center gap-1.5 ml-1">
+                        <span className="text-sm">⚠️</span>
+                        Click the save timetable details button before submit to the department
+                    </p>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={handleSaveTimetable}
+                            disabled={isSaving}
+                            className="bg-slate-900 text-white px-6 py-2 rounded-lg font-semibold shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-all active:scale-95 flex items-center disabled:opacity-50"
+                        >
+                            <span className="mr-2">💾</span> {isSaving ? 'Saving...' : 'Save Timetable Details'}
+                        </button>
+                        {saveStatus && (
+                            <span className={`text-sm font-semibold ${saveStatus.includes('Error') || saveStatus.includes('Failed') ? 'text-red-500' : 'text-green-500'} animate-fade-in`}>
+                                {saveStatus}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 <button

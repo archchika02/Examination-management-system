@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import TimetableSection from '../components/TimetableSection';
-import AddDropFormsSection from '../components/AddDropFormsSection';
+import AddDropApproval from '../components/AddDropApproval';
 import AcademicCourseUnits from '../components/AcademicCourseUnits';
 import MedicalRepeatFormsSection from '../components/MedicalRepeatFormsSection';
 import GenerateReportsSection from '../components/GenerateReportsSection';
@@ -118,18 +118,18 @@ const FacultyStaffDashboard = () => {
         if (!dateString) return 'N/A';
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return 'N/A';
-        
+
         const now = new Date();
         const diffInMs = now - date;
         const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
 
         if (diffInHours < 1) return 'Just now';
         if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
-        
+
         const diffInDays = Math.floor(diffInHours / 24);
         if (diffInDays === 1) return 'Yesterday';
         if (diffInDays < 7) return `${diffInDays} days ago`;
-        
+
         return date.toLocaleDateString();
     };
 
@@ -164,7 +164,7 @@ const FacultyStaffDashboard = () => {
 
     const menuItems = [
         { name: 'Home', icon: <Icons.Dashboard />, label: 'Dashboard' },
-        { name: 'Course unit list', icon: <Icons.Book />, label: 'Course Unit List' },
+        { name: 'Course unit list', icon: <Icons.Book />, label: 'Module List' },
         { name: 'Timetable', icon: <Icons.Calendar />, label: 'Exam Timetable' },
         { name: 'Hall Attendants Allocation & Final Timetable', icon: <Icons.Users />, label: 'Staff Allocation' },
         { name: 'Generate Reports', icon: <Icons.Report />, label: 'Generate Reports' },
@@ -192,7 +192,7 @@ const FacultyStaffDashboard = () => {
         }
 
         if (activeSection === 'Add/Drop Forms') {
-            return <AddDropFormsSection />;
+            return <AddDropApproval />;
         }
 
         if (activeSection === 'Academic Course Units') {
@@ -204,7 +204,7 @@ const FacultyStaffDashboard = () => {
                 <div className="max-w-7xl mx-auto animate-fade-in-up">
                     <div className="mb-6 flex items-center justify-between">
                         <div>
-                            <h2 className="text-2xl font-bold text-gray-800">Course Unit Registry</h2>
+                            <h2 className="text-2xl font-bold text-gray-800">Course_Unit Registry</h2>
                             <p className="text-gray-500 text-sm">View all registered course units across the faculty.</p>
                         </div>
                     </div>
@@ -378,12 +378,12 @@ const FacultyStaffDashboard = () => {
                                             <div className={`mt-1 flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center
                                                 ${activity.type?.toLowerCase() === 'approval' ? 'bg-emerald-50 text-emerald-600' :
                                                     activity.type?.toLowerCase() === 'rejection' ? 'bg-rose-50 text-rose-600' :
-                                                        activity.type?.toLowerCase() === 'creation' ? 'bg-blue-50 text-blue-600' : 
-                                                        activity.type?.toLowerCase() === 'notification' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'}`}>
+                                                        activity.type?.toLowerCase() === 'creation' ? 'bg-blue-50 text-blue-600' :
+                                                            activity.type?.toLowerCase() === 'notification' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'}`}>
                                                 {activity.type?.toLowerCase() === 'approval' ? <Icons.Check /> :
                                                     activity.type?.toLowerCase() === 'rejection' ? <Icons.Alert /> :
-                                                        activity.type?.toLowerCase() === 'creation' ? <Icons.Calendar /> : 
-                                                        activity.type?.toLowerCase() === 'notification' ? <Icons.Bell /> : <Icons.Activity />}
+                                                        activity.type?.toLowerCase() === 'creation' ? <Icons.Calendar /> :
+                                                            activity.type?.toLowerCase() === 'notification' ? <Icons.Bell /> : <Icons.Activity />}
                                             </div>
                                             <div>
                                                 <p className="text-sm text-slate-800 font-semibold tracking-tight">{activity.description}</p>
@@ -475,8 +475,8 @@ const FacultyStaffDashboard = () => {
                             <button
                                 onClick={() => setActiveSection('Notifications')}
                                 className={`p-2 rounded-xl transition-all duration-300 relative ${activeSection === 'Notifications'
-                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
-                                        : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
+                                    : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                                     }`}
                             >
                                 <Icons.Bell />
