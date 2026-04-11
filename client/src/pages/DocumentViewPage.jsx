@@ -207,7 +207,7 @@ const DocumentViewPage = () => {
                 <div className="mb-12 flex justify-between items-end gap-10 font-serif">
                     <div className="flex-1 text-center">
                         <div className="h-8 border-b border-dashed border-black w-full flex items-center justify-center font-bold">
-                            {viewData.signature_date ? new Date(viewData.signature_date).toLocaleDateString() : '-'}
+                            {viewData.signature_date ? new Date(viewData.signature_date).toLocaleDateString('en-GB') : '-'}
                         </div>
                         <div className="text-sm font-bold uppercase pt-2">Date</div>
                     </div>

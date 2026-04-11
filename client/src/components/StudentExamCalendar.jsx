@@ -296,7 +296,7 @@ const StudentExamCalendar = () => {
                                     <div className="space-y-1.5">
                                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Allocation Date</label>
                                         <div className="w-full px-4 py-3 bg-slate-100 text-slate-900 rounded-xl text-xs font-bold tracking-widest border border-transparent">
-                                            {selectedDate ? selectedDate.toLocaleDateString() : 'Pick on Calendar'}
+                                            {selectedDate ? selectedDate.toLocaleDateString('en-GB') : 'Pick on Calendar'}
                                         </div>
                                     </div>
 
@@ -324,7 +324,7 @@ const StudentExamCalendar = () => {
                                             <div key={i} className="flex items-center justify-between p-3 bg-white rounded-xl border border-blue-100 group">
                                                 <div className="flex flex-col">
                                                     <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight">{d.code}</span>
-                                                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{d.date}</span>
+                                                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{formatDateToUK(d.date)}</span>
                                                 </div>
                                                 <button onClick={() => removeFromDraft(i)} className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors">
                                                     <Icons.Trash />
@@ -392,7 +392,7 @@ const StudentExamCalendar = () => {
                                             <span className="text-[11px] font-black text-slate-900 uppercase tracking-tight">{record.course_code}</span>
                                             <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-600 rounded text-[8px] font-black uppercase">Sent</span>
                                         </div>
-                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{record.preferred_dates[0]}</span>
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{formatDateToUK(record.preferred_dates[0])}</span>
                                     </div>
                                     <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
                                         <Icons.Check />

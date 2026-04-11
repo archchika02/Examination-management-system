@@ -557,7 +557,7 @@ const MedicalRepeatFormsSection = () => {
                                                     studentName: viewFormDetails.student_name,
                                                     studentNo: viewFormDetails.student_number,
                                                     type: viewFormDetails.form_type,
-                                                    subDate: new Date(viewFormDetails.created_at).toLocaleDateString()
+                                                    subDate: new Date(viewFormDetails.created_at).toLocaleDateString('en-GB')
                                                 });
                                             }}
                                             className="px-6 py-2 bg-white border border-rose-200 text-rose-700 rounded-xl hover:bg-rose-50 transition-all text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"

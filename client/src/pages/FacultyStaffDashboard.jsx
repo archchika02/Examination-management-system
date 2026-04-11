@@ -130,7 +130,7 @@ const FacultyStaffDashboard = () => {
         if (diffInDays === 1) return 'Yesterday';
         if (diffInDays < 7) return `${diffInDays} days ago`;
 
-        return date.toLocaleDateString();
+        return date.toLocaleDateString('en-GB');
     };
 
     // Stats and other state...

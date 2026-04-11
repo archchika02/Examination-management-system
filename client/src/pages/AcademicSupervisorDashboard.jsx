@@ -615,7 +615,7 @@ const AcademicSupervisorDashboard = () => {
                                                         <div className="text-[10px] text-slate-400 font-bold">{staff.mobile}</div>
                                                     </td>
                                                     <td className="px-8 py-5">
-                                                        <div className="text-xs font-bold text-slate-600">{new Date(staff.requestedAt).toLocaleDateString()}</div>
+                                                        <div className="text-xs font-bold text-slate-600">{new Date(staff.requestedAt).toLocaleDateString('en-GB')}</div>
                                                         <div className="text-[10px] text-slate-400 font-medium">Request Date</div>
                                                     </td>
                                                     <td className="px-8 py-5">
@@ -806,7 +806,7 @@ const AcademicSupervisorDashboard = () => {
                                                         <div className="flex items-center gap-3">
                                                             <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                                                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                                                DUE: {notif.deadline ? notif.deadline.substring(0, 10) : '-'}
+                                                                DUE: {notif.deadline ? new Date(notif.deadline).toLocaleDateString('en-GB') : '-'}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -845,7 +845,7 @@ const AcademicSupervisorDashboard = () => {
                                                 <div className="flex items-center justify-between text-[10px] font-black tracking-widest uppercase">
                                                     <span className="text-slate-400">Due Date</span>
                                                     <span className={new Date(deadline.due_date) < new Date() ? 'text-rose-600' : 'text-blue-600'}>
-                                                        {new Date(deadline.due_date).toLocaleDateString()}
+                                                        {new Date(deadline.due_date).toLocaleDateString('en-GB')}
                                                     </span>
                                                 </div>
                                             </div>
