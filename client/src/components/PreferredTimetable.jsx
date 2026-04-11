@@ -323,7 +323,7 @@ const PreferredTimetable = () => {
                     <div className="flex flex-col gap-0.5">
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">Levels: {academicYears.sort().join(', ')}</p>
                         {latestAcademicYearFromData && (
-                            <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter leading-none mt-1">Session: {latestAcademicYearFromData}</p>
+                            <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter leading-none mt-1">Academic Year: {latestAcademicYearFromData}</p>
                         )}
                     </div>
                 </div>

@@ -315,7 +315,7 @@ const StudentDashboard = () => {
                                             <div className="text-right">
                                                 <div className="bg-slate-900 text-white p-3 rounded-2xl flex flex-col items-center min-w-[60px] shadow-lg shadow-slate-200">
                                                     <span className="text-lg font-black leading-none">{new Date(exam.date).getDate()}</span>
-                                                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-60 mt-1">{new Date(exam.date).toLocaleDateString('en-US', { month: 'short' })}</span>
+                                                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-60 mt-1">{new Date(exam.date).toLocaleDateString('en-GB', { month: 'short' })}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -357,7 +357,7 @@ const StudentDashboard = () => {
                                                 </div>
                                                 <div>
                                                     <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">{deadline.form_name}</h4>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Due: {new Date(deadline.deadline).toLocaleDateString()}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Due: {new Date(deadline.deadline).toLocaleDateString('en-GB')}</p>
                                                 </div>
                                             </div>
                                             <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-black uppercase tracking-widest border border-amber-100">

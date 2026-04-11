@@ -14,6 +14,7 @@ const TimetableSection = () => {
     const [saveStatus, setSaveStatus] = useState(null);
     const [pendingExams, setPendingExams] = useState([]);
     const [loadingPending, setLoadingPending] = useState(false);
+    const [globalAcademicYear, setGlobalAcademicYear] = useState('');
 
     const fetchAllowedDates = async () => {
         try {
@@ -21,6 +22,7 @@ const TimetableSection = () => {
             if (response.ok) {
                 const data = await response.json();
                 setAllowedDates(new Set(data.allowed_dates || []));
+                setGlobalAcademicYear(data.academic_year || '');
             } else {
                 // Fallback to localStorage if API fails
                 const storedDates = localStorage.getItem('allowed_exam_dates');
@@ -357,8 +359,8 @@ const TimetableSection = () => {
         if (finalTimetables.length > 0 && finalTimetables[0].academic_year) {
             return finalTimetables[0].academic_year;
         }
-        return null;
-    }, [finalTimetables]);
+        return globalAcademicYear;
+    }, [finalTimetables, globalAcademicYear]);
 
     // Filter pending exams to show only those matching the relevant academic year
     const filteredPendingExams = useMemo(() => {
@@ -623,9 +625,9 @@ const TimetableSection = () => {
                         </h3>
                         <p className="text-gray-500 text-sm mt-1">Approved requests that have not been sent/scheduled in the timetable yet.</p>
                     </div>
-                    {pendingExams.length > 0 && (
+                    {filteredPendingExams.length > 0 && (
                         <span className="bg-orange-600 text-white text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full shadow-sm">
-                            {pendingExams.length} Subjects Pending
+                            {filteredPendingExams.length} Subjects Pending
                         </span>
                     )}
                 </div>

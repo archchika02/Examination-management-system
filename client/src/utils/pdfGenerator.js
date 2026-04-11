@@ -172,7 +172,7 @@ export const generateAddDropPDF = async (data) => {
     doc.line(15, sigY, 70, sigY);
     doc.text('Date', 42.5, sigY + 5, { align: 'center' });
     doc.setFont('times', 'bold');
-    doc.text(data.signature_date ? new Date(data.signature_date).toLocaleDateString() : '', 42.5, sigY - 2, { align: 'center' });
+    doc.text(data.signature_date ? new Date(data.signature_date).toLocaleDateString('en-GB') : '', 42.5, sigY - 2, { align: 'center' });
 
     doc.setFont('times', 'normal');
     doc.line(130, sigY, 195, sigY);
@@ -434,7 +434,7 @@ export const generateCourseUnitPDF = async (reg) => {
     doc.text('DATE', 42.5, sigY + 5, { align: 'center' });
 
     // Display signature_date or fallback to dateSubmitted
-    const displayDate = reg.signature_date ? new Date(reg.signature_date).toLocaleDateString() : (reg.dateSubmitted || '');
+    const displayDate = reg.signature_date ? new Date(reg.signature_date).toLocaleDateString('en-GB') : (reg.dateSubmitted || '');
     doc.text(displayDate, 42.5, sigY - 2, { align: 'center' });
 
     doc.line(130, sigY, 195, sigY);
@@ -567,7 +567,7 @@ export const generateMedicalRepeatPDF = async (details) => {
     doc.line(130, finalY, 195, finalY);
     doc.text('Date', 162.5, finalY + 5, { align: 'center' });
     doc.setFont('times', 'bold');
-    doc.text(details.signature_date ? new Date(details.signature_date).toLocaleDateString() : '', 162.5, finalY - 2, { align: 'center' });
+    doc.text(details.signature_date ? new Date(details.signature_date).toLocaleDateString('en-GB') : '', 162.5, finalY - 2, { align: 'center' });
 
     doc.setFont('times', 'normal');
     doc.setFontSize(8);

@@ -188,7 +188,7 @@ const BatchRepDashboard = () => {
 
             const unread = [];
             [...d1, ...d2].filter(n => !n.is_read).forEach(n => {
-                unread.push({ id: `d_${n.id}`, message: `${n.form_name}`, detail: `Due ${n.deadline.substring(0, 10)}`, time: 'New' });
+                unread.push({ id: `d_${n.id}`, message: `${n.form_name}`, detail: `Due ${new Date(n.deadline).toLocaleDateString('en-GB')}`, time: 'New' });
             });
 
             setHomeData({
@@ -417,7 +417,7 @@ const BatchRepDashboard = () => {
                                                 </div>
                                                 <div>
                                                     <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">{deadline.form_name}</h4>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Due: {new Date(deadline.deadline).toLocaleDateString()}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Due: {new Date(deadline.deadline).toLocaleDateString('en-GB')}</p>
                                                 </div>
                                             </div>
                                             <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-black uppercase tracking-widest border border-amber-100">

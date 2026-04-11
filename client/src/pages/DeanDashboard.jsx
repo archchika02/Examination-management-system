@@ -303,7 +303,7 @@ const DeanDashboard = () => {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-sm text-slate-500 font-semibold">{new Date(staff.requestedAt).toLocaleDateString()}</span>
+                                                        <span className="text-sm text-slate-500 font-semibold">{new Date(staff.requestedAt).toLocaleDateString('en-GB')}</span>
                                                         <span className="text-[10px] text-slate-400 font-medium italic uppercase">Validated</span>
                                                     </div>
                                                 </td>
@@ -458,7 +458,7 @@ const DeanDashboard = () => {
                                                     <div>
                                                         <p className="text-sm text-slate-800 font-medium leading-relaxed">{activity.description}</p>
                                                         <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-wider">
-                                                            {new Date(activity.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                            {new Date(activity.created_at).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                                         </p>
                                                     </div>
                                                     <button
@@ -500,7 +500,7 @@ const DeanDashboard = () => {
                                                 <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">{deadline.description}</p>
                                                 <div className="mt-3 flex items-center justify-between">
                                                     <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">
-                                                        {new Date(deadline.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        {new Date(deadline.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}
                                                     </span>
                                                     <span className="px-1.5 py-0.5 bg-rose-500/10 rounded text-[8px] font-bold text-rose-500 uppercase tracking-wider border border-rose-500/20">
                                                         Urgent
