@@ -928,14 +928,14 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
             // Logic for Students/BatchReps: Filter by their approved course registrations matching the exam's academic year
             query = `
                 SELECT 
-                    a.alloc_id,
+                    MIN(a.alloc_id) as alloc_id,
                     a.exam_id,
                     et.date,
                     et.academic_year,
                     DATE_FORMAT(s.start_time, '%l:%i %p') AS time,
                     et.course_code as courseUnit,
                     COALESCE(m_map.title, m_latest.title) as courseTitle,
-                    a.venue,
+                    GROUP_CONCAT(DISTINCT a.venue ORDER BY a.venue SEPARATOR ', ') as venue,
                     'Student' as role,
                     NULL as examinerRole
                 FROM exam_draft_allocations a
@@ -1003,6 +1003,14 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                     AND REPLACE(adc.course_code, ' ', '') = REPLACE(et.course_code, ' ', '')
                     AND adr.academic_year = et.academic_year
                 )
+                GROUP BY 
+                    a.exam_id, 
+                    et.date, 
+                    et.academic_year, 
+                    s.start_time, 
+                    et.course_code, 
+                    m_map.title, 
+                    m_latest.title
                 ORDER BY et.date ASC, s.start_time ASC
             `;
             params = [userId, userId, userId, userId];
@@ -1417,13 +1425,13 @@ router.get('/examiner-staff', async (req, res) => {
 router.get('/examiner-courses', async (req, res) => {
     try {
         const query = `
-            SELECT course_code, title 
+            SELECT course_code, title, academic_year 
             FROM modules
             ORDER BY course_code ASC
         `;
         const [rows] = await pool.query(query);
-        // Format to "CODE - TITLE" for the dropdown
-        const formatted = rows.map(r => `${r.course_code} - ${r.title}`);
+        // Format to "CODE - TITLE (YEAR)" for the dropdown
+        const formatted = rows.map(r => `${r.course_code} - ${r.title} (${r.academic_year})`);
         res.json(formatted);
     } catch (err) {
         console.error('Error fetching examiner courses:', err);
@@ -1439,13 +1447,14 @@ router.get('/examiner-appointments', async (req, res) => {
                 a.appointment_id as id,
                 a.user_id,
                 a.course_code as courseCode,
-                a.academic_year as academicYear,
+                a.academic_year as apptYear,
                 a.examiner_role as type,
                 a.status,
-                c.title as courseTitle
+                c.title as courseTitle,
+                c.academic_year as moduleYear
             FROM examiner_appointments a
             LEFT JOIN (
-                SELECT course_code, MAX(title) as title
+                SELECT course_code, MAX(title) as title, MAX(academic_year) as academic_year
                 FROM modules
                 GROUP BY course_code
             ) c ON a.course_code = c.course_code
@@ -1454,8 +1463,11 @@ router.get('/examiner-appointments', async (req, res) => {
         const formatted = rows.map(row => ({
             id: row.id,
             userId: row.user_id,
-            course: row.courseTitle ? `${row.courseCode} - ${row.courseTitle}` : row.courseCode,
-            academicYear: row.academicYear,
+            // Consistency with /examiner-courses: Use moduleYear for the display string
+            course: row.courseTitle 
+                ? `${row.courseCode} - ${row.courseTitle} (${row.moduleYear})` 
+                : `${row.courseCode} (${row.apptYear})`,
+            academicYear: row.apptYear,
             type: row.type,
             status: row.status === 'Active' ? 'Appointed' : row.status
         }));
@@ -1463,6 +1475,18 @@ router.get('/examiner-appointments', async (req, res) => {
     } catch (err) {
         console.error('Error fetching appointments:', err);
         res.status(500).json({ message: 'Error fetching appointments', error: err.message });
+    }
+});
+
+// Delete an Examiner Appointment
+router.delete('/examiner-appointments/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query('DELETE FROM examiner_appointments WHERE appointment_id = ?', [id]);
+        res.json({ message: 'Appointment removed successfully' });
+    } catch (err) {
+        console.error('Error deleting appointment:', err);
+        res.status(500).json({ message: 'Error deleting appointment', error: err.message });
     }
 });
 
@@ -1474,8 +1498,13 @@ router.post('/examiner-appointments', async (req, res) => {
         return res.status(400).json({ message: 'Missing required configuration data' });
     }
 
-    // Extract the raw course_code from "CODE - TITLE"
-    const courseCode = course.split(' - ')[0];
+    // Robust extraction of course code from "CODE - TITLE (YEAR)" or "CODE (YEAR)"
+    let courseCode = course;
+    if (course.includes(' - ')) {
+        courseCode = course.split(' - ')[0];
+    } else if (course.includes(' (')) {
+        courseCode = course.split(' (')[0];
+    }
 
     try {
         // Check for existing appointment for the same course, academic year, and role

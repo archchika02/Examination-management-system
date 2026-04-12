@@ -751,7 +751,7 @@ const AcademicSupervisorDashboard = () => {
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             {/* Recent Notifications */}
-                            <section className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <section className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                     <div className="flex items-center gap-2">
                                         <span className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
@@ -820,39 +820,6 @@ const AcademicSupervisorDashboard = () => {
                                             </div>
                                             <p className="text-sm font-bold text-slate-900">All caught up!</p>
                                             <p className="text-xs text-slate-400 mt-1">No new notifications at the moment.</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
-
-                            {/* Upcoming Deadlines */}
-                            <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
-                                    <span className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
-                                        <Icons.Calendar />
-                                    </span>
-                                    <h3 className="text-sm font-bold text-slate-900">Upcoming Deadlines</h3>
-                                </div>
-                                <div className="p-4 space-y-4">
-                                    {deadlines.length > 0 ? (
-                                        deadlines.slice(0, 3).map((deadline) => (
-                                            <div key={deadline.id} className="group p-4 border border-slate-100 bg-slate-50/30 rounded-xl hover:border-blue-200 hover:bg-blue-50/20 transition-all">
-                                                <div className="flex items-start justify-between gap-2 mb-2">
-                                                    <h4 className="text-[13px] font-bold text-slate-900 leading-snug group-hover:text-blue-700 transition-colors">{deadline.title}</h4>
-                                                    <span className={`flex-shrink-0 w-2 h-2 rounded-full mt-1.5 ${new Date(deadline.due_date) < new Date() ? 'bg-rose-500' : 'bg-emerald-500'}`}></span>
-                                                </div>
-                                                <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed mb-3">{deadline.description}</p>
-                                                <div className="flex items-center justify-between text-[10px] font-black tracking-widest uppercase">
-                                                    <span className="text-slate-400">Due Date</span>
-                                                    <span className={new Date(deadline.due_date) < new Date() ? 'text-rose-600' : 'text-blue-600'}>
-                                                        {new Date(deadline.due_date).toLocaleDateString('en-GB')}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="py-12 text-center">
-                                            <p className="text-xs font-bold text-slate-400">No deadlines set</p>
                                         </div>
                                     )}
                                 </div>

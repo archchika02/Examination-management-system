@@ -337,27 +337,9 @@ const FacultyStaffDashboard = () => {
                 </section>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Upcoming Deadlines Section */}
-                    <section className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <h3 className="text-base font-bold text-slate-900 tracking-tight">Deadlines</h3>
-                            <button onClick={() => setActiveSection('Deadlines')} className="text-[10px] text-blue-600 hover:text-blue-800 font-bold uppercase tracking-widest bg-blue-50 px-2 py-1 rounded">View Full List</button>
-                        </div>
-                        <div className="divide-y divide-gray-50">
-                            {deadlines.map((deadline) => (
-                                <div key={deadline.id} className="p-5 hover:bg-gray-50 transition-colors group">
-                                    <div className="flex justify-between items-start mb-1">
-                                        <h4 className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{deadline.title}</h4>
-                                        <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-1 rounded-full">{deadline.timeLeft}</span>
-                                    </div>
-                                    <p className="text-sm text-gray-500">Due: {deadline.date}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
 
                     {/* Recent Activities Section */}
-                    <section className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <section className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                             <h3 className="text-base font-bold text-slate-900 tracking-tight">Faculty Activity Log</h3>
                             <span className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
