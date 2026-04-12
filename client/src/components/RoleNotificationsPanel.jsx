@@ -258,7 +258,7 @@ const RoleNotificationsPanel = ({ roleName, hideHeader = false, onNavigate }) =>
                                     </span>
                                     {item.deadline && (
                                         <div className="flex items-center gap-2 ml-auto">
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Due Window:</span>
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Due Date:</span>
                                             <span className="text-[10px] font-bold text-slate-700 bg-slate-50 px-2.5 py-0.5 rounded">
                                                 {new Date(item.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                                             </span>

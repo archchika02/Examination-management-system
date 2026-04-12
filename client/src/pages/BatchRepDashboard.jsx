@@ -334,7 +334,7 @@ const BatchRepDashboard = () => {
                     </div>
                 </section>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="grid grid-cols-1 lg:grid-cols-1 gap-10">
                     {/* Upcoming Exams */}
                     <section className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
                         <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
@@ -391,79 +391,6 @@ const BatchRepDashboard = () => {
                             )}
                         </div>
                     </section>
-
-                    {/* Right Column: Deadlines & Notifications */}
-                    <div className="space-y-10">
-                        {/* Deadlines Section */}
-                        <section className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-                            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
-                                <div>
-                                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Submission Cut-offs</h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Registry Deadlines</p>
-                                </div>
-                                <button onClick={() => setActiveSection('Deadlines')} className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-400 hover:text-blue-600 shadow-sm">
-                                    <Icons.Clock />
-                                </button>
-                            </div>
-                            <div className="divide-y divide-slate-50">
-                                {homeData.isLoading ? (
-                                    <div className="p-10 text-center text-gray-400">Loading...</div>
-                                ) : homeData.deadlines.length > 0 ? (
-                                    homeData.deadlines.map((deadline) => (
-                                        <div key={deadline.id} className="p-8 hover:bg-slate-50/50 transition-all flex justify-between items-center group">
-                                            <div className="flex items-center gap-5">
-                                                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors">
-                                                    <Icons.FileText />
-                                                </div>
-                                                <div>
-                                                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest">{deadline.form_name}</h4>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Due: {new Date(deadline.deadline).toLocaleDateString('en-GB')}</p>
-                                                </div>
-                                            </div>
-                                            <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-black uppercase tracking-widest border border-amber-100">
-                                                Active
-                                            </span>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="p-10 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest opacity-60">All Clear</div>
-                                )}
-                            </div>
-                        </section>
-
-                        {/* Notifications Section */}
-                        <section className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-                            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
-                                <div>
-                                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">Official Alerts</h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">System Broadcasts</p>
-                                </div>
-                                <button onClick={() => setActiveSection('Notifications & Alerts')} className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all text-slate-400 hover:text-blue-600 shadow-sm">
-                                    <Icons.Bell />
-                                </button>
-                            </div>
-                            <div className="divide-y divide-slate-50">
-                                {homeData.notifications.length > 0 ? (
-                                    homeData.notifications.map((notif) => (
-                                        <div key={notif.id} className="p-8 hover:bg-slate-50/50 transition-all flex items-start gap-5">
-                                            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
-                                                <Icons.Bell />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-black text-slate-800 uppercase tracking-tight leading-tight mb-1">{notif.message}</p>
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{notif.detail} • {notif.time}</p>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="p-16 text-center flex flex-col items-center gap-4 opacity-40">
-                                        <Icons.Bell />
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No New Alerts</p>
-                                    </div>
-                                )}
-                            </div>
-                        </section>
-                    </div>
                 </div>
             </div>
         );

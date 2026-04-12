@@ -436,7 +436,7 @@ const DeanDashboard = () => {
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Unified Activity Stream */}
-                            <section className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                            <section className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
                                     <h3 className="text-lg font-bold text-slate-800 tracking-tight">Activity Log</h3>
                                     <button
@@ -483,44 +483,6 @@ const DeanDashboard = () => {
                                             <p className="text-slate-400 text-sm font-medium">No activity recorded.</p>
                                         </div>
                                     )}
-                                </div>
-                            </section>
-
-                            {/* Professional Deadlines Sidebar */}
-                            <section className="bg-slate-900 rounded-2xl shadow-lg p-6 text-white relative overflow-hidden flex flex-col h-full">
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/10 rounded-full -mr-12 -mt-12"></div>
-                                <h3 className="text-base font-bold mb-6 tracking-tight flex items-center gap-2">
-                                    <Icons.Calendar /> Deadlines
-                                </h3>
-                                <div className="space-y-3 flex-1 overflow-y-auto no-scrollbar">
-                                    {upcomingDeadlines.length > 0 ? (
-                                        upcomingDeadlines.map((deadline) => (
-                                            <div key={deadline.id} className="p-4 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 transition-all group">
-                                                <h4 className="text-xs font-bold mb-1 text-slate-200 group-hover:text-blue-400 transition-colors uppercase tracking-tight">{deadline.title}</h4>
-                                                <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">{deadline.description}</p>
-                                                <div className="mt-3 flex items-center justify-between">
-                                                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">
-                                                        {new Date(deadline.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}
-                                                    </span>
-                                                    <span className="px-1.5 py-0.5 bg-rose-500/10 rounded text-[8px] font-bold text-rose-500 uppercase tracking-wider border border-rose-500/20">
-                                                        Urgent
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="py-8 text-center text-slate-600 italic text-xs">
-                                            No upcoming deadlines.
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="mt-6 pt-4 border-t border-white/5 text-center">
-                                    <button
-                                        onClick={() => setActiveSection('Notifications')}
-                                        className="text-[10px] font-bold text-slate-400 uppercase tracking-wider hover:text-white transition-colors"
-                                    >
-                                        Manage All
-                                    </button>
                                 </div>
                             </section>
                         </div>
