@@ -7,9 +7,7 @@ async function test() {
         await c.execute('DELETE FROM exam_draft_attendants');
         await c.execute('DELETE FROM exam_draft_invigilators');
         await c.execute('DELETE FROM exam_draft_allocations');
-        await c.execute('DELETE FROM department_concerns');
-        await c.execute('DELETE FROM allocations');
-        await c.execute('DELETE FROM venue_allocations');
+
         await c.execute('DELETE FROM exam_slots');
         await c.execute('DELETE FROM exam_timetables');
         

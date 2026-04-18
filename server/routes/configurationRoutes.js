@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const { sendEmail } = require('../utils/emailHelper');
 
 // Save or Update Configuration (Supports Bulk)
 router.post('/save', async (req, res) => {
@@ -44,6 +45,43 @@ router.post('/save', async (req, res) => {
         }
 
         await connection.commit();
+
+        // --- EMAIL NOTIFICATION TO AS ---
+        try {
+            const firstConfig = payload[0];
+            const repId = firstConfig?.batch_rep_id || 1;
+            const level = firstConfig?.level || 'N/A';
+
+            // 1. Get Batch Rep details
+            const [repDetails] = await pool.execute('SELECT name, email FROM users WHERE user_id = ?', [repId]);
+            const repName = repDetails.length > 0 ? repDetails[0].name : 'Batch Representative';
+            const repEmail = repDetails.length > 0 ? repDetails[0].email : 'N/A';
+
+            // 2. Get Academic Supervisor details
+            const [asStaff] = await pool.execute('SELECT name, email FROM users WHERE role = ? AND is_verified = 1', ['AcademicSupervisor']);
+
+            if (asStaff.length > 0) {
+                const dashboardUrl = 'http://localhost:5173/login'; // Link to login/dashboard
+                const subject = `Preferred Timetable Submitted - Level ${level}`;
+
+                for (const as of asStaff) {
+                    const emailHtml = `
+                        <h2>New Preferred Timetable Configuration Submission</h2>
+                        <p>Hello ${as.name},</p>
+                        <p><strong>${repName}</strong> (${repEmail}) has submitted the preferred timetable configuration for <strong>Level ${level}</strong>.</p>
+                        <p>Please log in to the EMS Dashboard to review the proposed dates and manage allocations.</p>
+                        <a href="${dashboardUrl}" style="padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">View Dashboard</a>
+                        <p>Best regards,<br/>Examination Management System</p>
+                    `;
+                    await sendEmail(as.email, subject, emailHtml);
+                }
+            }
+        } catch (emailErr) {
+            console.error('Error sending AS notification email:', emailErr);
+            // We don't want to fail the request if email fails, so we just log it.
+        }
+        // --- END NOTIFICATION ---
+
         res.json({ message: 'Configurations saved successfully', count: payload.length });
 
     } catch (err) {
@@ -99,6 +137,36 @@ router.post('/global-dates', async (req, res) => {
             'UPDATE global_timetable_config SET allowed_dates = ?, deadline = ?, academic_year = ? WHERE id = 1',
             [datesStr, deadline || '', academic_year || '']
         );
+
+        // --- EMAIL NOTIFICATION TO ALL BATCH REPS ---
+        try {
+            // 1. Get all verified Batch Representatives
+            const [batchReps] = await pool.execute('SELECT name, email FROM users WHERE role = ? AND is_verified = 1', ['BatchRep']);
+
+            if (batchReps.length > 0) {
+                const dashboardUrl = 'http://localhost:5173/login';
+                const subject = `Timetable Configuration Released - ${academic_year || 'Academic Session'}`;
+                const formattedDeadline = deadline ? (deadline.includes('-') ? deadline.split('-').reverse().join('/') : deadline) : 'Not Set';
+
+                for (const rep of batchReps) {
+                    const emailHtml = `
+                        <h2>Timetable Configuration Now Available</h2>
+                        <p>Hello ${rep.name},</p>
+                        <p>The Academic Supervisor has released the timetable configuration settings for the <strong>${academic_year || 'upcoming'}</strong> academic year.</p>
+                        <p><strong>Submission Deadline:</strong> ${formattedDeadline}</p>
+                        <p>You can now log in to the EMS Dashboard and configure the preferred exam dates for your batch.</p>
+                        <a href="${dashboardUrl}" style="padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Start Configuration</a>
+                        <p>Best regards,<br/>Examination Management System</p>
+                    `;
+                    await sendEmail(rep.email, subject, emailHtml);
+                }
+            }
+        } catch (emailErr) {
+            console.error('Error sending Batch Rep notifications:', emailErr);
+            // Non-blocking error
+        }
+        // --- END NOTIFICATION ---
+
         res.json({ message: 'Global dates saved successfully' });
     } catch (err) {
         console.error(err);
@@ -128,21 +196,16 @@ router.post('/faculty-submit', async (req, res) => {
         // Clear existing timetables to completely overwrite the schedule with the new submission
         // Need to delete dependencies in correct order because of foreign key constraints
         console.log('Attempting to clear all existing timetable related data...');
-        
+
         // 1. Clear Staff Concerns and Draft Allocations dependencies
         await connection.execute('DELETE FROM staff_concerns');
         await connection.execute('DELETE FROM exam_draft_attendants');
         await connection.execute('DELETE FROM exam_draft_invigilators');
-        
+
         // 2. Clear Draft Allocations (depends on exam_timetables)
         await connection.execute('DELETE FROM exam_draft_allocations');
-        
-        // 3. Clear Feedback and Venue dependencies (depend on exam_slots)
-        await connection.execute('DELETE FROM department_concerns');
-        await connection.execute('DELETE FROM allocations');
-        await connection.execute('DELETE FROM venue_allocations');
-        
-        // 4. Finally clear main timetable tables
+
+        // 3. Finally clear main timetable tables
         await connection.execute('DELETE FROM exam_slots');
         await connection.execute('DELETE FROM exam_timetables');
 
@@ -163,15 +226,35 @@ router.post('/faculty-submit', async (req, res) => {
         }
 
         await connection.commit();
-        
+
         // Notify Faculty Staff
         try {
-            const [facStaff] = await connection.execute('SELECT user_id FROM users WHERE role IN (?, ?)', ['FacultyStaff', 'Faculty']);
+            const [facStaff] = await connection.execute('SELECT user_id, name, email FROM users WHERE role IN (?, ?) AND is_verified = 1', ['FacultyStaff', 'Faculty']);
+            
+            // Activities notification (In-app)
             for (const staff of facStaff) {
                 await connection.execute(
                     'INSERT INTO activities (user_id, description, type, created_at) VALUES (?, ?, ?, NOW())',
                     [staff.user_id, 'Preferred timetable submitted to faculty for review.', 'notification']
                 );
+            }
+
+            // Email notification
+            if (facStaff.length > 0) {
+                const dashboardUrl = 'http://localhost:5173/login';
+                const subject = `Preferred Timetable Submitted - ${academicYear}`;
+                
+                for (const staff of facStaff) {
+                    const emailHtml = `
+                        <h2>New Timetable Submission for Review</h2>
+                        <p>Hello ${staff.name},</p>
+                        <p>The Academic Supervisor has submitted the final preferred timetable for the <strong>${academicYear}</strong> academic year for your review and approval.</p>
+                        <p>Please log in to the EMS Dashboard to examine the allocations and provide any necessary feedback.</p>
+                        <a href="${dashboardUrl}" style="padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">View Timetable</a>
+                        <p>Best regards,<br/>Examination Management System</p>
+                    `;
+                    await sendEmail(staff.email, subject, emailHtml);
+                }
             }
         } catch (notifyErr) {
             console.error('Error notifying faculty staff:', notifyErr);
@@ -183,11 +266,11 @@ router.post('/faculty-submit', async (req, res) => {
     } catch (error) {
         await connection.rollback();
         console.error('Error during timetable submission transaction:', error);
-        res.status(500).json({ 
-            message: 'Failed to submit timetable to faculty', 
+        res.status(500).json({
+            message: 'Failed to submit timetable to faculty',
             error: error.message,
             sqlMessage: error.sqlMessage,
-            code: error.code 
+            code: error.code
         });
     } finally {
         connection.release();
@@ -781,7 +864,7 @@ router.post('/save-allocation-draft', async (req, res) => {
         const examIds = exams.map(e => e.id).filter(id => id);
         if (examIds.length > 0) {
             console.log(`[SaveDraft] Wiping old data for exams: ${examIds.join(', ')}`);
-            
+
             // Force wipe Old Invigilators associated with these exams first to avoid orphaned records
             await connection.query(`
                 DELETE FROM exam_draft_invigilators 
@@ -817,7 +900,7 @@ router.post('/save-allocation-draft', async (req, res) => {
             AND approval_status = 'Approved' 
             AND is_verified = 1
         `);
-        
+
         const validSupervisors = new Set(validStaff.filter(s => ['DeptStaff', 'AcademicSupervisor'].includes(s.role)).map(u => Number(u.user_id)));
         const validAttendants = new Set(validStaff.filter(s => s.role === 'HallAttendant').map(u => Number(u.user_id)));
 
@@ -849,7 +932,7 @@ router.post('/save-allocation-draft', async (req, res) => {
                 if (alloc.invigilators && Array.isArray(alloc.invigilators)) {
                     const validInvigIds = alloc.invigilators
                         .filter(invigId => invigId && validSupervisors.has(Number(invigId)));
-                    
+
                     if (validInvigIds.length > 0) {
                         const invigValues = validInvigIds.map(id => [newAllocId, id]);
                         await connection.query(
@@ -863,7 +946,7 @@ router.post('/save-allocation-draft', async (req, res) => {
                 if (alloc.attendants && Array.isArray(alloc.attendants)) {
                     const validAttendantIds = alloc.attendants
                         .filter(attId => attId && validAttendants.has(Number(attId)));
-                    
+
                     if (validAttendantIds.length > 0) {
                         const attendantValues = validAttendantIds.map(id => [newAllocId, id]);
                         await connection.query(
@@ -891,15 +974,37 @@ router.post('/publish-timetables', async (req, res) => {
     try {
         await pool.query('UPDATE exam_draft_allocations SET is_published = 1');
 
+        // Fetch current academic year for email context
+        const [config] = await pool.query('SELECT academic_year FROM global_timetable_config LIMIT 1');
+        const academicYear = config.length > 0 ? config[0].academic_year : 'Current Session';
+
         // Notify Department Staff
-        const [deptStaff] = await pool.query('SELECT user_id FROM users WHERE role = ? OR role = ?', ['DeptStaff', 'Department Staff']);
+        const [deptStaff] = await pool.query('SELECT user_id, name, email FROM users WHERE (role = ? OR role = ?) AND is_verified = 1', ['DeptStaff', 'Department Staff']);
+        
         if (deptStaff.length > 0) {
+            // 1. In-app activities notification
             const values = deptStaff.map(staff => [
                 'Personalized Timetable Released',
                 staff.user_id,
                 'notification'
             ]);
             await pool.query('INSERT INTO activities (description, user_id, type) VALUES ?', [values]);
+
+            // 2. Email notification
+            const dashboardUrl = 'http://localhost:5173/login';
+            const subject = `Personalized Exam Allocations Released - ${academicYear}`;
+
+            for (const staff of deptStaff) {
+                const emailHtml = `
+                    <h2>Your Examination Schedule is Ready</h2>
+                    <p>Hello ${staff.name},</p>
+                    <p>The Academic Supervisor has published the personalized exam allocations for the <strong>${academicYear}</strong> academic year.</p>
+                    <p>You can now log in to the EMS Dashboard to view your individual schedule, including assigned venues and roles (Supervisor/Invigilator).</p>
+                    <a href="${dashboardUrl}" style="padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">View My Schedule</a>
+                    <p>Best regards,<br/>Examination Management System</p>
+                `;
+                await sendEmail(staff.email, subject, emailHtml);
+            }
         }
 
         res.json({ message: 'Timetables published successfully!' });
@@ -1464,8 +1569,8 @@ router.get('/examiner-appointments', async (req, res) => {
             id: row.id,
             userId: row.user_id,
             // Consistency with /examiner-courses: Use moduleYear for the display string
-            course: row.courseTitle 
-                ? `${row.courseCode} - ${row.courseTitle} (${row.moduleYear})` 
+            course: row.courseTitle
+                ? `${row.courseCode} - ${row.courseTitle} (${row.moduleYear})`
                 : `${row.courseCode} (${row.apptYear})`,
             academicYear: row.apptYear,
             type: row.type,
@@ -1545,7 +1650,7 @@ router.post('/examiner-appointments', async (req, res) => {
 router.post('/submit-to-faculty', async (req, res) => {
     try {
         await pool.query('UPDATE exam_draft_allocations SET is_submitted_to_faculty = 1 WHERE is_published = 1');
-        
+
         // Notify Faculty Staff
         try {
             const [facStaff] = await pool.query('SELECT user_id FROM users WHERE role IN (?, ?)', ['FacultyStaff', 'Faculty']);
@@ -1571,7 +1676,7 @@ router.post('/submit-to-as', async (req, res) => {
     try {
         // Marks them as submitted back to AS (is_submitted_to_faculty = 2)
         await pool.query('UPDATE exam_draft_allocations SET is_submitted_to_faculty = 2 WHERE is_submitted_to_faculty = 1');
-        
+
         // Notify Academic Supervisors
         try {
             const [asStaff] = await pool.query('SELECT user_id FROM users WHERE role = ?', ['AcademicSupervisor']);
@@ -1742,6 +1847,31 @@ router.post('/save-hall-attendant-draft', async (req, res) => {
 router.post('/publish-attendant-timetable', async (req, res) => {
     try {
         await pool.query('UPDATE exam_draft_attendants SET is_published = 1');
+
+        // Fetch current academic year for email context
+        const [config] = await pool.query('SELECT academic_year FROM global_timetable_config LIMIT 1');
+        const academicYear = config.length > 0 ? config[0].academic_year : 'Current Session';
+
+        // Notify Hall Attendants
+        const [attendants] = await pool.query('SELECT name, email FROM users WHERE role = ? AND is_verified = 1', ['HallAttendant']);
+        
+        if (attendants.length > 0) {
+            const dashboardUrl = 'http://localhost:5173/login';
+            const subject = `Exam Attendance Duties Released - ${academicYear}`;
+
+            for (const ha of attendants) {
+                const emailHtml = `
+                    <h2>Your Examination Duty Schedule is Ready</h2>
+                    <p>Hello ${ha.name},</p>
+                    <p>The Faculty Staff has published the personalized exam attendance duties for the <strong>${academicYear}</strong> academic year.</p>
+                    <p>You can now log in to the EMS Dashboard to view your assigned venues and duty dates.</p>
+                    <a href="${dashboardUrl}" style="padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">View My Duties</a>
+                    <p>Best regards,<br/>Examination Management System</p>
+                `;
+                await sendEmail(ha.email, subject, emailHtml);
+            }
+        }
+
         res.json({ message: 'Personalized timetables published successfully!' });
     } catch (err) {
         console.error('Error publishing hall attendant timetable:', err);

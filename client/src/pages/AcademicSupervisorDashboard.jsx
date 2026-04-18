@@ -916,7 +916,7 @@ const AcademicSupervisorDashboard = () => {
                         <div className="hidden md:flex items-center space-x-4">
                             <div className="flex flex-col items-end">
                                 <span className="text-xs font-black text-slate-900 uppercase tracking-tighter">{user?.name || 'Supervisor'}</span>
-                                <span className="text-[10px] font-bold text-blue-600/70 uppercase tracking-widest">Academic Authority</span>
+                                <span className="text-[10px] font-bold text-blue-600/70 uppercase tracking-widest">Academic Supervisor</span>
                             </div>
                             <div className="h-12 w-12 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl flex items-center justify-center text-white font-black shadow-xl shadow-slate-200 ring-4 ring-white overflow-hidden group cursor-pointer hover:ring-blue-100 transition-all relative">
                                 <span className="relative z-10 group-hover:scale-110 transition-transform">{user?.name?.charAt(0) || 'S'}</span>

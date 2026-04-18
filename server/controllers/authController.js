@@ -3,10 +3,13 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const { sendEmail } = require('../utils/emailHelper');
 
 const validateEmail = (email, role) => {
     // Allow specific test email 
     if (email === 'archchika27@gmail.com') return true;
+
+    if (email === 'rekayap949@mypethealh.com') return true;
 
     if (email === 'nacow76709@gxuzi.com') return true; //faculty staff
 
@@ -20,18 +23,25 @@ const validateEmail = (email, role) => {
 
     if (email === 'wevaw72949@gxuzi.com') return true; // for AS
 
+    if (email === 'mahaf55625@okexbit.com') return true; // for dept staff
 
     if (email === 'hemoyev878@gamening.com') return true;
 
-    if (email === 'thavashikalaxi@gmail.com') return true;
+    if (email === 'thavashikalaxi@gmail.com') return true; //faculty staff
 
     if (email === 'wixal14117@creteanu.com') return true;
 
-    if (email === 'archchika.t@gmail.com') return true;
+    if (email === 'archchika.t@gmail.com') return true; //hall atta
 
     if (email === 'mawik46348@cslua.com') return true;
 
     if (email === 'yibiko1642@cslua.com') return true;
+
+    if (email === 'kavitha.aachi@gmail.com') return true; //As
+
+    if (email === 'Vithusivam97@gmail.com') return true; //dept staff
+
+    if (email === 'Vithu97work@gmail.com') return true; //hall ata
 
     if (role === 'Student' || role === 'BatchRepresentative') {
         return email.endsWith('@stu.kln.ac.lk');
@@ -45,33 +55,8 @@ const validateEmail = (email, role) => {
 
 
 
-// Helper for sending emails
-const sendEmail = async (to, subject, html) => {
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
-        }
-    });
-
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: to,
-        subject: subject,
-        html: html
-    };
-
-    try {
-        console.log(`Attempting to send email to ${to}`);
-        await transporter.sendMail(mailOptions);
-        console.log(`[EMAIL SENT] Email sent to ${to}`);
-        return true;
-    } catch (error) {
-        console.error('FATAL EMAIL ERROR:', error);
-        return false;
-    }
-};
+// Helper for sending emails (moved to utils/emailHelper.js)
+// const sendEmail = async (to, subject, html) => ...
 
 exports.register = async (req, res) => {
     let { email, password, role, name, mobile, student_number, level } = req.body;

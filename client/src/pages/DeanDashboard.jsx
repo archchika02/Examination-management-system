@@ -554,7 +554,7 @@ const DeanDashboard = () => {
                     <div className="flex items-center gap-6">
                         <div className="hidden lg:flex flex-col items-end">
                             <span className="text-xs font-bold text-slate-900 leading-none">{user?.name || 'Faculty Dean'}</span>
-                            <span className="text-[9px] font-bold text-blue-600 uppercase tracking-widest mt-1">Faculty Head</span>
+                            <span className="text-[9px] font-bold text-blue-600 uppercase tracking-widest mt-1">Faculty Dean</span>
                         </div>
 
                         <div className="flex items-center gap-3">

@@ -5,6 +5,7 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
     const { user } = useAuth();
     // If readOnlyData is provided, use it directly, otherwise use local state
     const [formData, setFormData] = useState(readOnlyData || {});
+    const [errors, setErrors] = useState({});
     const [submitted, setSubmitted] = useState(false);
     const [academicYear, setAcademicYear] = useState('2023/2024');
     const [deadlineDate, setDeadlineDate] = useState('Not Set');
@@ -120,10 +121,52 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
 
     const handleInputChange = (id, value) => {
         if (isReadOnly) return;
-        setFormData(prev => ({
-            ...prev,
-            [id]: value
-        }));
+        
+        setFormData(prev => {
+            const newState = { ...prev, [id]: value };
+            
+            // Mutual exclusivity for Mr/Ms
+            if (id.endsWith('_mr') && value === true) {
+                const msId = id.replace('_mr', '_ms');
+                newState[msId] = false;
+            } else if (id.endsWith('_ms') && value === true) {
+                const mrId = id.replace('_ms', '_mr');
+                newState[mrId] = false;
+            }
+            
+            return newState;
+        });
+
+        // Clear error when user types
+        if (errors[id]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[id];
+                return newErrors;
+            });
+        }
+        
+        // Also clear base ID error if a sub-id is changed (e.g. st_no_cr_0 clears st_no_cr)
+        const baseId = id.split('_').slice(0, -1).join('_');
+        if (baseId && errors[baseId]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[baseId];
+                return newErrors;
+            });
+        }
+        
+        // Special case for Mr/Ms clearing the name group error
+        if (id.includes('_mr') || id.includes('_ms')) {
+            const groupBase = id.split('_').slice(0, -1).join('_'); // e.g. st_name_cr
+            if (errors[`${groupBase}_salutation`]) {
+                setErrors(prev => {
+                    const newErrors = { ...prev };
+                    delete newErrors[`${groupBase}_salutation`];
+                    return newErrors;
+                });
+            }
+        }
     };
 
     // Credit Calculation Logic
@@ -206,9 +249,70 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
         }
     }, [formData, isReadOnly, loading]);
 
+    const validateForm = () => {
+        const newErrors = {};
+        
+        // 1. Student Number (st_no_cr_0 to st_no_cr_7)
+        let stNoFilled = true;
+        for (let i = 0; i < 8; i++) {
+            if (!formData[`st_no_cr_${i}`] || !formData[`st_no_cr_${i}`].trim()) {
+                stNoFilled = false;
+                break;
+            }
+        }
+        if (!stNoFilled) newErrors.st_no_cr = "Student number is incomplete";
+
+        // 2. Level
+        if (!formData.level || !formData.level.trim()) {
+            newErrors.level = "Level is required";
+        }
+
+        // 3. Student Name
+        if (!formData.st_name_cr || !formData.st_name_cr.trim()) {
+            newErrors.st_name_cr = "Student name is required";
+        }
+
+        // 4. Mr or Ms
+        if (!formData.st_name_cr_mr && !formData.st_name_cr_ms) {
+            newErrors.st_name_cr_salutation = "Please select Mr or Ms";
+        }
+
+        // 5. Address
+        if (!formData.address || !formData.address.trim()) {
+            newErrors.address = "Address is required";
+        }
+
+        // 6. Email
+        if (!formData.email_cr || !formData.email_cr.trim()) {
+            newErrors.email_cr = "Email is required";
+        } else if (!/\S+@\S+\.\S+/.test(formData.email_cr)) {
+            newErrors.email_cr = "Please enter a valid email address";
+        }
+
+        // 7. Mobile
+        if (!formData.mobile || !formData.mobile.trim()) {
+            newErrors.mobile = "Mobile number is required";
+        }
+
+        // 8. Course Combination
+        if (!formData.course_combo || !formData.course_combo.trim()) {
+            newErrors.course_combo = "Course combination is required";
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
         if (isReadOnly) return;
+
+        // Perform Validation
+        if (!validateForm()) {
+            const firstError = Object.values(errors)[0] || "Please fill all required fields marked with *";
+            alert(firstError);
+            return;
+        }
 
         if (!formData.sig_1 || !formData.sig_1.trim()) {
             alert("Please provide your signature by typing your name.");
@@ -420,7 +524,7 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                 {field.type === 'box_input_prefilled' && (
                     <div className="flex gap-1 items-center">
                         {field.value?.map((val, i) => (
-                            <div key={`p-${i}`} className="w-8 h-8 border border-gray-800 bg-gray-100 flex items-center justify-center font-bold text-xl">{val}</div>
+                            <div key={`p-${i}`} className={`w-8 h-8 border bg-gray-100 flex items-center justify-center font-bold text-xl ${errors[field.id] ? 'border-red-500' : 'border-gray-800'}`}>{val}</div>
                         ))}
                         {/* Dynamic Student ID Inputs */}
                         <div className="flex gap-1">
@@ -434,7 +538,7 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                                         maxLength={1}
                                         readOnly={isReadOnly}
                                         value={formData[boxId] || ''}
-                                        className="w-8 h-8 border border-gray-800 text-center font-bold text-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase bg-white"
+                                        className={`w-8 h-8 border text-center font-bold text-xl focus:ring-2 focus:ring-blue-500 outline-none uppercase bg-white ${errors[boxId] || errors[field.id] ? 'border-red-500 ring-1 ring-red-200' : 'border-gray-800'}`}
                                         onChange={(e) => handleInputChange(boxId, e.target.value)}
                                         onKeyUp={(e) => {
                                             if (isReadOnly) return;
@@ -467,7 +571,7 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                     <input
                         type="text"
                         readOnly={isReadOnly}
-                        className="w-24 h-10 border border-gray-800 text-center px-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-bold"
+                        className={`w-24 h-10 border text-center px-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white font-bold ${errors[field.id] ? 'border-red-500 ring-1 ring-red-200' : 'border-gray-800'}`}
                         value={formData[field.id] || ''}
                         onChange={(e) => handleInputChange(field.id, e.target.value)}
                     />
@@ -487,7 +591,7 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                     <input
                         type="text"
                         readOnly={isReadOnly}
-                        className={`flex-1 border-b-2 border-gray-300 ${field.type.includes('dotted') ? 'border-dotted' : ''} h-8 px-2 focus:border-blue-500 outline-none min-w-[150px] bg-transparent font-medium`}
+                        className={`flex-1 border-b-2 ${field.type.includes('dotted') ? 'border-dotted' : ''} h-8 px-2 focus:border-blue-500 outline-none min-w-[150px] bg-transparent font-medium ${errors[field.id] ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                         value={formData[field.id] || ''}
                         onChange={(e) => handleInputChange(field.id, e.target.value)}
                     />
@@ -498,14 +602,14 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                         <div className="flex items-center gap-2">
                             <div
                                 onClick={() => !isReadOnly && handleInputChange(`${field.id}_mr`, !formData[`${field.id}_mr`])}
-                                className={`w-8 h-8 border border-gray-800 flex items-center justify-center ${!isReadOnly ? 'cursor-pointer' : ''} ${formData[`${field.id}_mr`] ? 'bg-black text-white' : 'bg-white'}`}
+                                className={`w-8 h-8 border flex items-center justify-center ${!isReadOnly ? 'cursor-pointer' : ''} ${formData[`${field.id}_mr`] ? 'bg-black text-white' : 'bg-white'} ${errors[`${field.id}_salutation`] ? 'border-red-500 ring-2 ring-red-100' : 'border-gray-800'}`}
                             >
                                 {formData[`${field.id}_mr`] && '✓'}
                             </div>
                             <input
                                 type="text"
                                 readOnly={isReadOnly}
-                                className="flex-1 border-b border-gray-400 border-dotted h-8 px-2 outline-none min-w-[200px] bg-transparent font-medium"
+                                className={`flex-1 border-b border-dotted h-8 px-2 outline-none min-w-[200px] bg-transparent font-medium ${errors[field.id] ? 'border-red-500 bg-red-50' : 'border-gray-400'}`}
                                 placeholder="Name..."
                                 value={formData[field.id] || ''}
                                 onChange={(e) => handleInputChange(field.id, e.target.value)}
@@ -515,7 +619,7 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                             <span className="font-bold text-sm bg-gray-200 px-1">{field.secondaryLabel}</span>
                             <div
                                 onClick={() => !isReadOnly && handleInputChange(`${field.id}_ms`, !formData[`${field.id}_ms`])}
-                                className={`w-8 h-8 border border-gray-800 flex items-center justify-center ${!isReadOnly ? 'cursor-pointer' : ''} ${formData[`${field.id}_ms`] ? 'bg-black text-white' : 'bg-white'}`}
+                                className={`w-8 h-8 border flex items-center justify-center ${!isReadOnly ? 'cursor-pointer' : ''} ${formData[`${field.id}_ms`] ? 'bg-black text-white' : 'bg-white'} ${errors[`${field.id}_salutation`] ? 'border-red-500 ring-2 ring-red-100' : 'border-gray-800'}`}
                             >
                                 {formData[`${field.id}_ms`] && '✓'}
                             </div>
