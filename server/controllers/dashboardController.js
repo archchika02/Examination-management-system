@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { sendEmail } = require('../utils/emailHelper');
 
 exports.getStats = async (req, res) => {
     try {
@@ -192,14 +193,36 @@ exports.updateStaffStatus = async (req, res) => {
             [status, id]
         );
 
-        const [user] = await pool.execute('SELECT name FROM users WHERE user_id = ?', [id]);
+        const [user] = await pool.execute('SELECT name, email, role FROM users WHERE user_id = ?', [id]);
         if (user.length > 0) {
+            const userData = user[0];
             const actionText = status === 'Approved' ? 'approved' : 'rejected';
             const actionType = status === 'Approved' ? 'APPROVAL' : 'REJECTION';
+            
+            // 1. Log activity
             await pool.execute(
                 'INSERT INTO activities (user_id, description, type) VALUES (?, ?, ?)',
-                [userId, `${user[0].name} staff was ${actionText}`, actionType]
+                [userId, `${userData.name} staff was ${actionText}`, actionType]
             );
+
+            // 2. Send Email if Approved
+            if (status === 'Approved') {
+                try {
+                    const dashboardUrl = 'http://localhost:5173/login';
+                    const subject = 'EMS Account Approved';
+                    const emailHtml = `
+                        <h2>Account Registration Approved</h2>
+                        <p>Hello ${userData.name},</p>
+                        <p>Your registration for the <strong>Examination Management System</strong> has been approved by the administration.</p>
+                        <p>You can now log in to the system using your registered credentials to access the ${userData.role} dashboard.</p>
+                        <a href="${dashboardUrl}" style="padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Login to EMS</a>
+                        <p>Best regards,<br/>Examination Management System</p>
+                    `;
+                    await sendEmail(userData.email, subject, emailHtml);
+                } catch (emailErr) {
+                    console.error('Error sending approval email:', emailErr);
+                }
+            }
         }
 
         res.json({ message: `Staff status updated to ${status}` });
