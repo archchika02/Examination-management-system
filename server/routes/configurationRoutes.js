@@ -25,8 +25,8 @@ router.post('/save', async (req, res) => {
             const finalAcademicYear = academic_year || '';
 
             const [existing] = await connection.execute(
-                'SELECT id FROM batch_configurations WHERE batch_rep_id = ? AND course_code = ?',
-                [batch_rep_id || 1, course_code]
+                'SELECT id FROM batch_configurations WHERE batch_rep_id = ? AND course_code = ? AND academic_year = ?',
+                [batch_rep_id || 1, course_code, finalAcademicYear]
             );
 
             if (existing.length > 0) {
@@ -218,10 +218,10 @@ router.post('/faculty-submit', async (req, res) => {
                 [exam.code, exam.date, academicYear, 1, 1] // Providing default semester=1, created_by=1 to satisfy existing schema constraints
             );
 
-            // Parallel sync with batch_configurations to store chosen dates and academic year
+            // Parallel sync with batch_configurations to store chosen dates for the specific academic year
             await connection.execute(
-                'UPDATE batch_configurations SET preferred_dates = ?, academic_year = ?, status = ? WHERE course_code = ?',
-                [JSON.stringify([exam.date]), academicYear, 'SENT', exam.code]
+                'UPDATE batch_configurations SET preferred_dates = ?, status = ? WHERE course_code = ? AND academic_year = ?',
+                [JSON.stringify([exam.date]), 'SENT', exam.code, academicYear]
             );
         }
 
