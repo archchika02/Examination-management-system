@@ -86,18 +86,14 @@ const GenerateReportsSection = () => {
         students.forEach((student, index) => {
             if (index > 0) doc.addPage();
 
-            // Header
-            // Commented out logo loading as it causes async issues with jsPDF
-            // doc.addImage('http://localhost:5173/uni-logo.png', 'PNG', 15, 10, 25, 25);
-
 
             doc.setFontSize(10);
-            doc.text('UNIVERSITY OF KELANIYA - SRI LANKA', 115, 12, { align: 'center' });
-            doc.text('FACULTY OF SCIENCE', 115, 17, { align: 'center' });
+            doc.text('UNIVERSITY OF KELANIYA - SRI LANKA', 100, 12, { align: 'center' });
+            doc.text('FACULTY OF SCIENCE', 100, 17, { align: 'center' });
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
-            doc.text('Bachelor of Science Degree Examination', 115, 22, { align: 'center' });
-            doc.text('EXAMINATION ADMISSION CARD', 115, 27, { align: 'center' });
+            doc.text('Bachelor of Science Degree Examination', 100, 22, { align: 'center' });
+            doc.text('EXAMINATION ADMISSION CARD', 100, 27, { align: 'center' });
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
@@ -135,7 +131,7 @@ const GenerateReportsSection = () => {
             // Table
             const tableData = student.courses.map(c => [
                 student.student_number,
-                c.course_code,
+                c.course_code.toUpperCase(),
                 c.date || 'TBA',
                 c.time || 'TBA',
                 c.venue || 'TBA',
