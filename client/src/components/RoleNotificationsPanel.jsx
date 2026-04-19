@@ -77,7 +77,7 @@ const RoleNotificationsPanel = ({ roleName, hideHeader = false, onNavigate }) =>
             const standardNotifs = notifs.map(n => ({
                 id: `notif-${n.id}`,
                 title: n.form_name,
-                description: n.description || 'A new deadline has been set for this form.',
+                description: n.description || 'A new deadline has been set for this form. Time:00:00:00',
                 date: n.created_at,
                 type: 'NOTIFICATION',
                 icon: getFormIcon(n.form_name),
@@ -86,6 +86,7 @@ const RoleNotificationsPanel = ({ roleName, hideHeader = false, onNavigate }) =>
                 status: getStatusText(n.deadline),
                 statusColor: getStatusBadgeColor(n.deadline)
             }));
+
 
             const activityItems = activities.map((a, idx) => ({
                 id: `activity-${a.id || idx}`,

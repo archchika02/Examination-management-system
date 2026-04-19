@@ -390,23 +390,26 @@ const DeadlinesSection = () => {
                             Notify Roles <span className="text-red-500">*</span>
                         </label>
                         <div className="flex flex-wrap gap-2">
-                            {availableRoles.map((role) => {
-                                const isSelected = newDeadline.roles.includes(role);
-                                return (
-                                    <button
-                                        key={role}
-                                        type="button"
-                                        onClick={() => handleRoleToggle(role)}
-                                        className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isSelected
-                                            ? 'bg-slate-900 text-white border-slate-900 shadow-md transform scale-105'
-                                            : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        {role}
-                                        {isSelected && <span className="ml-1.5 text-slate-300">✕</span>}
-                                    </button>
-                                );
-                            })}
+                            {//availableRoles.map((role) => 
+                                availableRoles
+                                    .filter(role => role !== 'Batch Representative')
+                                    .map((role, index) => {
+                                        const isSelected = newDeadline.roles.includes(role);
+                                        return (
+                                            <button
+                                                key={role}
+                                                type="button"
+                                                onClick={() => handleRoleToggle(role)}
+                                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isSelected
+                                                    ? 'bg-slate-900 text-white border-slate-900 shadow-md transform scale-105'
+                                                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                                                    }`}
+                                            >
+                                                {role}
+                                                {isSelected && <span className="ml-1.5 text-slate-300">✕</span>}
+                                            </button>
+                                        );
+                                    })}
                         </div>
                         {touched.roles && errors.roles && <p className="mt-1 text-xs text-red-600 font-medium">{errors.roles}</p>}
                     </div>

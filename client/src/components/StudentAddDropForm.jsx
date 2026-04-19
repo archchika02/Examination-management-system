@@ -17,6 +17,7 @@ const StudentAddDropForm = () => {
 
     const DatePickerField = ({ id, value, onChange, placeholder = "DD/MM/YYYY" }) => {
         const uniqueId = `date-picker-${id}`;
+        const today = new Date().toISOString().split('T')[0];
         return (
             <div className="relative w-full">
                 <input
@@ -30,6 +31,7 @@ const StudentAddDropForm = () => {
                 <input
                     type="date"
                     id={uniqueId}
+                    min={today}
                     className="absolute opacity-0 pointer-events-none"
                     value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
