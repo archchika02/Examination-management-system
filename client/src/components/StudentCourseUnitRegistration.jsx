@@ -21,6 +21,8 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
 
     const DatePickerField = ({ id, value, onChange, isReadOnly, placeholder = "DD/MM/YYYY" }) => {
         const uniqueId = `date-picker-${id}`;
+        const today = new Date().toISOString().split('T')[0];
+        
         return (
             <div className="relative w-full">
                 <input
@@ -35,6 +37,7 @@ const StudentCourseUnitRegistration = ({ readOnlyData = null }) => {
                     <input
                         type="date"
                         id={uniqueId}
+                        min={today}
                         className="absolute opacity-0 pointer-events-none"
                         value={value || ''}
                         onChange={(e) => onChange(e.target.value)}

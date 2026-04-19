@@ -151,7 +151,7 @@ const StudentNotifications = () => {
                     type: 'Deadline',
                     title: `⏰ ${n.form_name}`,
                     description: `${n.description || 'A new deadline has been set.'} Due: ${n.deadline ? n.deadline.substring(0, 10) : ''}`,
-                    dateObj: new Date(n.created_at),
+                    dateObj: new Date(n.created_at) + ' 23:59:59',
                     time: new Date(n.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
                     status: n.is_read ? 'Read' : 'New Reminder',
                     statusColor: n.is_read ? 'gray' : 'blue',
@@ -164,7 +164,7 @@ const StudentNotifications = () => {
                     type: 'Deadline',
                     title: `⏰ ${n.form_name}`,
                     description: `${n.description || 'A new deadline has been set.'} Due: ${n.deadline ? n.deadline.substring(0, 10) : ''}`,
-                    dateObj: new Date(n.created_at),
+                    dateObj: new Date(n.created_at) + ' 23:59:59',
                     time: new Date(n.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
                     status: n.is_read ? 'Read' : 'New Reminder',
                     statusColor: n.is_read ? 'gray' : 'blue',
@@ -222,24 +222,24 @@ const StudentNotifications = () => {
                 if (typeof reg.form_data === 'string') {
                     reg.form_data = JSON.parse(reg.form_data);
                 }
-                
+
                 // Get the most specific academic year available
                 const academicYear = reg.academic_year || reg.academicYear || reg.form_data?.academicYear || '';
-                
+
                 reg.deadlineDate = getDeadlineForForm('Academic Course Unit', academicYear, deadlines);
                 doc = await generateCourseUnitPDF(reg);
             } else if (notif.type === 'Add/Drop') {
                 const addDrop = { ...notif.rawData };
                 const academicYear = addDrop.academic_year || '';
                 addDrop.deadlineDate = getDeadlineForForm('Add/Drop Form', academicYear, deadlines);
-                
+
                 doc = await generateAddDropPDF(addDrop);
             } else if (notif.type === 'Medical' || notif.type === 'Repeat') {
                 const res = await fetch(`http://localhost:5000/api/medical-repeat/${notif.rawData.id}`, { headers });
                 if (res.ok) {
                     const fullData = await res.json();
                     const academicYear = fullData.academic_year || '';
-                    
+
                     fullData.deadlineDate = getDeadlineForForm('Medical/Repeat Form', academicYear, deadlines);
                     doc = await generateMedicalRepeatPDF(fullData);
                 } else {
@@ -317,7 +317,7 @@ const StudentNotifications = () => {
                                         </span>
                                     </div>
                                     {(notif.type === 'Registration' || notif.type === 'Add/Drop' || notif.type === 'Medical' || notif.type === 'Repeat') && (
-                                        <button 
+                                        <button
                                             onClick={() => handleViewForm(notif)}
                                             className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors group"
                                         >
