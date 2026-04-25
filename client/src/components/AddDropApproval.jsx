@@ -4,25 +4,25 @@ import { useAuth } from '../context/AuthContext';
 // Local SVG Icon Library for professional look
 const Icons = {
     Search: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
     ),
     View: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><polyline points="14 2 14 8 20 8" /><line x1="16" x2="8" y1="13" y2="13" /><line x1="16" x2="8" y1="17" y2="17" /><line x1="10" x2="8" y1="9" y2="9" /></svg>
     ),
     Check: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
     ),
     X: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
     ),
     Vault: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="12" cy="12" r="3"/><path d="m14 10 2-2"/><path d="m14 14 2 2"/><path d="m10 14-2 2"/><path d="m10 10-2-2"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" /><circle cx="12" cy="12" r="3" /><path d="m14 10 2-2" /><path d="m14 14 2 2" /><path d="m10 14-2 2" /><path d="m10 10-2-2" /></svg>
     ),
     Printer: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect width="12" height="8" x="6" y="14" /></svg>
     ),
     Alert: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" x2="12" y1="9" y2="13" /><line x1="12" x2="12.01" y1="17" y2="17" /></svg>
     )
 };
 
@@ -190,7 +190,7 @@ const AddDropApproval = () => {
     const openViewModal = async (request) => {
         try {
             const requestWithRaw = { ...request };
-            
+
             // Fetch deadlines and inject the matching deadline Date
             const deadlines = await fetchDeadlines();
             const academicYear = requestWithRaw.academic_year || requestWithRaw.year || '';
@@ -289,11 +289,10 @@ const AddDropApproval = () => {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <div className="flex flex-col items-center">
-                                                <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full border shadow-sm ${
-                                                    request.tabStatus === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                                    request.tabStatus === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                                    'bg-amber-50 text-amber-700 border-amber-200'
-                                                }`}>
+                                                <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full border shadow-sm ${request.tabStatus === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                        request.tabStatus === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                                            'bg-amber-50 text-amber-700 border-amber-200'
+                                                    }`}>
                                                     {request.status.replace('Pending ', '')}
                                                 </span>
                                                 {request.tabStatus === 'Rejected' && request.reason && (
@@ -321,8 +320,8 @@ const AddDropApproval = () => {
                                                 </div>
                                             ) : (
                                                 <span className="text-slate-400 text-[10px] font-bold italic uppercase tracking-wider pr-4">
-                                                    {(user?.role === 'Faculty Staff' || user?.role === 'FacultyStaff') && request.tabStatus === 'Pending' 
-                                                        ? 'AWAITING APPROVAL' 
+                                                    {(user?.role === 'Faculty Staff' || user?.role === 'FacultyStaff') && request.tabStatus === 'Pending'
+                                                        ? 'AWAITING APPROVAL'
                                                         : 'Record Archived'}
                                                 </span>
                                             )}
@@ -369,14 +368,14 @@ const AddDropApproval = () => {
                                     <Icons.Alert />
                                 </span>
                                 <p className="text-xs text-rose-700 font-medium leading-relaxed">
-                                    Declining request for <span className="text-slate-900 font-bold">{selectedRequest?.studentNumber}</span>. 
+                                    Declining request for <span className="text-slate-900 font-bold">{selectedRequest?.studentNumber}</span>.
                                     A precise rationale must be communicated to the applicant.
                                 </p>
                             </div>
                             <textarea
                                 value={rejectionReason}
                                 onChange={(e) => setRejectionReason(e.target.value)}
-                                placeholder="Specify professional reason for rejection..."
+                                placeholder="Specify reason for rejection..."
                                 className="w-full px-6 py-5 bg-slate-50 border border-slate-200 rounded-[1.5rem] focus:outline-none focus:ring-4 focus:ring-rose-500/5 focus:border-rose-400 transition-all text-sm font-semibold min-h-[140px] placeholder:text-slate-300"
                             />
                         </div>

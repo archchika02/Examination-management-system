@@ -133,7 +133,7 @@ const PreferredTimetable = () => {
         try {
             // Check if all 4 levels are selected
             if (academicYears.length < 4) {
-                const missing = [1, 2, 3, 4].filter(y => !academicYears.includes(y));
+                const missing = [1, 2, 3, 4].filter(y => !academicYears.includes(y));   //find missing levels
                 setSubmitStatus(`Error: Select all 4 levels before submitting (Missing: ${missing.join(', ')})`);
                 setIsSubmitting(false);
                 return;
@@ -234,13 +234,13 @@ const PreferredTimetable = () => {
         }
 
         for (let day = 1; day <= totalDays; day++) {
-            const dateString = `${calendarYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const dayExams = academicYears.flatMap(year => exams[year]?.filter(exam => exam.date === dateString) || []);
+            const dateString = `${calendarYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;  //get date string
+            const dayExams = academicYears.flatMap(year => exams[year]?.filter(exam => exam.date === dateString) || []);     //get exams for the date
             const configsForDate = filteredConfigs.filter(config =>
                 Array.isArray(config.preferred_dates)
                     ? config.preferred_dates.includes(dateString)
                     : config.preferred_dates === dateString
-            );
+            );  //get configs(course_code) for the date
 
             const isSel = activeConfig && configsForDate.some(c => c.id === activeConfig.id);
             const hasAny = configsForDate.length > 0;
@@ -307,7 +307,6 @@ const PreferredTimetable = () => {
         return days;
     };
 
-    // filteredConfigs moved above
 
     return (
         <div className="flex gap-6 h-full">
@@ -470,7 +469,6 @@ const PreferredTimetable = () => {
                                 </div>
                                 <input
                                     type="text"
-                                    placeholder="e.g. 2024/2025"
                                     value={facultyAcademicYear}
                                     onChange={(e) => setFacultyAcademicYear(e.target.value)}
                                     readOnly

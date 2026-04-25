@@ -55,6 +55,7 @@ const HallAttendantDashboard = () => {
     const [isMyConcernsModalOpen, setIsMyConcernsModalOpen] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [supervisorFilter, setSupervisorFilter] = useState('');
 
     // Poll unread count from API per user
     useEffect(() => {
@@ -327,7 +328,13 @@ const HallAttendantDashboard = () => {
         }
     };
 
-    return (
+    const uniqueSupervisors = [...new Set(upcomingSessions.map(s => s.supervisorName).filter(Boolean))].sort();
+ 
+     const filteredSessions = upcomingSessions.filter(s =>
+         !supervisorFilter || s.supervisorName === supervisorFilter
+     );
+ 
+     return (
         <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
             {/* Header */}
             <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
@@ -406,6 +413,23 @@ const HallAttendantDashboard = () => {
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
+                            {/* Supervisor Filter */}
+                            <div className="relative min-w-[200px]">
+                                <select
+                                    value={supervisorFilter}
+                                    onChange={(e) => setSupervisorFilter(e.target.value)}
+                                    className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer shadow-sm"
+                                >
+                                    <option value="">All Supervisors</option>
+                                    {uniqueSupervisors.map(name => (
+                                        <option key={name} value={name}>{name}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                </div>
+                            </div>
+
                             <button
                                 onClick={handleDownloadPDF}
                                 disabled={upcomingSessions.length === 0}
@@ -425,21 +449,22 @@ const HallAttendantDashboard = () => {
                                     <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Date</th>
                                     <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Time</th>
                                     <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Course Unit</th>
+                                    <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Supervisor</th>
                                     <th className="px-6 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Location</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="5" className="px-8 py-20 text-center">
+                                        <td colSpan="6" className="px-8 py-20 text-center">
                                             <div className="flex flex-col items-center gap-4">
                                                 <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fetching assignments...</p>
                                             </div>
                                         </td>
                                     </tr>
-                                ) : upcomingSessions.length > 0 ? (
-                                    upcomingSessions.map((session) => (
+                                ) : filteredSessions.length > 0 ? (
+                                    filteredSessions.map((session) => (
                                         <tr key={session.id} className={`hover:bg-slate-50/50 transition-all group ${selectedSessions.includes(session.id) ? 'bg-blue-50/30' : ''}`}>
                                             <td className="px-8 py-5">
                                                 {session.has_pending_concern > 0 ? (
@@ -483,6 +508,14 @@ const HallAttendantDashboard = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="p-2 bg-slate-100 rounded-lg text-slate-500 font-bold text-[9px] uppercase">
+                                                        SV
+                                                    </div>
+                                                    <span className="text-sm font-bold text-slate-700">{session.supervisorName || 'N/A'}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
                                                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-xl font-black text-[10px] uppercase tracking-widest border border-blue-100">
                                                     <Icons.MapPin />
                                                     {session.venue}
@@ -492,12 +525,15 @@ const HallAttendantDashboard = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="5" className="px-8 py-20 text-center">
+                                        <td colSpan="6" className="px-8 py-20 text-center">
                                             <div className="flex flex-col items-center gap-4">
                                                 <div className="p-4 bg-slate-50 rounded-2xl text-slate-300">
                                                     <Icons.Eye />
                                                 </div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">No upcoming duties found<br />Check back later for updates</p>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">
+                                                    {supervisorFilter ? `No sessions found for ${supervisorFilter}` : 'No upcoming duties found'}
+                                                    <br />Check back later for updates
+                                                </p>
                                             </div>
                                         </td>
                                     </tr>
