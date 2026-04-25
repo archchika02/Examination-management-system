@@ -27,9 +27,9 @@ const extractStudentNumber = (formData, prefix, count) => {
 
 // 1. Submit Course Registration
 exports.submitRegistration = async (req, res) => {
-    const { user_id, form_data, signature } = req.body;
+    const { user_id, form_data, signature, date_submitted, academicYear } = req.body;
 
-    console.log("INCOMING FORM DATA KEYS:", Object.keys(form_data));
+    console.log("INCOMING SUBMISSION:", { signature, date_submitted, academicYear });
 
     if (!form_data || !signature) {
         return res.status(400).json({ error: 'Form data and signature are required' });
@@ -54,9 +54,9 @@ exports.submitRegistration = async (req, res) => {
         // Insert Header
         const [headerResult] = await connection.execute(
             `INSERT INTO course_unit_registration_headers 
-            (user_id, student_number, student_name, level, course_unit_combination, total_credits, signature, address, mobile, email, status) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')`,
-            [user_id || null, studentNumber, studentName.trim(), level, combination, totalCredits, signature, address, mobile, email]
+            (user_id, student_number, student_name, level, course_unit_combination, total_credits, signature, signature_date, address, mobile, email, status, academic_year, form_data) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?)`,
+            [user_id || null, studentNumber, studentName.trim(), level, combination, totalCredits, signature, date_submitted || null, address, mobile, email, academicYear || null, JSON.stringify(form_data)]
         );
 
         const headerId = headerResult.insertId;

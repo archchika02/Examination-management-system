@@ -8,7 +8,7 @@ const Modal = ({ isOpen, onClose, title, subtitle, children }) => {
         };
         if (isOpen) {
             document.addEventListener('keydown', handleEsc);
-            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            document.body.style.overflow = 'hidden';
         }
         return () => {
             document.removeEventListener('keydown', handleEsc);
@@ -21,12 +21,8 @@ const Modal = ({ isOpen, onClose, title, subtitle, children }) => {
     return createPortal(
         <div className="fixed inset-0 z-[9999] overflow-y-auto font-sans" aria-labelledby="modal-title" role="dialog" aria-modal="true">
             <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-                {/* Overlay - removed backdrop-blur to prevent visual issues */}
                 <div className="fixed inset-0 bg-gray-900/75 transition-opacity" aria-hidden="true" onClick={onClose}></div>
-
                 <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-                {/* Modal Content - added relative and z-index to ensure it sits ABOVE the overlay */}
                 <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-gray-100 relative z-10">
                     <div className="bg-white px-6 pt-6 pb-4">
                         <div className="sm:flex sm:items-start">
@@ -52,12 +48,18 @@ const Modal = ({ isOpen, onClose, title, subtitle, children }) => {
     );
 };
 
+const FORM_NAME_OPTIONS = [
+    'Academic Course Unit',
+    'Add/Drop Form',
+    'Medical/Repeat Form',
+    'Timetable Finalization',
+];
+
 const DeadlinesSection = () => {
-    // Initial mock data used if localStorage is empty
     const initialMockDeadlines = [
         {
             id: 1,
-            formName: 'Course Registration Form',
+            formName: 'Academic Course Unit',
             deadline: '2026-05-15',
             roles: ['Students', 'Academic Supervisor'],
             description: 'Deadline for students to register for courses'
@@ -71,14 +73,14 @@ const DeadlinesSection = () => {
         },
         {
             id: 3,
-            formName: 'Medical Form',
+            formName: 'Medical/Repeat Form',
             deadline: '2026-05-25',
             roles: ['Students', 'Department Staff'],
             description: 'Deadline for submitting medical exemption forms'
         },
         {
             id: 4,
-            formName: 'Final Timetable Approval',
+            formName: 'Timetable Finalization',
             deadline: '2026-05-10',
             roles: ['Faculty Staff', 'Academic Supervisor'],
             description: 'Deadline for approving final examination timetable'
@@ -86,27 +88,38 @@ const DeadlinesSection = () => {
     ];
 
     const [deadlines, setDeadlines] = useState([]);
+    const [loadingDeadlines, setLoadingDeadlines] = useState(true);
 
-    // Load from localStorage on mount
+    // Load deadlines from DB
     useEffect(() => {
-        const stored = localStorage.getItem('ems_deadlines');
-        if (stored) {
-            setDeadlines(JSON.parse(stored));
-        } else {
-            setDeadlines(initialMockDeadlines);
-        }
+        const fetchDeadlines = async () => {
+            try {
+                const res = await fetch('http://localhost:5000/api/deadlines');
+                if (res.ok) {
+                    const data = await res.json();
+                    const mappedData = data.map(d => ({
+                        ...d,
+                        formName: d.form_name,
+                        academicYear: d.academic_year,
+                        deadline: d.deadline ? d.deadline.substring(0, 10) : ''
+                    }));
+                    setDeadlines(mappedData.length > 0 ? mappedData : initialMockDeadlines);
+                } else {
+                    setDeadlines(initialMockDeadlines);
+                }
+            } catch {
+                setDeadlines(initialMockDeadlines);
+            } finally {
+                setLoadingDeadlines(false);
+            }
+        };
+        fetchDeadlines();
     }, []);
-
-    // Save to localStorage whenever deadlines change
-    useEffect(() => {
-        if (deadlines.length > 0) {
-            localStorage.setItem('ems_deadlines', JSON.stringify(deadlines));
-        }
-    }, [deadlines]);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newDeadline, setNewDeadline] = useState({
         formName: '',
+        academicYear: '',
         deadline: '',
         description: '',
         roles: [],
@@ -117,16 +130,24 @@ const DeadlinesSection = () => {
 
     const availableRoles = [
         'Students',
+        'Batch Representative',
         'Faculty Staff',
         'Academic Supervisor',
         'Department Staff',
-        'Dean'
+        'Hall Attendant',
+        'Dean',
     ];
 
     const getMinDate = () => {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         return tomorrow.toISOString().split('T')[0];
+    };
+
+    const formatDate = (dateString, separator = '-') => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}${separator}${month}${separator}${year}`;
     };
 
     const handleRemove = (id) => {
@@ -144,7 +165,8 @@ const DeadlinesSection = () => {
 
     const validate = () => {
         const errors = {};
-        if (!newDeadline.formName.trim()) errors.formName = 'Form Name is required';
+        if (!newDeadline.formName) errors.formName = 'Please select a Form Name';
+        if (!newDeadline.academicYear) errors.academicYear = 'Please select an Academic Year';
         if (!newDeadline.deadline) errors.deadline = 'Deadline Date is required';
         else if (newDeadline.deadline < getMinDate()) errors.deadline = 'Deadline must be in the future';
         if (newDeadline.roles.length === 0) errors.roles = 'Select at least one role';
@@ -154,20 +176,51 @@ const DeadlinesSection = () => {
     const errors = validate();
     const isValid = Object.keys(errors).length === 0;
 
-    const handleSave = () => {
+    // Save deadline to DB (replaces localStorage + writeNotifications)
+    const handleSave = async () => {
         setTouched({ formName: true, deadline: true, roles: true });
-
         if (!isValid) return;
 
-        const deadlineToAdd = {
-            id: Date.now(),
-            ...newDeadline
-        };
+        try {
+            const res = await fetch('http://localhost:5000/api/deadlines', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    formName: newDeadline.formName,
+                    academicYear: newDeadline.academicYear,
+                    deadline: newDeadline.deadline,
+                    roles: newDeadline.roles,
+                    description: newDeadline.description,
+                    notifyEmail: newDeadline.notifyEmail,
+                    notifySystem: newDeadline.notifySystem,
+                    createdBy: null   // set to user.user_id if auth context is available here
+                })
+            });
 
-        setDeadlines([deadlineToAdd, ...deadlines]);
+            if (res.ok) {
+                const saved = await res.json();
+                // Add to local list for immediate display
+                const deadlineToAdd = {
+                    ...newDeadline,
+                    id: saved.deadlineId,
+                    due_date: newDeadline.deadline,
+                    form_name: newDeadline.formName
+                };
+                setDeadlines([deadlineToAdd, ...deadlines]);
+            } else {
+                alert('Failed to save deadline. Please try again.');
+                return;
+            }
+        } catch (err) {
+            console.error('Error saving deadline:', err);
+            alert('Error saving deadline.');
+            return;
+        }
+
         setIsModalOpen(false);
         setNewDeadline({
             formName: '',
+            academicYear: '',
             deadline: '',
             description: '',
             roles: [],
@@ -181,6 +234,7 @@ const DeadlinesSection = () => {
         setIsModalOpen(false);
         setNewDeadline({
             formName: '',
+            academicYear: '',
             deadline: '',
             description: '',
             roles: [],
@@ -195,7 +249,6 @@ const DeadlinesSection = () => {
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h2 className="text-2xl font-bold text-gray-800">Deadlines</h2>
-                    {/* <p className="text-sm text-gray-500 mt-1">Manage and track important submission dates</p> */}
                 </div>
             </div>
 
@@ -214,18 +267,19 @@ const DeadlinesSection = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-gray-500 font-bold tracking-wider">
-                                <th className="p-4 pl-6">Form Name</th>
-                                <th className="p-4">Deadline</th>
-                                <th className="p-4">Roles</th>
-                                <th className="p-4">Description</th>
-                                <th className="p-4 pr-6 text-right">Actions</th>
+                                <th className="p-4 pl-6 text-left">Form Name</th>
+                                <th className="p-4 text-left">Year</th>
+                                <th className="p-4 text-left">Deadline</th>
+                                <th className="p-4 text-left">Roles</th>
+                                <th className="p-4 pr-6 text-left">Description</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50 text-sm">
                             {deadlines.map((deadline) => (
-                                <tr key={deadline.id} className="hover:bg-blue-50/30 transition-colors group">
+                                <tr key={deadline.id} className="hover:bg-blue-50/30 transition-colors group text-sm">
                                     <td className="p-4 pl-6 font-semibold text-gray-800">{deadline.formName}</td>
-                                    <td className="p-4 text-gray-600 font-medium font-mono">{deadline.deadline}</td>
+                                    <td className="p-4 text-gray-600 font-medium whitespace-nowrap">{deadline.academicYear}</td>
+                                    <td className="p-4 text-gray-600 font-medium font-mono">{formatDate(deadline.deadline, '/')}</td>
                                     <td className="p-4">
                                         <div className="flex flex-wrap gap-1.5">
                                             {deadline.roles.map((role, index) => (
@@ -235,19 +289,11 @@ const DeadlinesSection = () => {
                                             ))}
                                         </div>
                                     </td>
-                                    <td className="p-4 text-gray-500 max-w-xs truncate" title={deadline.description}>{deadline.description}</td>
-                                    <td className="p-4 pr-6 text-right">
-                                        <button
-                                            onClick={() => handleRemove(deadline.id)}
-                                            className="inline-flex items-center justify-center px-3 py-1.5 text-red-600 bg-red-50 hover:bg-red-600 hover:text-white rounded-md text-xs font-bold transition-all border border-red-100 hover:border-red-600 group/btn"
-                                        >
-                                            <span className="mr-1.5 group-hover/btn:animate-pulse">🗑️</span> Remove
-                                        </button>
-                                    </td>
+                                    <td className="p-4 pr-6 text-gray-500 max-w-xs truncate" title={deadline.description}>{deadline.description}</td>
                                 </tr>
                             ))}
                             {deadlines.length === 0 && (
-                                <tr>
+                                <tr key="empty">
                                     <td colSpan="5" className="p-12 text-center text-gray-400">
                                         <div className="flex flex-col items-center justify-center">
                                             <span className="text-4xl mb-3">📅</span>
@@ -269,21 +315,41 @@ const DeadlinesSection = () => {
                 subtitle="Define a deadline for a form or academic process"
             >
                 <div className="space-y-5">
-                    {/* Form Name */}
+                    {/* Form Name Dropdown */}
                     <div>
                         <label htmlFor="formName" className="block text-sm font-semibold text-gray-700 mb-1">
                             Form Name <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            type="text"
+                        <select
                             id="formName"
-                            className={`block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border transition-colors ${touched.formName && errors.formName ? 'border-red-300 bg-red-50' : ''}`}
-                            placeholder="e.g., Course Registration Form"
+                            className={`block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border transition-colors bg-white cursor-pointer ${touched.formName && errors.formName ? 'border-red-300 bg-red-50' : ''}`}
                             value={newDeadline.formName}
                             onChange={(e) => setNewDeadline({ ...newDeadline, formName: e.target.value })}
                             onBlur={() => setTouched({ ...touched, formName: true })}
-                        />
+                        >
+                            <option value="">— Select a form —</option>
+                            {FORM_NAME_OPTIONS.map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                        </select>
                         {touched.formName && errors.formName && <p className="mt-1 text-xs text-red-600 font-medium">{errors.formName}</p>}
+                    </div>
+
+                    {/* Academic Year Input */}
+                    <div>
+                        <label htmlFor="academicYear" className="block text-sm font-semibold text-gray-700 mb-1">
+                            Academic Year <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            id="academicYear"
+                            type="text"
+                            placeholder="e.g. 2023/2024"
+                            className={`block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border transition-colors bg-white ${touched.academicYear && errors.academicYear ? 'border-red-300 bg-red-50' : ''}`}
+                            value={newDeadline.academicYear}
+                            onChange={(e) => setNewDeadline({ ...newDeadline, academicYear: e.target.value })}
+                            onBlur={() => setTouched({ ...touched, academicYear: true })}
+                        />
+                        {touched.academicYear && errors.academicYear && <p className="mt-1 text-xs text-red-600 font-medium">{errors.academicYear}</p>}
                     </div>
 
                     {/* Deadline Date */}
@@ -291,41 +357,59 @@ const DeadlinesSection = () => {
                         <label htmlFor="deadline" className="block text-sm font-semibold text-gray-700 mb-1">
                             Deadline Date <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            type="date"
-                            id="deadline"
-                            min={getMinDate()}
-                            className={`block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border transition-colors ${touched.deadline && errors.deadline ? 'border-red-300 bg-red-50' : ''}`}
-                            value={newDeadline.deadline}
-                            onChange={(e) => setNewDeadline({ ...newDeadline, deadline: e.target.value })}
-                            onBlur={() => setTouched({ ...touched, deadline: true })}
-                        />
+                        <div className="relative">
+                            <input
+                                type="text"
+                                readOnly
+                                placeholder="DD/MM/YYYY"
+                                className={`block w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2.5 border transition-colors bg-white cursor-pointer ${touched.deadline && errors.deadline ? 'border-red-300 bg-red-50' : ''}`}
+                                value={newDeadline.deadline ? formatDate(newDeadline.deadline, '/') : ''}
+                                onClick={() => document.getElementById('native-datepicker').showPicker()}
+                            />
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <input
+                                type="date"
+                                id="native-datepicker"
+                                min={getMinDate()}
+                                className="absolute opacity-0 pointer-events-none"
+                                value={newDeadline.deadline}
+                                onChange={(e) => setNewDeadline({ ...newDeadline, deadline: e.target.value })}
+                                onBlur={() => setTouched({ ...touched, deadline: true })}
+                            />
+                        </div>
                         {touched.deadline && errors.deadline && <p className="mt-1 text-xs text-red-600 font-medium">{errors.deadline}</p>}
                     </div>
 
                     {/* Roles */}
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Applicable Roles <span className="text-red-500">*</span>
+                            Notify Roles <span className="text-red-500">*</span>
                         </label>
                         <div className="flex flex-wrap gap-2">
-                            {availableRoles.map((role) => {
-                                const isSelected = newDeadline.roles.includes(role);
-                                return (
-                                    <button
-                                        key={role}
-                                        type="button"
-                                        onClick={() => handleRoleToggle(role)}
-                                        className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isSelected
-                                            ? 'bg-slate-900 text-white border-slate-900 shadow-md transform scale-105'
-                                            : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        {role}
-                                        {isSelected && <span className="ml-1.5 text-slate-300">✕</span>}
-                                    </button>
-                                );
-                            })}
+                            {//availableRoles.map((role) => 
+                                availableRoles
+                                    .filter(role => role !== 'Batch Representative')
+                                    .map((role, index) => {
+                                        const isSelected = newDeadline.roles.includes(role);
+                                        return (
+                                            <button
+                                                key={role}
+                                                type="button"
+                                                onClick={() => handleRoleToggle(role)}
+                                                className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isSelected
+                                                    ? 'bg-slate-900 text-white border-slate-900 shadow-md transform scale-105'
+                                                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                                                    }`}
+                                            >
+                                                {role}
+                                                {isSelected && <span className="ml-1.5 text-slate-300">✕</span>}
+                                            </button>
+                                        );
+                                    })}
                         </div>
                         {touched.roles && errors.roles && <p className="mt-1 text-xs text-red-600 font-medium">{errors.roles}</p>}
                     </div>

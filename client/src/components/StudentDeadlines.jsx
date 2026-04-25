@@ -5,41 +5,74 @@ const StudentDeadlines = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Load deadlines from localStorage (shared with Faculty view)
-        const stored = localStorage.getItem('ems_deadlines');
-        if (stored) {
-            const allDeadlines = JSON.parse(stored);
-            // Filter deadlines intended for 'Students'
-            const studentDeadlines = allDeadlines.filter(d =>
-                d.roles && d.roles.includes('Students')
-            );
-            // Sort by date ascending (soonest first)
-            studentDeadlines.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
-            setDeadlines(studentDeadlines);
-        } else {
-            // If no custom deadlines found, use fallback mock data for testing clarity
-            const mockDefaults = [
-                {
-                    id: 1,
-                    formName: 'Course Registration Form',
-                    deadline: '2026-05-15',
-                    description: 'Deadline for students to register for courses'
-                },
-                {
-                    id: 2,
-                    formName: 'Add/Drop Form',
-                    deadline: '2026-05-20',
-                    description: 'Period for adding or dropping courses ends'
+        const fetchDeadlines = async () => {
+            try {
+                const res = await fetch('http://localhost:5000/api/deadlines');
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    // Sort by ID descending to ensure we get the latest row for each form First
+                    data.sort((a, b) => b.id - a.id);
+                    
+                    const uniqueForms = [];
+                    const seenForms = new Set();
+                    const targetForms = new Set([
+                        'Academic Course Unit',
+                        'Add/Drop Form',
+                        'Medical/Repeat Form'
+                    ]);
+
+                    for (const d of data) {
+                        if (targetForms.has(d.form_name) && !seenForms.has(d.form_name)) {
+                            seenForms.add(d.form_name);
+                            uniqueForms.push(d);
+                        }
+                    }
+
+                    const activeDeadlines = uniqueForms.map((d) => {
+                        const rawDate = d.deadline || d.due_date;
+                        const dateObj = new Date(rawDate);
+                        
+                        // Option to format like "May 15, 2026, 11:59 PM"
+                        const formattedDate = dateObj.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+
+                        const title = d.form_name + (d.academic_year ? ` (${d.academic_year})` : '');
+
+                        return {
+                            id: d.id,
+                            formName: title,
+                            deadline: formattedDate,
+                            rawDate: dateObj,
+                            description: d.description || 'No description provided.'
+                        };
+                    });
+
+                    // Sort back by upcoming date
+                    activeDeadlines.sort((a, b) => a.rawDate - b.rawDate);
+                    
+                    setDeadlines(activeDeadlines);
+                } else {
+                    console.error("Failed to fetch deadlines");
                 }
-            ];
-            setDeadlines(mockDefaults);
-        }
-        setLoading(false);
+            } catch (error) {
+                console.error("Error fetching deadlines:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDeadlines();
     }, []);
 
-    const getStatusColor = (deadlineDate) => {
+    const getStatusColor = (rawDate) => {
         const today = new Date();
-        const due = new Date(deadlineDate);
+        const due = new Date(rawDate);
         const diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
 
         if (diffDays < 0) return 'bg-gray-100 text-gray-500 border-gray-200'; // Past due
@@ -48,9 +81,9 @@ const StudentDeadlines = () => {
         return 'bg-blue-50 text-blue-600 border-blue-200'; // Normal
     };
 
-    const getStatusText = (deadlineDate) => {
+    const getStatusText = (rawDate) => {
         const today = new Date();
-        const due = new Date(deadlineDate);
+        const due = new Date(rawDate);
         const diffDays = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
 
         if (diffDays < 0) return 'Expired';
@@ -75,8 +108,8 @@ const StudentDeadlines = () => {
                             key={deadline.id}
                             className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all group relative overflow-hidden"
                         >
-                            <div className={`absolute top-0 right-0 px-3 py-1 text-xs font-bold rounded-bl-xl border-l border-b ${getStatusColor(deadline.deadline)}`}>
-                                {getStatusText(deadline.deadline)}
+                            <div className={`absolute top-0 right-0 px-3 py-1 text-xs font-bold rounded-bl-xl border-l border-b ${getStatusColor(deadline.rawDate)}`}>
+                                {getStatusText(deadline.rawDate)}
                             </div>
 
                             <div className="flex items-start justify-between mb-4">
@@ -95,7 +128,7 @@ const StudentDeadlines = () => {
 
                             <div className="flex items-center text-sm font-medium text-gray-700 bg-gray-50 p-3 rounded-lg">
                                 <span className="mr-2">📅</span>
-                                Due Date: <span className="ml-auto font-mono">{deadline.deadline}</span>
+                                Due Date: <span className="ml-auto font-mono whitespace-nowrap">{deadline.deadline}</span>
                             </div>
                         </div>
                     ))

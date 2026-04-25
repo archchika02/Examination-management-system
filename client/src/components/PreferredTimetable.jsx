@@ -1,5 +1,32 @@
 import React, { useState, useEffect } from 'react';
 
+const Icons = {
+    Calendar: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" x2="16" y1="2" y2="6" /><line x1="8" x2="8" y1="2" y2="6" /><line x1="3" x2="21" y1="10" y2="10" /></svg>
+    ),
+    ChevronLeft: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+    ),
+    ChevronRight: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+    ),
+    Clock: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+    ),
+    Search: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+    ),
+    Send: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" x2="11" y1="2" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+    ),
+    Info: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="16" y2="12" /><line x1="12" x2="12" y1="8" y2="8" /></svg>
+    ),
+    CheckCircle: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+    )
+};
+
 const PreferredTimetable = () => {
     // academicYear is now an array to support multi-select
     const [academicYears, setAcademicYears] = useState([1]);
@@ -13,12 +40,8 @@ const PreferredTimetable = () => {
     const [submitStatus, setSubmitStatus] = useState('');
     const [facultyAcademicYear, setFacultyAcademicYear] = useState('');
 
-    // Mock Data for Exams
     const [exams, setExams] = useState({
-        1: [
-            { id: 1, code: 'CS101', name: 'Intro to CS', date: '2025-01-15', type: 'Written' },
-            { id: 2, code: 'MATH101', name: 'Calculus I', date: '2025-01-20', type: 'Written' },
-        ],
+        1: [],
         2: [],
         3: [],
         4: []
@@ -26,6 +49,18 @@ const PreferredTimetable = () => {
 
     useEffect(() => {
         fetchConfigurations();
+        const fetchGlobalConfig = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/configurations/global-dates');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.academic_year) setFacultyAcademicYear(data.academic_year);
+                }
+            } catch (error) {
+                console.error("Failed to fetch global config", error);
+            }
+        };
+        fetchGlobalConfig();
     }, []);
 
     const fetchConfigurations = async () => {
@@ -81,15 +116,29 @@ const PreferredTimetable = () => {
         e.preventDefault();
     };
 
-    // Filter configurations based on ALL selected Academic Years
-    const filteredConfigs = receivedConfigs.filter(config => academicYears.includes(config.level || 1));
+    // Find the latest academic year from the received configurations
+    const latestAcademicYearFromData = [...new Set(receivedConfigs.map(c => c.academic_year).filter(Boolean))]
+        .sort((a, b) => b.localeCompare(a))[0] || '';
+
+    // Filter configurations based on ALL selected Levels AND the latest Academic Year
+    const filteredConfigs = receivedConfigs.filter(config =>
+        academicYears.includes(config.level || 1) &&
+        (config.academic_year === latestAcademicYearFromData || !latestAcademicYearFromData)
+    );
 
     const handleSubmitToFaculty = async () => {
         setIsSubmitting(true);
-        setSubmitStatus('Submitting...');
+        setSubmitStatus('Validating...');
 
         try {
-            // We want to submit the actual suggested configurations from batch reps that are currently filtered by the selected academic years.
+            // Check if all 4 levels are selected
+            if (academicYears.length < 4) {
+                const missing = [1, 2, 3, 4].filter(y => !academicYears.includes(y));   //find missing levels
+                setSubmitStatus(`Error: Select all 4 levels before submitting (Missing: ${missing.join(', ')})`);
+                setIsSubmitting(false);
+                return;
+            }
+
             const examsToSubmit = [];
 
             filteredConfigs.forEach(config => {
@@ -123,25 +172,30 @@ const PreferredTimetable = () => {
             academicYears.forEach(year => {
                 if (exams[year]) {
                     exams[year].forEach(ex => {
-                        examsToSubmit.push({
-                            code: ex.code,
-                            date: ex.date
-                        });
+                        // Avoid duplicates if config already pulled it
+                        if (!examsToSubmit.find(e => e.code === ex.code)) {
+                            examsToSubmit.push({
+                                code: ex.code,
+                                date: ex.date
+                            });
+                        }
                     });
                 }
             });
 
             if (examsToSubmit.length === 0) {
-                setSubmitStatus('Error: No exams scheduled to submit.');
+                setSubmitStatus('Error: No exams found for levels 1-4.');
                 setIsSubmitting(false);
                 return;
             }
 
             if (!facultyAcademicYear.trim()) {
-                setSubmitStatus('Error: Academic Year text is required.');
+                setSubmitStatus('Error: Target Academic Year text is required.');
                 setIsSubmitting(false);
                 return;
             }
+
+            setSubmitStatus('Submitting to Faculty...');
 
             const response = await fetch('http://localhost:5000/api/configurations/faculty-submit', {
                 method: 'POST',
@@ -153,11 +207,10 @@ const PreferredTimetable = () => {
             });
 
             if (response.ok) {
-                const submittedYears = [...academicYears].sort().map(y => `Year ${y}`).join(', ');
-                setSubmitStatus(`Successfully submitted ${submittedYears} to Faculty!`);
+                setSubmitStatus(`Successfully submitted complete timetable to Faculty!`);
             } else {
                 const data = await response.json();
-                setSubmitStatus(`Failed to submit: ${data.message}`);
+                setSubmitStatus(`Failed to submit: ${data.message || 'Server Error'}`);
             }
 
             setTimeout(() => setSubmitStatus(''), 5000);
@@ -177,43 +230,48 @@ const PreferredTimetable = () => {
         const firstDay = firstDayOfMonth(currentMonth, calendarYear);
 
         for (let i = 0; i < firstDay; i++) {
-            days.push(<div key={`empty-${i}`} className="bg-gray-50/50 border border-gray-100 flex flex-col"></div>);
+            days.push(<div key={`empty-${i}`} className="bg-slate-50/30 border border-slate-100 flex flex-col"></div>);
         }
 
         for (let day = 1; day <= totalDays; day++) {
-            // Format: YYYY-MM-DD
-            const dateString = `${calendarYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-            // Gather all local exams for all selected years
-            const dayExams = academicYears.flatMap(year => exams[year]?.filter(exam => exam.date === dateString) || []);
-
-            // Find all matching configs for this date
+            const dateString = `${calendarYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;  //get date string
+            const dayExams = academicYears.flatMap(year => exams[year]?.filter(exam => exam.date === dateString) || []);     //get exams for the date
             const configsForDate = filteredConfigs.filter(config =>
                 Array.isArray(config.preferred_dates)
                     ? config.preferred_dates.includes(dateString)
                     : config.preferred_dates === dateString
-            );
+            );  //get configs(course_code) for the date
 
-            // Highlight if activeConfig recommends this date, or if any config is present
-            const isPreferred = activeConfig && configsForDate.some(c => c.id === activeConfig.id);
-            const hasAnyConfig = configsForDate.length > 0;
+            const isSel = activeConfig && configsForDate.some(c => c.id === activeConfig.id);
+            const hasAny = configsForDate.length > 0;
 
             days.push(
                 <div
                     key={day}
-                    className={`p-2 border border-gray-100 transition-all duration-300 relative group flex flex-col overflow-hidden min-h-[80px]
-                        ${isPreferred ? 'bg-indigo-50 border-indigo-200 ring-1 ring-inset ring-indigo-300/50' : (hasAnyConfig ? 'bg-slate-50' : 'bg-white hover:bg-gray-50')}
+                    className={`p-2 border border-slate-100 transition-all duration-300 relative group flex flex-col min-h-[90px]
+                        ${isSel
+                            ? 'bg-blue-50 border-blue-200 ring-1 ring-inset ring-blue-300/50 shadow-[inset_0_0_12px_rgba(59,130,246,0.1)]'
+                            : (hasAny ? 'bg-slate-50/80 hover:bg-slate-100/80' : 'bg-white hover:bg-slate-50')}
                     `}
                     onDrop={(e) => handleDrop(e, day)}
                     onDragOver={handleDragOver}
                 >
-                    <div className="flex justify-between items-start mb-1">
-                        <span className={`text-sm font-semibold shrink-0 ${isPreferred || hasAnyConfig ? 'text-indigo-700' : 'text-gray-400'}`}>{day}</span>
-                        {isPreferred && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold shadow-sm">Selected</span>}
+                    <div className="flex justify-between items-start mb-2">
+                        <span className={`text-xs font-black shrink-0 px-2 py-0.5 rounded-lg
+                            ${isSel || hasAny
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
+                                : 'text-slate-400 group-hover:text-slate-600 transition-colors'}
+                        `}>
+                            {day}
+                        </span>
+                        {isSel && (
+                            <div className="absolute top-2 right-2">
+                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="mt-1 space-y-1 overflow-y-auto min-h-0 flex-1 custom-scrollbar">
-                        {/* Display Received Configurations */}
+                    <div className="space-y-1 overflow-y-auto min-h-0 flex-1 custom-scrollbar pr-0.5">
                         {configsForDate.map(config => (
                             <div
                                 key={`conf-${config.id}`}
@@ -221,27 +279,25 @@ const PreferredTimetable = () => {
                                     e.stopPropagation();
                                     setActiveConfig(config.id === activeConfig?.id ? null : config);
                                 }}
-                                className={`text-[11px] leading-tight p-1.5 rounded border font-bold text-center break-words shadow-sm transition-all cursor-pointer
+                                className={`text-[8px] font-black p-1 rounded-lg border uppercase tracking-tighter text-center transition-all cursor-pointer select-none leading-tight
                                     ${activeConfig?.id === config.id
-                                        ? 'bg-indigo-600 text-white border-indigo-700 ring-2 ring-indigo-200 ring-offset-1'
-                                        : 'bg-indigo-100/80 text-indigo-800 border-indigo-200 hover:bg-indigo-200'
+                                        ? 'bg-slate-900 text-white border-slate-900 shadow-xl'
+                                        : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400 hover:text-blue-600'
                                     }
                                 `}
-                                title={config.course_code}
                             >
                                 {config.course_code}
                             </div>
                         ))}
 
-                        {/* Existing Local Exams */}
                         {dayExams.map(exam => (
                             <div
                                 key={exam.id}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, exam)}
-                                className="text-xs p-1.5 rounded-md bg-yellow-100 text-yellow-800 border border-yellow-200 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-all flex items-center justify-between group/item"
+                                className="text-[9px] font-black p-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-all flex items-center justify-center uppercase tracking-tighter"
                             >
-                                <span className="font-bold">{exam.code}</span>
+                                {exam.code}
                             </div>
                         ))}
                     </div>
@@ -251,41 +307,70 @@ const PreferredTimetable = () => {
         return days;
     };
 
-    // filteredConfigs moved above
 
     return (
         <div className="flex gap-6 h-full">
             {/* Sidebar for Received Configurations */}
-            <div className="w-80 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 flex flex-col">
-                <div className="p-4 bg-gray-50 border-b border-gray-200">
-                    <h3 className="font-bold text-gray-800">Received Suggestions</h3>
-                    <p className="text-xs text-gray-500">From Batch Representatives - Year(s): {academicYears.sort().join(', ')}</p>
+            <div className="w-80 bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-800 flex flex-col">
+                <div className="p-5 bg-slate-900 border-b border-slate-800">
+                    <div className="flex items-center gap-2 mb-1">
+                        <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-400">
+                            <Icons.Info />
+                        </div>
+                        <h3 className="text-xs font-black text-white uppercase tracking-widest">Suggestions</h3>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">Levels: {academicYears.sort().join(', ')}</p>
+                        {latestAcademicYearFromData && (
+                            <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter leading-none mt-1">Academic Year: {latestAcademicYearFromData}</p>
+                        )}
+                    </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
                     {loading ? (
-                        <p className="text-sm text-gray-500 text-center">Loading...</p>
+                        <div className="flex items-center justify-center py-8">
+                            <div className="w-6 h-6 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                        </div>
                     ) : filteredConfigs.length === 0 ? (
-                        <div className="text-center py-4 bg-gray-50 rounded-lg">
-                            <p className="text-sm text-gray-500">No suggestions for Year(s): {academicYears.join(', ')}</p>
+                        <div className="text-center py-10 px-4">
+                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest leading-relaxed">No data for selected levels</p>
                         </div>
                     ) : (
                         filteredConfigs.map(config => (
                             <div
                                 key={config.id}
                                 onClick={() => setActiveConfig(activeConfig?.id === config.id ? null : config)}
-                                className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-md
-                                    ${activeConfig?.id === config.id ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-200' : 'bg-white border-gray-100'}
+                                className={`p-4 rounded-xl border-2 transition-all cursor-pointer group
+                                    ${activeConfig?.id === config.id
+                                        ? 'bg-blue-600 border-blue-500 shadow-xl shadow-blue-900/40 translate-x-1'
+                                        : 'bg-slate-800/40 border-transparent hover:border-slate-700 hover:bg-slate-800'}
                                 `}
                             >
-                                <div className="flex justify-between items-start mb-2">
-                                    <h4 className="font-bold text-gray-800">{config.course_code}</h4>
-                                    <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{config.status}</span>
+                                <div className="flex justify-between items-start mb-3">
+                                    <h4 className={`text-sm font-black tracking-tight ${activeConfig?.id === config.id ? 'text-white' : 'text-slate-200'}`}>
+                                        {config.course_code}
+                                    </h4>
+                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border
+                                        ${activeConfig?.id === config.id
+                                            ? 'bg-blue-500 text-white border-blue-400'
+                                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}
+                                    `}>
+                                        {config.status}
+                                    </span>
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <p className="text-xs text-gray-500">{config.preferred_dates?.length || 0} date(s)</p>
-                                    <p className="text-[10px] text-gray-400">{new Date(config.created_at).toLocaleDateString()}</p>
+                                <div className="flex items-center justify-between mt-4 border-t border-white/5 pt-3">
+                                    <div className="flex items-center gap-1.5 text-slate-500">
+                                        <div className={activeConfig?.id === config.id ? 'text-blue-100' : 'text-slate-400'}>
+                                            <Icons.Clock />
+                                        </div>
+                                        <span className={`text-[10px] font-bold ${activeConfig?.id === config.id ? 'text-blue-100' : ''}`}>
+                                            {config.preferred_dates?.length || 0} SELECTIONS
+                                        </span>
+                                    </div>
+                                    <span className={`text-[9px] font-black uppercase tracking-tighter ${activeConfig?.id === config.id ? 'text-blue-200' : 'text-slate-500'}`}>
+                                        LVL {config.level || 1}
+                                    </span>
                                 </div>
-                                <div className="text-[10px] text-indigo-500 font-medium mt-1">Level {config.level || 1}</div>
                             </div>
                         ))
                     )}
@@ -293,30 +378,10 @@ const PreferredTimetable = () => {
             </div>
 
             {/* Main Calendar View */}
-            <div className="flex-1 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 h-full flex flex-col">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-white to-gray-50 border-b border-gray-200 p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <div>
-                            <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Preferred Timetable</h2>
-                            <div className="flex items-center space-x-2 mt-1">
-                                {activeConfig && (
-                                    <p className="text-sm text-indigo-600 font-bold animate-pulse">
-                                        Viewing suggestions for {activeConfig.course_code}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                        {/* Search / Filter Placeholder - Innovative UI */}
-                        <div className="flex items-center bg-white border border-gray-200 rounded-full px-4 py-2 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all">
-                            <svg className="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                            <input type="text" placeholder="Search exams..." className="bg-transparent border-none text-sm outline-none placeholder-gray-400 w-48" />
-                        </div>
-                    </div>
-
-                    <div className="flex justify-between items-center w-full">
-                        {/* Academic Year Tabs (Multi-Select) */}
-                        <div className="flex space-x-2">
+            <div className="flex-1 bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 h-full flex flex-col">
+                <div className="bg-white border-b border-slate-100 p-4">
+                    <div className="flex justify-between items-center">
+                        <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
                             {[1, 2, 3, 4].map(year => {
                                 const isSelected = academicYears.includes(year);
                                 return (
@@ -324,7 +389,6 @@ const PreferredTimetable = () => {
                                         key={year}
                                         onClick={() => {
                                             if (isSelected) {
-                                                // Prevent deselecting if it's the only one left
                                                 if (academicYears.length > 1) {
                                                     setAcademicYears(prev => prev.filter(y => y !== year));
                                                 }
@@ -332,63 +396,62 @@ const PreferredTimetable = () => {
                                                 setAcademicYears(prev => [...prev, year]);
                                             }
                                         }}
-                                        className={`px-6 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 transform scale-100 hover:scale-105
+                                        className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
                                             ${isSelected
-                                                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 ring-2 ring-indigo-300 ring-offset-1'
-                                                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:border-indigo-200'}
+                                                ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                                                : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}
                                         `}
                                     >
-                                        Year {year}
+                                        Level {year}
                                     </button>
                                 );
                             })}
                         </div>
 
-                        {/* Calendar Year Controls */}
-                        <div className="flex items-center space-x-4 bg-gray-100 p-1 rounded-xl">
+                        <div className="flex items-center gap-3 bg-slate-900 p-1.5 rounded-2xl">
                             <button
                                 onClick={handlePrevYear}
-                                className="p-2 hover:bg-white rounded-lg shadow-sm transition-all text-gray-500 hover:text-indigo-600"
+                                className="p-2 hover:bg-slate-800 rounded-xl transition-all text-slate-400 hover:text-white"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+                                <Icons.ChevronLeft />
                             </button>
-                            <span className="text-lg font-bold text-gray-700 min-w-[4rem] text-center">{calendarYear}</span>
+                            <span className="text-sm font-black text-white px-2 uppercase tracking-widest">{calendarYear}</span>
                             <button
                                 onClick={handleNextYear}
-                                className="p-2 hover:bg-white rounded-lg shadow-sm transition-all text-gray-500 hover:text-indigo-600"
+                                className="p-2 hover:bg-slate-800 rounded-xl transition-all text-slate-400 hover:text-white"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                                <Icons.ChevronRight />
                             </button>
                         </div>
                     </div>
                 </div>
 
-                {/* Calendar Controls */}
-                <div className="flex justify-between items-center px-6 py-4 bg-gray-50/30 border-b border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-700">{months[currentMonth]} {calendarYear}</h3>
-                    <div className="flex space-x-2">
+                <div className="flex justify-between items-center px-8 py-2 bg-slate-50/50 border-b border-slate-100">
+                    <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
+                        {months[currentMonth]}
+                    </h3>
+                    <div className="flex gap-2">
                         <button
                             onClick={() => setCurrentMonth(prev => Math.max(0, prev - 1))}
                             disabled={currentMonth === 0}
-                            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors"
+                            className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all shadow-sm active:scale-95"
                         >
-                            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+                            <Icons.ChevronLeft />
                         </button>
                         <button
                             onClick={() => setCurrentMonth(prev => Math.min(11, prev + 1))}
                             disabled={currentMonth === 11}
-                            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30 transition-colors"
+                            className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all shadow-sm active:scale-95"
                         >
-                            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                            <Icons.ChevronRight />
                         </button>
                     </div>
                 </div>
 
-                {/* Calendar Grid */}
-                <div className="flex-1 overflow-auto p-4 md:p-6 bg-gray-50/30 custom-scrollbar">
-                    <div className="grid grid-cols-7 grid-rows-[auto_repeat(6,minmax(110px,1fr))] min-h-full gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                <div className="flex-1 overflow-auto p-4 custom-scrollbar bg-slate-50/20">
+                    <div className="grid grid-cols-7 grid-rows-[auto_repeat(6,minmax(90px,1fr))] gap-3 min-h-full">
                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                            <div key={day} className="bg-gray-50 p-2 text-center text-xs font-bold text-gray-500 uppercase tracking-wide">
+                            <div key={day} className="pb-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                 {day}
                             </div>
                         ))}
@@ -396,50 +459,54 @@ const PreferredTimetable = () => {
                     </div>
                 </div>
 
-                {/* Footer Action Area */}
-                <div className="bg-white border-t border-gray-100 p-4 md:px-6 flex justify-between items-center rounded-b-2xl">
-                    <div className="flex items-center gap-4">
-                        <div className="flex flex-col">
-                            <label className="text-xs font-bold text-gray-500 uppercase mb-1">Academic Year</label>
-                            <input
-                                type="text"
-                                placeholder="e.g. 2026/2027"
-                                value={facultyAcademicYear}
-                                onChange={(e) => setFacultyAcademicYear(e.target.value)}
-                                className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-40"
-                            />
+                <div className="bg-white border-t border-slate-100 p-4 flex justify-between items-center">
+                    <div className="flex items-center gap-6">
+                        <div className="group">
+                            <label className="block text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Target Academic Year</label>
+                            <div className="relative">
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500">
+                                    <Icons.Calendar />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={facultyAcademicYear}
+                                    onChange={(e) => setFacultyAcademicYear(e.target.value)}
+                                    readOnly
+                                    className="pl-11 pr-4 py-3 bg-slate-50 border-none rounded-xl text-xs font-bold text-slate-500 outline-none w-48 placeholder:text-slate-400 cursor-default"
+                                />
+                            </div>
                         </div>
 
                         {submitStatus && (
-                            <span className={`px-3 py-1.5 mt-4 rounded-md text-sm font-medium ${submitStatus.includes('success')
-                                ? 'bg-green-50 text-green-700 border border-green-200'
-                                : submitStatus.includes('Error') || submitStatus.includes('Failed')
-                                    ? 'bg-red-50 text-red-700 border border-red-200'
-                                    : 'text-indigo-600 animate-pulse'
-                                }`}>
-                                {submitStatus}
-                            </span>
+                            <div className={`px-4 py-3 rounded-xl flex items-center gap-2 border shadow-sm animate-fade-in
+                                ${submitStatus.toLowerCase().includes('succes')
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                    : 'bg-rose-50 text-rose-700 border-rose-100'}
+                            `}>
+                                {submitStatus.toLowerCase().includes('succes') ? <Icons.CheckCircle /> : <Icons.Info />}
+                                <span className="text-[10px] font-black uppercase tracking-widest">{submitStatus}</span>
+                            </div>
                         )}
                     </div>
+
                     <button
                         onClick={handleSubmitToFaculty}
                         disabled={isSubmitting || !facultyAcademicYear.trim()}
-                        className={`mt-4 px-8 py-3 rounded-xl font-bold text-white shadow-md transition-all duration-300 flex items-center gap-2
+                        className={`px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl flex items-center gap-3 active:scale-95
                             ${(isSubmitting || !facultyAcademicYear.trim())
-                                ? 'bg-indigo-400 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 hover:shadow-lg hover:-translate-y-0.5'
-                            }
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200 shadow-none'
+                                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200 hover:-translate-y-0.5'}
                         `}
                     >
                         {isSubmitting ? (
                             <>
-                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                Submitting...
+                                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                Processing...
                             </>
                         ) : (
                             <>
-                                <span>Submit to Faculty</span>
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                                <Icons.Send />
+                                Submit to Faculty
                             </>
                         )}
                     </button>

@@ -1,20 +1,75 @@
 const pool = require('../config/db');
+const { sendEmail } = require('../utils/emailHelper');
 
 exports.getStats = async (req, res) => {
     try {
         const [addDropCount] = await pool.execute(
-            "SELECT COUNT(*) as count FROM add_drop_request_headers WHERE status = 'Pending'"
+            "SELECT COUNT(*) as count FROM add_drop_request_headers WHERE status = 'Pending Supervisor'"
         );
-        const [courseCount] = await pool.execute(
-            'SELECT COUNT(*) as count FROM course_units'
+        const [deanAddDropCount] = await pool.execute(
+            "SELECT COUNT(*) as count FROM add_drop_request_headers WHERE status = 'Pending Dean'"
         );
+        const [totalFacultyStaff] = await pool.execute(
+            "SELECT COUNT(*) as count FROM users WHERE role = 'FacultyStaff'"
+        );
+        const [pendingFacultyStaff] = await pool.execute(
+            "SELECT COUNT(*) as count FROM users WHERE role = 'FacultyStaff' AND approval_status = 'Pending'"
+        );
+
+        // Get the global current academic year from configuration
+        const [globalConfig] = await pool.execute('SELECT academic_year FROM global_timetable_config LIMIT 1');
+        const currentAY = globalConfig.length > 0 ? globalConfig[0].academic_year : '2024/2025';
+
+        const subtractYears = (ay, offset) => {
+            if (!ay || !ay.includes('/')) return ay;
+            const parts = ay.split('/');
+            const y1 = parseInt(parts[0]);
+            const y2 = parseInt(parts[1]);
+            return isNaN(y1) || isNaN(y2) ? ay : `${y1 - offset}/${y2 - offset}`;
+        };
+
+        const levelMapping = {
+            1: currentAY,
+            2: subtractYears(currentAY, 1),
+            3: subtractYears(currentAY, 2),
+            4: subtractYears(currentAY, 3)
+        };
+
+        const levelStats = {};
+        let totalCountAllLevels = 0;
+
+        for (const [level, year] of Object.entries(levelMapping)) {
+            const [data] = await pool.execute(`
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN non_written_type = 'Non-written' THEN 1 ELSE 0 END) as nonWritten,
+                    SUM(CASE WHEN non_written_type = 'Written' OR non_written_type IS NULL THEN 1 ELSE 0 END) as written
+                FROM modules 
+                WHERE level = ? AND academic_year = ?
+            `, [level, year]);
+
+            const row = data[0];
+            levelStats[level] = {
+                year: year,
+                total: row.total || 0,
+                written: row.written || 0,
+                nonWritten: row.nonWritten || 0
+            };
+            totalCountAllLevels += (row.total || 0);
+        }
+
         const [alertCount] = await pool.execute(
             'SELECT COUNT(*) as count FROM alerts WHERE is_active = TRUE'
         );
 
         res.json({
             pendingAddDrop: addDropCount[0].count,
-            totalCourseUnits: courseCount[0].count,
+            pendingDeanAddDrop: deanAddDropCount[0].count,
+            totalFacultyStaff: totalFacultyStaff[0].count,
+            pendingFacultyStaff: pendingFacultyStaff[0].count,
+            totalCourseUnits: totalCountAllLevels,
+            latestAcademicYear: currentAY,
+            levelBreakdown: levelStats,
             activeAlerts: alertCount[0].count
         });
     } catch (error) {
@@ -25,13 +80,58 @@ exports.getStats = async (req, res) => {
 
 exports.getRecentActivity = async (req, res) => {
     try {
-        const [activities] = await pool.execute(
-            'SELECT * FROM activities ORDER BY created_at DESC LIMIT 5'
+        const { userId } = req.query;
+        let activityQuery = 'SELECT id, description, created_at, type, is_read FROM activities';
+        let activityParams = [];
+
+        if (userId) {
+            activityQuery += ' WHERE user_id = ?';
+            activityParams.push(userId);
+        }
+
+        activityQuery += ' ORDER BY created_at DESC LIMIT 10';
+
+        const [activities] = await pool.execute(activityQuery, activityParams);
+
+        const [alerts] = await pool.execute(
+            'SELECT title as description, created_at, "NOTIFICATION" as type FROM alerts ORDER BY created_at DESC LIMIT 5'
         );
-        res.json(activities);
+
+        // Combine and sort
+        const combined = [...activities, ...alerts]
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        res.json(combined);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error fetching activities' });
+    }
+};
+
+exports.markActivityRead = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await pool.execute('UPDATE activities SET is_read = 1 WHERE id = ?', [id]);
+        res.json({ message: 'Activity marked as read' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error marking activity as read' });
+    }
+};
+
+exports.getUnreadActivityCount = async (req, res) => {
+    try {
+        const { userId } = req.query;
+        if (!userId) return res.status(400).json({ count: 0 });
+
+        const [rows] = await pool.execute(
+            "SELECT COUNT(*) as count FROM activities WHERE user_id = ? AND type = 'notification' AND is_read = 0",
+            [userId]
+        );
+        res.json({ count: rows[0].count });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ count: 0 });
     }
 };
 
@@ -75,11 +175,56 @@ exports.updateStaffStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body; // 'Approved' or 'Rejected'
 
+    const authHeader = req.headers.authorization;
+    let userId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+            userId = decoded.user_id || decoded.id;
+        } catch (err) {
+            console.warn("JWT verification failed in updateStaffStatus");
+        }
+    }
+
     try {
         await pool.execute(
             "UPDATE users SET approval_status = ? WHERE user_id = ?",
             [status, id]
         );
+
+        const [user] = await pool.execute('SELECT name, email, role FROM users WHERE user_id = ?', [id]);
+        if (user.length > 0) {
+            const userData = user[0];
+            const actionText = status === 'Approved' ? 'approved' : 'rejected';
+            const actionType = status === 'Approved' ? 'APPROVAL' : 'REJECTION';
+            
+            // 1. Log activity
+            await pool.execute(
+                'INSERT INTO activities (user_id, description, type) VALUES (?, ?, ?)',
+                [userId, `${userData.name} staff was ${actionText}`, actionType]
+            );
+
+            // 2. Send Email if Approved
+            if (status === 'Approved') {
+                try {
+                    const dashboardUrl = 'http://localhost:5173/login';
+                    const subject = 'EMS Account Approved';
+                    const emailHtml = `
+                        <h2>Account Registration Approved</h2>
+                        <p>Hello ${userData.name},</p>
+                        <p>Your registration for the <strong>Examination Management System</strong> has been approved by the administration.</p>
+                        <p>You can now log in to the system using your registered credentials to access the ${userData.role} dashboard.</p>
+                        <a href="${dashboardUrl}" style="padding: 10px 20px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Login to EMS</a>
+                        <p>Best regards,<br/>Examination Management System</p>
+                    `;
+                    await sendEmail(userData.email, subject, emailHtml);
+                } catch (emailErr) {
+                    console.error('Error sending approval email:', emailErr);
+                }
+            }
+        }
+
         res.json({ message: `Staff status updated to ${status}` });
     } catch (error) {
         console.error(error);

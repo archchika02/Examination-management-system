@@ -1,0 +1,115 @@
+[
+  {
+    "id": "header_rm",
+    "type": "header",
+    "content": [
+      {
+        "text": "Closing date of Application: {{deadlineDate}}",
+        "style": "text_left_bold"
+      },
+      {
+        "text": "UNIVERSITY OF KELANIYA",
+        "style": "h2"
+      },
+      {
+        "text": "APPLICATION FOR REPEAT/MEDICAL EXAMINATIONS",
+        "style": "h2"
+      },
+      {
+        "text": "FOR IT/MIT STUDENTS",
+        "style": "h3"
+      },
+      {
+        "text": "INTAKE OF STUDENTS OF THE ACADEMIC YEAR 2022/2023 ONLY",
+        "style": "h3"
+      },
+      {
+        "text": "ACADEMIC YEAR {{academicYear}} – SEMESTER I",
+        "style": "h3"
+      }
+    ]
+  },
+  {
+    "id": "instructions",
+    "type": "instruction_block",
+    "items": [
+      "Mention the results obtained (E, D+, D, or C-) for each course unit separately with the relevant academic year. If you have been absent for the module mention it as 'AB', if you have obtained the approval for the medical application, mention it as 'MED', if the results are withheld, mention it as 'WH'.",
+      "Follow mentioned amount should be deposited to the Peoples Bank, Dalugama Branch, Account Name: University of Kelaniya, Account No: 055-100130667553.",
+      {
+        "rows": [
+          [
+            "1st Medical",
+            "LKR 100.00 per course unit"
+          ],
+          [
+            "2nd, 3rd Medical of the same course unit",
+            "LKR 500.00 per course unit"
+          ],
+          [
+            "Repeat or any other situation",
+            "LKR 500.00 per course unit"
+          ]
+        ],
+        "type": "table_embedded",
+        "columns": [
+          "Kind of Payment",
+          "Amount to be paid for a course unit"
+        ]
+      },
+      "The duly filled application, copy of the medical application approved letter and the copy of the payment receipt should be attached and should be handed over to the help desk of the Faculty of Science.",
+      "The student requests to sit exams beyond 5 years should obtain the approval of the Appeals committee and attach the letter of approval."
+    ]
+  },
+  {
+    "id": "student_info_rm",
+    "type": "section",
+    "fields": [
+      {
+        "id": "full_name",
+        "type": "dotted_line",
+        "label": "01. Full Name"
+      },
+      {
+        "id": "st_num_spec",
+        "type": "prefilled_box",
+        "label": "02. Student Number",
+        "value": "IM/2022/........."
+      },
+      {
+        "id": "tel_no",
+        "type": "dotted_line",
+        "label": "03. Telephone No"
+      },
+      {
+        "id": "email_rm",
+        "type": "dotted_line",
+        "label": "04. Email"
+      }
+    ]
+  },
+  {
+    "id": "course_apply_head",
+    "type": "text_block_simple",
+    "content": "05. Course unit applying for:"
+  },
+  {
+    "id": "course_apply_table",
+    "rows": 5,
+    "type": "table",
+    "columns": [
+      "Course Code",
+      "Course Title",
+      "Results obtained",
+      "Academic Year"
+    ],
+    "numberedRows": true
+  },
+  {
+    "id": "signatures_rm",
+    "type": "signature_row_wide",
+    "labels": [
+      "Student Signature:....................................",
+      "Date ........................"
+    ]
+  }
+]

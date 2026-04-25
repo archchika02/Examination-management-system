@@ -59,7 +59,7 @@ const SupervisorTimetableManager = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Course Unit</label>
                         <input
                             type="text"
-                            placeholder="e.g. CSC 301"
+                            placeholder="e.g. INTE 21233"
                             className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                             value={newEntry.courseUnit}
                             onChange={(e) => setNewEntry({ ...newEntry, courseUnit: e.target.value })}

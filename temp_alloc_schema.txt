@@ -1,0 +1,16 @@
+CREATE TABLE `exam_draft_allocations` (
+  `alloc_id` int NOT NULL AUTO_INCREMENT,
+  `exam_id` int NOT NULL,
+  `venue` varchar(255) DEFAULT NULL,
+  `assigned_non_repeat` int DEFAULT '0',
+  `assigned_repeat` int DEFAULT '0',
+  `supervisor_id` int DEFAULT NULL,
+  `is_published` tinyint(1) DEFAULT '0',
+  `is_submitted_to_faculty` tinyint(1) DEFAULT '0',
+  `is_published_to_students` tinyint(1) DEFAULT '0',
+  PRIMARY KEY (`alloc_id`),
+  KEY `exam_id` (`exam_id`),
+  KEY `supervisor_id` (`supervisor_id`),
+  CONSTRAINT `exam_draft_allocations_ibfk_1` FOREIGN KEY (`exam_id`) REFERENCES `exam_timetables` (`timetable_id`) ON DELETE CASCADE,
+  CONSTRAINT `exam_draft_allocations_ibfk_2` FOREIGN KEY (`supervisor_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=379 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
