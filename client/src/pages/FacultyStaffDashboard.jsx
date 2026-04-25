@@ -238,14 +238,14 @@ const FacultyStaffDashboard = () => {
         }
 
         if (activeSection !== 'Home') {
-            return (
-                <div className="flex items-center justify-center h-full">
-                    <div className="text-center p-10 bg-white rounded-xl shadow-sm border border-gray-100">
-                        <h2 className="text-2xl font-bold text-gray-400 mb-2">{activeSection} Module</h2>
-                        <p className="text-gray-500">This module is currently under development.</p>
-                    </div>
-                </div>
-            );
+            // return (
+            //     <div className="flex items-center justify-center h-full">
+            //         <div className="text-center p-10 bg-white rounded-xl shadow-sm border border-gray-100">
+            //             <h2 className="text-2xl font-bold text-gray-400 mb-2">{activeSection} Module</h2>
+            //             <p className="text-gray-500">This module is currently under development.</p>
+            //         </div>
+            //     </div>
+            // );
         }
 
         return (

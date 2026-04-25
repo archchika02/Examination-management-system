@@ -1131,6 +1131,7 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                     et.course_code as courseUnit,
                     COALESCE(m_map.title, m_latest.title) as courseTitle,
                     a.venue,
+                    u_sup.name as supervisorName,
                     CASE 
                         WHEN a.supervisor_id = ? THEN 'Supervisor'
                         WHEN (SELECT COUNT(*) FROM exam_draft_invigilators i WHERE i.alloc_id = a.alloc_id AND i.invigilator_id = ?) > 0 THEN 'Invigilator'
@@ -1141,6 +1142,7 @@ router.get('/personalized-timetable/:userId', async (req, res) => {
                 FROM exam_draft_allocations a
                 JOIN exam_timetables et ON a.exam_id = et.timetable_id
                 JOIN exam_slots s ON et.timetable_id = s.timetable_id
+                LEFT JOIN users u_sup ON a.supervisor_id = u_sup.user_id
                 LEFT JOIN (
                     SELECT REPLACE(course_code, ' ', '') as norm_code, MAX(level) as level
                     FROM modules

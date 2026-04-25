@@ -261,13 +261,14 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
                                 <th className="px-6 py-4">Date</th>
                                 <th className="px-6 py-4">Time</th>
                                 <th className="px-6 py-4">Venue</th>
+                                <th className="px-6 py-4">Supervisor</th>
                                 <th className="px-6 py-4">Assigned Role</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 text-sm">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={enableConcerns ? "7" : "6"} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={enableConcerns ? "8" : "7"} className="px-6 py-12 text-center text-gray-500">
                                         Loading your timetable...
                                     </td>
                                 </tr>
@@ -312,6 +313,11 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
+                                                <span className="text-sm font-bold text-slate-700">
+                                                    {exam.supervisorName || 'N/A'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
                                                 <div className="flex flex-col gap-1">
                                                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
                                                     ${exam.role === 'Supervisor' ? 'bg-indigo-50 text-indigo-700' :
@@ -331,7 +337,7 @@ const PersonalizedTimetable = ({ enableConcerns = false }) => {
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={enableConcerns ? "7" : "6"} className="px-6 py-12 text-center text-gray-400">
+                                    <td colSpan={enableConcerns ? "8" : "7"} className="px-6 py-12 text-center text-gray-400">
                                         <p className="text-lg mb-2">No exams found matching your search.</p>
                                         <button
                                             onClick={() => setSearchTerm('')}
