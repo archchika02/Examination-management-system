@@ -15,11 +15,15 @@ The **Examination Management System (EMS)** is a robust, full-stack web applicat
 
 ### 👥 User Roles & Dashboards
 The system features a tailored experience for 7 distinct user roles:
-- **Academic Supervisor & Dean**: High-level oversight, approval workflows, and system configuration.
-- **Faculty & Department Staff**: Timetable generation, hall allocations, and staff management.
-- **Hall Attendants**: View assigned duties and schedules.
-- **Students**: Personalized timetables, deadline notifications, and profile management.
-- **Batch Representatives**: Coordination between students and department staff.
+- **Academic Supervisor**: High-level oversight, approval workflows, system configuration and department staff management.
+- **Dean**: approve forms and faculty staff management.
+- **Faculty Staff**: Handling timetable, hall attendants allocations, generate admission forms and attendance sheet.
+- **Department Staff**: View personalized timetable and ask concerns, generate marking sheet.
+- **Hall Attendants**: View assigned duties and concerns.
+- **Students**: Personalized timetables, deadline notifications, and handle forms.
+- **Batch Representatives**: Coordination between students and academic supervisor.
+
+Email notifications to important steps.
 
 ### 📅 Examination Scheduling
 - Automated and manual allocation of examination halls and timeslots.
@@ -45,19 +49,14 @@ The system features a tailored experience for 7 distinct user roles:
 
 ## 📸 Screenshots Gallery
 
-> [!TIP]
-> **To add your own screenshots:**
-> 1. Take a screenshot of the relevant page in your browser.
-> 2. Save it to the `docs/screenshots/` directory.
-> 3. Name your file exactly as suggested (e.g., `dashboard.png`) or update the links below.
-
 | Feature | Screenshot |
 |---------|------------|
 | **Login Page** | ![Login Screen](docs/screenshots/login.png) |
-| **Admin Dashboard** | ![Admin Dashboard](docs/screenshots/dashboard.png) |
+| **Academic Supervisor Dashboard** | ![Academic Supervisor Dashboard](docs/screenshots/dashboard.png) |
 | **Timetable Allocation** | ![Allocation View](docs/screenshots/allocation.png) |
 | **Student Timetable** | ![Student View](docs/screenshots/student_view.png) |
-| **Email Notifications** | ![Email Preview](docs/screenshots/email_notification.png) |
+| **Generate Reports** | ![Generate Reports](docs/screenshots/generate_reports.png) |
+| **Personalized Timetable of Department Staff** | ![Personalized Timetable of Department Staff](docs/screenshots/department_staff_timetable.png) |
 
 ---
 
