@@ -6,6 +6,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
+import DocumentViewPage from './pages/DocumentViewPage';
 
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -21,6 +22,14 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route
+        path="/view-document/:type/:id"
+        element={
+          <PrivateRoute>
+            <DocumentViewPage />
+          </PrivateRoute>
+        }
+      />
       <Route
         path="/"
         element={

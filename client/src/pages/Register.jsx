@@ -6,10 +6,45 @@ import authBg from '../assets/auth-bg.png';
 const Register = () => {
     const { register } = useAuth();
     const navigate = useNavigate();
+
+    // Recognized University Domains and Test Emails
+    const STUDENT_DOMAINS = ['@stu.kln.ac.lk'];
+    const STUDENT_TEST_EMAILS = [
+        'archchika27@gmail.com',  //batch rep 4
+        'lihij13980@gamening.com',
+        'hemoyev878@gamening.com',
+        'wixal14117@creteanu.com',
+        'mawik46348@cslua.com',
+        'rekayap949@mypethealh.com'
+    ];
+
+    const STAFF_DOMAINS = ['@kln.ac.lk'];
+    const STAFF_TEST_EMAILS = [
+        'Vithusivam97@gmail.com', //dept staff
+        'mahaf55625@okexbit.com',
+        'archchika27@gmail.com',
+        'bagivi1341@gxuzi.com',
+        'wevaw72949@gxuzi.com',
+        'yihobat906@gxuzi.com',
+        'nacow76709@gxuzi.com',
+        'thavashikalaxi@gmail.com',  //faculty Stff
+        'archchika.t@gmail.com',  //hall Attendant
+        'yibiko1642@cslua.com',
+        'kavitha.aachi@gmail.com',  //as
+        'Vithu97work@gmail.com' //hall ata
+    ];
+
+    const isStudentEmail = (email) =>
+        STUDENT_DOMAINS.some(domain => email.endsWith(domain)) || STUDENT_TEST_EMAILS.includes(email);
+
+    const isStaffEmail = (email) =>
+        STAFF_DOMAINS.some(domain => email.endsWith(domain)) || STAFF_TEST_EMAILS.includes(email);
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
+        confirmPassword: '',
         role: 'Student',
         mobile: '',
         student_number: '',
@@ -17,8 +52,17 @@ const Register = () => {
         address: ''
     });
     const [error, setError] = useState('');
-    const [availableRoles, setAvailableRoles] = useState(['Student', 'BatchRep']);
+    const [availableRoles, setAvailableRoles] = useState([]); // Start empty to force email first
     const [takenRoles, setTakenRoles] = useState({ dean: false, supervisor: false });
+
+    // Real-time Validation State
+    const [passwordCriteria, setPasswordCriteria] = useState({
+        length: false,
+        hasLetter: false,
+        hasNumber: false,
+        hasSpecial: false
+    });
+    const [passwordsMatch, setPasswordsMatch] = useState(true); // Default true to hide error initially
 
     useEffect(() => {
         const fetchRoles = async () => {
@@ -38,12 +82,13 @@ const Register = () => {
         setFormData(prev => {
             const newData = { ...prev, [name]: value };
             if (name === 'email') {
-                if (value.endsWith('@stu.kln.ac.lk') || value === 'archchika27@gmail.com') {
-                    setAvailableRoles(['Student', 'BatchRep']);
-                    if (!['Student', 'BatchRep'].includes(newData.role)) {
+                if (isStudentEmail(value)) {
+                    const studentRoles = ['Student', 'BatchRepresentative'];
+                    setAvailableRoles(studentRoles);
+                    if (!studentRoles.includes(newData.role)) {
                         newData.role = 'Student';
                     }
-                } else if (value.endsWith('@kln.ac.lk')) {
+                } else if (isStaffEmail(value)) {
                     let staffRoles = ['FacultyStaff', 'DeptStaff', 'Dean', 'HallAttendant', 'AcademicSupervisor'];
                     if (takenRoles.dean) staffRoles = staffRoles.filter(r => r !== 'Dean');
                     if (takenRoles.supervisor) staffRoles = staffRoles.filter(r => r !== 'AcademicSupervisor');
@@ -52,20 +97,37 @@ const Register = () => {
                         newData.role = staffRoles[0] || '';
                     }
                 } else {
-                    let allRoles = ['Student', 'BatchRep', 'FacultyStaff', 'DeptStaff', 'Dean', 'HallAttendant', 'AcademicSupervisor'];
-                    if (takenRoles.dean) allRoles = allRoles.filter(r => r !== 'Dean');
-                    if (takenRoles.supervisor) allRoles = allRoles.filter(r => r !== 'AcademicSupervisor');
-                    setAvailableRoles(allRoles);
+                    // No roles available for unrecognized emails
+                    setAvailableRoles([]);
+                    newData.role = '';
                 }
             }
+
+            // Real-time checks
+            if (name === 'password') {
+                setPasswordCriteria({
+                    length: value.length >= 8,
+                    hasLetter: /[A-Za-z]/.test(value),
+                    hasNumber: /[0-9]/.test(value),
+                    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(value)
+                });
+                if (newData.confirmPassword) {
+                    setPasswordsMatch(value === newData.confirmPassword);
+                }
+            }
+            if (name === 'confirmPassword') {
+                setPasswordsMatch(newData.password === value);
+            }
+
             return newData;
         });
     };
 
-    const validatePassword = (password) => {
-        if (password.length < 8) return "Password must be at least 8 characters long.";
-        if (!/[A-Za-z]/.test(password)) return "Password must contain at least one letter.";
-        if (!/[0-9]/.test(password)) return "Password must contain at least one number.";
+    const validatePassword = () => {
+        if (!passwordCriteria.length) return "Password must be at least 8 characters long.";
+        if (!passwordCriteria.hasLetter) return "Password must contain at least one letter.";
+        if (!passwordCriteria.hasNumber) return "Password must contain at least one number.";
+        if (!passwordCriteria.hasSpecial) return "Password must contain at least one special character.";
         return null;
     };
 
@@ -73,19 +135,32 @@ const Register = () => {
         e.preventDefault();
         setError('');
 
-        if (formData.role === 'Student' || formData.role === 'BatchRep') {
-            if (!formData.email.endsWith('@stu.kln.ac.lk') && formData.email !== 'archchika27@gmail.com') {
-                setError('Student/BatchRep must use @stu.kln.ac.lk email');
+        if (formData.password !== formData.confirmPassword) {
+            setError('Passwords do not match');
+            return;
+        }
+
+        if (formData.role === 'Student' || formData.role === 'BatchRepresentative') {
+            if (!isStudentEmail(formData.email)) {
+                setError('Student/BatchRepresentative must use @stu.kln.ac.lk email');
                 return;
             }
-        } else {
-            if (!formData.email.endsWith('@kln.ac.lk')) {
+        } else if (formData.role) {
+            if (!isStaffEmail(formData.email)) {
                 setError('Staff roles must use @kln.ac.lk email');
                 return;
             }
+        } else {
+            setError('Please enter a valid university email to select a role');
+            return;
         }
 
-        const pwdError = validatePassword(formData.password);
+        if (formData.mobile && !/^\d{10}$/.test(formData.mobile)) {
+            setError('Mobile number must be exactly 10 digits');
+            return;
+        }
+
+        const pwdError = validatePassword();
         if (pwdError) {
             setError(pwdError);
             return;
@@ -124,10 +199,10 @@ const Register = () => {
             </div>
 
             {/* Right Side - Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 lg:p-16 bg-white overflow-y-auto h-screen z-30">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 lg:p-16 bg-white overflow-y-auto min-h-screen z-30">
                 <div className="max-w-md w-full space-y-6">
                     <div className="text-center lg:text-left">
-                        <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+                        <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight leading-normal">
                             Create an Account
                         </h2>
                         <p className="mt-2 text-sm text-gray-600">
@@ -144,43 +219,87 @@ const Register = () => {
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name <span className="text-red-500">*</span></label>
-                                <input name="name" type="text" required className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-gray-50 focus:bg-white" placeholder="Archchika" onChange={handleChange} value={formData.name} />
+                                <label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">Full Name</label>
+                                <input name="name" type="text" required className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-gray-50 focus:bg-white leading-normal" placeholder="Archchika" onChange={handleChange} value={formData.name} />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">University Email <span className="text-red-500">*</span></label>
-                                <input name="email" type="email" required className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-gray-50 focus:bg-white" placeholder="example@kln.ac.lk" onChange={handleChange} value={formData.email} />
+                                <label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">University Email</label>
+                                <input name="email" type="email" required className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-gray-50 focus:bg-white leading-normal" placeholder="example@kln.ac.lk" onChange={handleChange} value={formData.email} />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Password <span className="text-red-500">*</span></label>
-                                    <input name="password" type="password" required className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-gray-50 focus:bg-white" placeholder="••••••••" onChange={handleChange} value={formData.password} />
+                                    <label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">Password</label>
+                                    <input name="password" type="password" required className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-gray-50 focus:bg-white leading-normal" placeholder="••••••••" onChange={handleChange} value={formData.password} />
+                                    {/* Real-time Checklist */}
+                                    <div className="mt-2 space-y-1">
+                                        <div className={`text-xs flex items-center ${passwordCriteria.length ? 'text-green-600' : 'text-gray-400'}`}>
+                                            <span className="mr-1.5">{passwordCriteria.length ? '✓' : '○'}</span> At least 8 characters
+                                        </div>
+                                        <div className={`text-xs flex items-center ${passwordCriteria.hasLetter ? 'text-green-600' : 'text-gray-400'}`}>
+                                            <span className="mr-1.5">{passwordCriteria.hasLetter ? '✓' : '○'}</span> At least one letter
+                                        </div>
+                                        <div className={`text-xs flex items-center ${passwordCriteria.hasNumber ? 'text-green-600' : 'text-gray-400'}`}>
+                                            <span className="mr-1.5">{passwordCriteria.hasNumber ? '✓' : '○'}</span> At least one number
+                                        </div>
+                                        <div className={`text-xs flex items-center ${passwordCriteria.hasSpecial ? 'text-green-600' : 'text-gray-400'}`}>
+                                            <span className="mr-1.5">{passwordCriteria.hasSpecial ? '✓' : '○'}</span> At least one special char
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Mobile Number</label>
-                                    <input name="mobile" type="text" className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-gray-50 focus:bg-white" placeholder="07xxxxxxxx" onChange={handleChange} value={formData.mobile} />
+                                <div className="relative">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">Confirm Password</label>
+                                    <div className="relative">
+                                        <input
+                                            name="confirmPassword"
+                                            type="password"
+                                            required
+                                            className={`appearance-none block w-full px-4 py-2.5 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-gray-50 focus:bg-white leading-normal ${!passwordsMatch && formData.confirmPassword ? 'border-red-300 focus:ring-red-500' : 'border-gray-300'}`}
+                                            placeholder="••••••••"
+                                            onChange={handleChange}
+                                            value={formData.confirmPassword}
+                                        />
+                                        {formData.confirmPassword && (
+                                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                {passwordsMatch ? (
+                                                    <span className="text-green-500 text-lg">✓</span>
+                                                ) : (
+                                                    <span className="text-red-500 text-lg">✕</span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {!passwordsMatch && formData.confirmPassword && (
+                                        <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                                    )}
                                 </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">Mobile Number</label>
+                                <input name="mobile" type="text" className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-gray-50 focus:bg-white leading-normal" placeholder="07xxxxxxxx" onChange={handleChange} value={formData.mobile} />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Role <span className="text-red-500">*</span></label>
-                                <select name="role" value={formData.role} onChange={handleChange} className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-white">
-                                    {availableRoles.map(role => (
-                                        <option key={role} value={role}>{role}</option>
-                                    ))}
+                                <label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">Role</label>
+                                <select name="role" value={formData.role} onChange={handleChange} className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-white leading-normal" disabled={availableRoles.length === 0}>
+                                    {availableRoles.length === 0 ? (
+                                        <option value="">Enter University Email to Select Role</option>
+                                    ) : (
+                                        availableRoles.map(role => (
+                                            <option key={role} value={role}>{role}</option>
+                                        ))
+                                    )}
                                 </select>
                             </div>
-
-                            {formData.role === 'Student' && (
+                            {(formData.role === 'Student' || formData.role === 'BatchRepresentative') && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 animate-fadeIn">
                                     <div className="col-span-1 md:col-span-2 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Student Details</div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Student Number <span className="text-red-500">*</span></label>
-                                        <input name="student_number" type="text" required className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:text-sm" placeholder="IM/20xx/xxx" onChange={handleChange} value={formData.student_number} />
+                                        <label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">Student Number</label>
+                                        <input name="student_number" type="text" required className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:text-sm leading-normal" placeholder="IM/20xx/xxx" onChange={handleChange} value={formData.student_number} />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
-                                        <input name="level" type="text" placeholder="e.g. Level 1" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:text-sm" onChange={handleChange} value={formData.level} />
+                                        <label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">Level</label>
+                                        <input name="level" type="text" placeholder="e.g. 1" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent sm:text-sm leading-normal" onChange={handleChange} value={formData.level} />
                                     </div>
                                 </div>
                             )}
@@ -194,7 +313,7 @@ const Register = () => {
                                 Register Account
                             </button>
                         </div>
-                    </form>
+                    </form >
 
                     <div className="mt-6 text-center border-t border-gray-100 pt-6">
                         <span className="text-sm text-gray-500">Already have an account? </span>
@@ -202,9 +321,9 @@ const Register = () => {
                             Log in to your account
                         </Link>
                     </div>
-                </div>
-            </div>
-        </div>
+                </div >
+            </div >
+        </div >
     );
 };
 

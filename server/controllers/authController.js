@@ -3,14 +3,50 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const { sendEmail } = require('../utils/emailHelper');
 
 const validateEmail = (email, role) => {
-    // Allow specific test email
+    // Allow specific test email 
     if (email === 'archchika27@gmail.com') return true;
 
-    if (role === 'Student') {
+    if (email === 'rekayap949@mypethealh.com') return true;
+
+    if (email === 'nacow76709@gxuzi.com') return true; //faculty staff
+
+    if (email === 'wevaw72949@gxuzi.com') return true; // hall atta
+
+    if (email === 'bagivi1341@gxuzi.com') return true; //dept staff
+
+    if (email === 'yihobat906@gxuzi.com') return true; // faculty staff
+
+    if (email === 'lihij13980@gamening.com') return true; //batch rep
+
+    if (email === 'wevaw72949@gxuzi.com') return true; // for AS
+
+    if (email === 'mahaf55625@okexbit.com') return true; // for dept staff
+
+    if (email === 'hemoyev878@gamening.com') return true;
+
+    if (email === 'thavashikalaxi@gmail.com') return true; //faculty staff
+
+    if (email === 'wixal14117@creteanu.com') return true;
+
+    if (email === 'archchika.t@gmail.com') return true; //hall atta
+
+    if (email === 'mawik46348@cslua.com') return true;
+
+    if (email === 'yibiko1642@cslua.com') return true;
+
+    if (email === 'kavitha.aachi@gmail.com') return true; //As
+
+    if (email === 'Vithusivam97@gmail.com') return true; //dept staff
+
+    if (email === 'Vithu97work@gmail.com') return true; //hall ata
+
+    if (role === 'Student' || role === 'BatchRepresentative') {
         return email.endsWith('@stu.kln.ac.lk');
-    } else {
+    }
+    else {
         // For other roles, assume staff domain
         return email.endsWith('@kln.ac.lk');
     }
@@ -19,36 +55,11 @@ const validateEmail = (email, role) => {
 
 
 
-// Helper for sending emails
-const sendEmail = async (to, subject, html) => {
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
-        }
-    });
-
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: to,
-        subject: subject,
-        html: html
-    };
-
-    try {
-        console.log(`Attempting to send email to ${to}`);
-        await transporter.sendMail(mailOptions);
-        console.log(`[EMAIL SENT] Email sent to ${to}`);
-        return true;
-    } catch (error) {
-        console.error('FATAL EMAIL ERROR:', error);
-        return false;
-    }
-};
+// Helper for sending emails (moved to utils/emailHelper.js)
+// const sendEmail = async (to, subject, html) => ...
 
 exports.register = async (req, res) => {
-    const { email, password, role, name, mobile, student_number, level } = req.body;
+    let { email, password, role, name, mobile, student_number, level } = req.body;
 
     try {
         // 1. Validation
@@ -68,6 +79,11 @@ exports.register = async (req, res) => {
             }
         }
 
+        // Map BatchRepresentative to BatchRep for database storage
+        if (role === 'BatchRepresentative') {
+            role = 'BatchRep';
+        }
+
         // 2. Hash Password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
@@ -77,23 +93,29 @@ exports.register = async (req, res) => {
         await connection.beginTransaction();
 
         try {
+            // Determine default approval status
+            const autoApprovedRoles = ['Student', 'BatchRep', 'Dean', 'AcademicSupervisor', 'HallAttendant'];
+            const approvalStatus = autoApprovedRoles.includes(role) ? 'Approved' : 'Pending';
+
             const [userResult] = await connection.execute(
-                'INSERT INTO users (email, password_hash, role, name, mobile) VALUES (?, ?, ?, ?, ?)',
-                [email, hashedPassword, role, name, mobile]
+                'INSERT INTO users (email, password_hash, role, name, mobile, approval_status) VALUES (?, ?, ?, ?, ?, ?)',
+                [email, hashedPassword, role, name, mobile, approvalStatus]
             );
             const userId = userResult.insertId;
 
-            if (role === 'Student') {
+            if (role === 'Student' || role === 'BatchRep') {
                 if (!student_number) throw new Error('Student number is required');
+                // Ensure level is not undefined, default to 1 if not provided
+                const studentLevel = level || 1;
                 await connection.execute(
                     'INSERT INTO student_details (user_id, student_number, level) VALUES (?, ?, ?)',
-                    [userId, student_number, level]
+                    [userId, student_number, studentLevel]
                 );
             }
 
             // Create Verification Token
             const verificationToken = crypto.randomBytes(32).toString('hex');
-            const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+            const verificationExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
             await connection.execute(
                 'INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)',
@@ -144,15 +166,35 @@ exports.login = async (req, res) => {
         if (!user.is_verified) {
             return res.status(403).json({ message: 'Please verify your email before logging in.' });
         }
+
+        if ((user.role === 'FacultyStaff' || user.role === 'DeptStaff') && user.approval_status !== 'Approved') {
+            return res.status(403).json({ message: 'Your account is waiting for approval.' });
+        }
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
+        // Map BatchRep back to BatchRepresentative for frontend
+        let role = user.role;
+        if (role === 'BatchRep') {
+            role = 'BatchRepresentative';
+        }
+
+        let studentLevel = 1;
+        if (role === 'Student' || role === 'BatchRepresentative') {
+            const [studentDetails] = await pool.execute('SELECT level FROM student_details WHERE user_id = ?', [user.user_id]);
+            if (studentDetails.length > 0) {
+                studentLevel = studentDetails[0].level;
+            }
+        }
+
         const payload = {
             user_id: user.user_id,
-            role: user.role,
-            name: user.name
+            email: user.email,
+            role: role,
+            name: user.name,
+            level: studentLevel
         };
 
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' });
@@ -282,5 +324,65 @@ exports.verifyEmail = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error verifying email' });
+    }
+};
+
+exports.resendVerification = async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        const [users] = await pool.execute('SELECT * FROM users WHERE email = ?', [email]);
+
+        if (users.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        const user = users[0];
+
+        if (user.is_verified) {
+            return res.status(400).json({ message: 'Email is already verified.' });
+        }
+
+        const connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        try {
+            // Delete existing tokens for this email to prevent spam/confusion
+            await connection.execute('DELETE FROM email_verifications WHERE email = ?', [email]);
+
+            // Create new Verification Token
+            const verificationToken = crypto.randomBytes(32).toString('hex');
+            const verificationExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+            await connection.execute(
+                'INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)',
+                [email, verificationToken, verificationExpires]
+            );
+
+            await connection.commit();
+
+            // Send Email
+            const verifyUrl = `http://localhost:5173/verify-email?token=${verificationToken}&email=${email}`;
+            const emailHtml = `
+                    <h1>Verify Your Email</h1>
+                    <p>You requested a new verification link. Please click the link below to verify your account:</p>
+                    <a href="${verifyUrl}">${verifyUrl}</a>
+                    <p>This link will expire in 5 minutes.</p>
+                `;
+
+            await sendEmail(email, 'EMS Account Verification - Resend', emailHtml);
+
+            res.json({ message: 'A new verification email has been sent. Please check your inbox (and spam).' });
+
+        } catch (err) {
+            await connection.rollback();
+            throw err;
+        } finally {
+            connection.release();
+        }
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error resending verification email' });
     }
 };

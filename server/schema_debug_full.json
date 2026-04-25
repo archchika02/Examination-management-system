@@ -1,0 +1,2553 @@
+{
+  "database": "ems_database",
+  "tables": [
+    "activities",
+    "add_drop_request_headers",
+    "add_drop_requested_courses",
+    "add_drop_requests",
+    "alerts",
+    "allocations",
+    "batch_configurations",
+    "course_unit_registration_headers",
+    "course_unit_registrations",
+    "course_units",
+    "deadline_notification_reads",
+    "deadline_roles",
+    "deadlines",
+    "department_concerns",
+    "email_verifications",
+    "enrollments",
+    "exam_draft_allocations",
+    "exam_draft_attendants",
+    "exam_draft_invigilators",
+    "exam_marks",
+    "exam_slots",
+    "exam_timetables",
+    "examiner_appointments",
+    "global_timetable_config",
+    "medical_repeat_request_headers",
+    "medical_repeat_requested_courses",
+    "modules",
+    "password_resets",
+    "registered_course_units",
+    "staff_concerns",
+    "student_details",
+    "timetable_config",
+    "users",
+    "venue_allocations"
+  ],
+  "table_details": {
+    "activities": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "description",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "user_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "type",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "user_id",
+          "CONSTRAINT_NAME": "fk_activities_user",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "add_drop_request_headers": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "user_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "student_number",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "student_name",
+          "Type": "varchar(150)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "contact_number",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "email",
+          "Type": "varchar(150)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "combination",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "year",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "sem1_credits",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "sem2_credits",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "total_credits",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "signature",
+          "Type": "longtext",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "signature_date",
+          "Type": "date",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('Pending','Pending Supervisor','Pending Dean','Approved','Rejected by Supervisor','Rejected by Dean','Rejected')",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Pending Supervisor",
+          "Extra": ""
+        },
+        {
+          "Field": "reject_reason",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        },
+        {
+          "Field": "academic_year",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "user_id",
+          "CONSTRAINT_NAME": "add_drop_request_headers_ibfk_1",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "add_drop_requested_courses": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "header_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "action",
+          "Type": "enum('Add','Drop')",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "header_id",
+          "CONSTRAINT_NAME": "add_drop_requested_courses_ibfk_1",
+          "REFERENCED_TABLE_NAME": "add_drop_request_headers",
+          "REFERENCED_COLUMN_NAME": "id"
+        }
+      ]
+    },
+    "add_drop_requests": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "student_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "type",
+          "Type": "enum('ADD','DROP')",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('PENDING','APPROVED','REJECTED')",
+          "Null": "YES",
+          "Key": "",
+          "Default": "PENDING",
+          "Extra": ""
+        },
+        {
+          "Field": "request_date",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        },
+        {
+          "Field": "enrollment_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "enrollment_id",
+          "CONSTRAINT_NAME": "add_drop_requests_ibfk_enrollment",
+          "REFERENCED_TABLE_NAME": "enrollments",
+          "REFERENCED_COLUMN_NAME": "enrollment_id"
+        },
+        {
+          "COLUMN_NAME": "course_code",
+          "CONSTRAINT_NAME": "fk_add_drop_course",
+          "REFERENCED_TABLE_NAME": "modules",
+          "REFERENCED_COLUMN_NAME": "course_code"
+        },
+        {
+          "COLUMN_NAME": "student_id",
+          "CONSTRAINT_NAME": "fk_add_drop_student",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "alerts": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "title",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "message",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "type",
+          "Type": "enum('INFO','WARNING','CRITICAL')",
+          "Null": "YES",
+          "Key": "",
+          "Default": "INFO",
+          "Extra": ""
+        },
+        {
+          "Field": "is_active",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "1",
+          "Extra": ""
+        },
+        {
+          "Field": "created_by",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "created_by",
+          "CONSTRAINT_NAME": "fk_alerts_created_by",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "allocations": {
+      "columns": [
+        {
+          "Field": "allocation_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "user_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "role",
+          "Type": "enum('Supervisor','Invigilator','HallAttendant')",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('Assigned','Confirmed','ConcernRaised')",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Assigned",
+          "Extra": ""
+        },
+        {
+          "Field": "concern_message",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "venue_allocation_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "user_id",
+          "CONSTRAINT_NAME": "allocations_ibfk_2",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        },
+        {
+          "COLUMN_NAME": "venue_allocation_id",
+          "CONSTRAINT_NAME": "allocations_ibfk_3",
+          "REFERENCED_TABLE_NAME": "venue_allocations",
+          "REFERENCED_COLUMN_NAME": "id"
+        }
+      ]
+    },
+    "batch_configurations": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "batch_rep_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "level",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": "1",
+          "Extra": ""
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(50)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "preferred_dates",
+          "Type": "json",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('DRAFT','SENT')",
+          "Null": "YES",
+          "Key": "",
+          "Default": "DRAFT",
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": []
+    },
+    "course_unit_registration_headers": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "user_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "student_number",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "student_name",
+          "Type": "varchar(150)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "level",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "course_unit_combination",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "total_credits",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "signature",
+          "Type": "longtext",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('Pending','Approved','Rejected')",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Pending",
+          "Extra": ""
+        },
+        {
+          "Field": "reject_reason",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        },
+        {
+          "Field": "address",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "mobile",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "email",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "form_data",
+          "Type": "json",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "academic_year",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "user_id",
+          "CONSTRAINT_NAME": "course_unit_registration_headers_ibfk_1",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "course_unit_registrations": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "user_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "form_data",
+          "Type": "json",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "signature",
+          "Type": "longtext",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "user_id",
+          "CONSTRAINT_NAME": "course_unit_registrations_ibfk_1",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "course_units": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "semester",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "level",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "supervisor_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "course_code",
+          "CONSTRAINT_NAME": "fk_course_units_course",
+          "REFERENCED_TABLE_NAME": "modules",
+          "REFERENCED_COLUMN_NAME": "course_code"
+        },
+        {
+          "COLUMN_NAME": "supervisor_id",
+          "CONSTRAINT_NAME": "fk_course_units_supervisor",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "deadline_notification_reads": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "deadline_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "user_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "read_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "deadline_id",
+          "CONSTRAINT_NAME": "deadline_notification_reads_ibfk_1",
+          "REFERENCED_TABLE_NAME": "deadlines",
+          "REFERENCED_COLUMN_NAME": "id"
+        },
+        {
+          "COLUMN_NAME": "user_id",
+          "CONSTRAINT_NAME": "deadline_notification_reads_ibfk_2",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "deadline_roles": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "deadline_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "role_name",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "deadline_id",
+          "CONSTRAINT_NAME": "deadline_roles_ibfk_1",
+          "REFERENCED_TABLE_NAME": "deadlines",
+          "REFERENCED_COLUMN_NAME": "id"
+        }
+      ]
+    },
+    "deadlines": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "title",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "due_date",
+          "Type": "datetime",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "description",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "form_name",
+          "Type": "varchar(100)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "notify_email",
+          "Type": "tinyint(1)",
+          "Null": "NO",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        },
+        {
+          "Field": "notify_system",
+          "Type": "tinyint(1)",
+          "Null": "NO",
+          "Key": "",
+          "Default": "1",
+          "Extra": ""
+        },
+        {
+          "Field": "created_by",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        },
+        {
+          "Field": "academic_year",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": []
+    },
+    "department_concerns": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "exam_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "alloc_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "role",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "request_by_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "type",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "description",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('Pending','Resolved')",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Pending",
+          "Extra": ""
+        },
+        {
+          "Field": "date",
+          "Type": "date",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "request_by_id",
+          "CONSTRAINT_NAME": "department_concerns_ibfk_1",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        },
+        {
+          "COLUMN_NAME": "alloc_id",
+          "CONSTRAINT_NAME": "fk_department_concern_alloc",
+          "REFERENCED_TABLE_NAME": "allocations",
+          "REFERENCED_COLUMN_NAME": "allocation_id"
+        },
+        {
+          "COLUMN_NAME": "exam_id",
+          "CONSTRAINT_NAME": "fk_department_concern_exam",
+          "REFERENCED_TABLE_NAME": "exam_slots",
+          "REFERENCED_COLUMN_NAME": "slot_id"
+        },
+        {
+          "COLUMN_NAME": "request_by_id",
+          "CONSTRAINT_NAME": "fk_department_concern_user",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "email_verifications": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "email",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "token",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "expires_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "email",
+          "CONSTRAINT_NAME": "email_verifications_ibfk_1",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "email"
+        }
+      ]
+    },
+    "enrollments": {
+      "columns": [
+        {
+          "Field": "enrollment_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "student_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "academic_year",
+          "Type": "varchar(10)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "semester",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "type",
+          "Type": "enum('Normal','Repeat','Medical')",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('Pending','Approved','Rejected')",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Pending",
+          "Extra": ""
+        },
+        {
+          "Field": "rejection_reason",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "payment_receipt_path",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "medical_letter_path",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "student_id",
+          "CONSTRAINT_NAME": "enrollments_ibfk_1",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        },
+        {
+          "COLUMN_NAME": "course_code",
+          "CONSTRAINT_NAME": "enrollments_ibfk_2",
+          "REFERENCED_TABLE_NAME": "modules",
+          "REFERENCED_COLUMN_NAME": "course_code"
+        }
+      ]
+    },
+    "exam_draft_allocations": {
+      "columns": [
+        {
+          "Field": "alloc_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "exam_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "venue",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "assigned_non_repeat",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        },
+        {
+          "Field": "assigned_repeat",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        },
+        {
+          "Field": "supervisor_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "is_published",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        },
+        {
+          "Field": "is_submitted_to_faculty",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        },
+        {
+          "Field": "is_published_to_students",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "exam_id",
+          "CONSTRAINT_NAME": "exam_draft_allocations_ibfk_1",
+          "REFERENCED_TABLE_NAME": "exam_timetables",
+          "REFERENCED_COLUMN_NAME": "timetable_id"
+        },
+        {
+          "COLUMN_NAME": "supervisor_id",
+          "CONSTRAINT_NAME": "exam_draft_allocations_ibfk_2",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "exam_draft_attendants": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "alloc_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "attendant_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "is_published",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "alloc_id",
+          "CONSTRAINT_NAME": "exam_draft_attendants_ibfk_1",
+          "REFERENCED_TABLE_NAME": "exam_draft_allocations",
+          "REFERENCED_COLUMN_NAME": "alloc_id"
+        },
+        {
+          "COLUMN_NAME": "attendant_id",
+          "CONSTRAINT_NAME": "exam_draft_attendants_ibfk_2",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "exam_draft_invigilators": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "alloc_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "invigilator_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "alloc_id",
+          "CONSTRAINT_NAME": "exam_draft_invigilators_ibfk_1",
+          "REFERENCED_TABLE_NAME": "exam_draft_allocations",
+          "REFERENCED_COLUMN_NAME": "alloc_id"
+        },
+        {
+          "COLUMN_NAME": "invigilator_id",
+          "CONSTRAINT_NAME": "exam_draft_invigilators_ibfk_2",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "exam_marks": {
+      "columns": [
+        {
+          "Field": "marks_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "enrollment_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "user_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "academic_year",
+          "Type": "varchar(10)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "examiner1_marks",
+          "Type": "decimal(5,2)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "examiner2_marks",
+          "Type": "decimal(5,2)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "final_marks",
+          "Type": "decimal(5,2)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        },
+        {
+          "Field": "examiner1_submitted_by",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "examiner2_submitted_by",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "enrollment_id",
+          "CONSTRAINT_NAME": "exam_marks_ibfk_1",
+          "REFERENCED_TABLE_NAME": "enrollments",
+          "REFERENCED_COLUMN_NAME": "enrollment_id"
+        },
+        {
+          "COLUMN_NAME": "user_id",
+          "CONSTRAINT_NAME": "exam_marks_ibfk_2",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        },
+        {
+          "COLUMN_NAME": "course_code",
+          "CONSTRAINT_NAME": "exam_marks_ibfk_3",
+          "REFERENCED_TABLE_NAME": "modules",
+          "REFERENCED_COLUMN_NAME": "course_code"
+        },
+        {
+          "COLUMN_NAME": "examiner1_submitted_by",
+          "CONSTRAINT_NAME": "exam_marks_ibfk_examiner1",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        },
+        {
+          "COLUMN_NAME": "examiner2_submitted_by",
+          "CONSTRAINT_NAME": "exam_marks_ibfk_examiner2",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "exam_slots": {
+      "columns": [
+        {
+          "Field": "slot_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "timetable_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "date",
+          "Type": "date",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "start_time",
+          "Type": "time",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "end_time",
+          "Type": "time",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_by",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "std_non_repeat",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "std_repeat",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "timetable_id",
+          "CONSTRAINT_NAME": "exam_slots_ibfk_1",
+          "REFERENCED_TABLE_NAME": "exam_timetables",
+          "REFERENCED_COLUMN_NAME": "timetable_id"
+        },
+        {
+          "COLUMN_NAME": "created_by",
+          "CONSTRAINT_NAME": "fk_exam_slots_created_by",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "exam_timetables": {
+      "columns": [
+        {
+          "Field": "timetable_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "academic_year",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "semester",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_by",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "date",
+          "Type": "date",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "is_submitted",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "created_by",
+          "CONSTRAINT_NAME": "exam_timetables_ibfk_1",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "examiner_appointments": {
+      "columns": [
+        {
+          "Field": "appointment_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "user_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "examiner_role",
+          "Type": "enum('Examiner 1','Examiner 2')",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "academic_year",
+          "Type": "varchar(10)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('Pending','Active','Completed')",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Active",
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "user_id",
+          "CONSTRAINT_NAME": "examiner_appointments_ibfk_2",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        },
+        {
+          "COLUMN_NAME": "course_code",
+          "CONSTRAINT_NAME": "fk_exam_appt_course",
+          "REFERENCED_TABLE_NAME": "modules",
+          "REFERENCED_COLUMN_NAME": "course_code"
+        }
+      ]
+    },
+    "global_timetable_config": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "allowed_dates",
+          "Type": "json",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "deadline",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "updated_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+        }
+      ],
+      "fks": []
+    },
+    "medical_repeat_request_headers": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "user_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "student_number",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "student_name",
+          "Type": "varchar(150)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "contact_number",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "email",
+          "Type": "varchar(150)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "form_type",
+          "Type": "enum('Medical','Repeat')",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "signature",
+          "Type": "longtext",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "signature_date",
+          "Type": "date",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "medical_certificate_url",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "payment_receipt_url",
+          "Type": "varchar(255)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "enum('Pending','Approved','Rejected')",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Pending",
+          "Extra": ""
+        },
+        {
+          "Field": "reject_reason",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        },
+        {
+          "Field": "academic_year",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "user_id",
+          "CONSTRAINT_NAME": "medical_repeat_request_headers_ibfk_1",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "medical_repeat_requested_courses": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "header_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "course_title",
+          "Type": "varchar(150)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "results_obtained",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "academic_year",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "header_id",
+          "CONSTRAINT_NAME": "medical_repeat_requested_courses_ibfk_1",
+          "REFERENCED_TABLE_NAME": "medical_repeat_request_headers",
+          "REFERENCED_COLUMN_NAME": "id"
+        }
+      ]
+    },
+    "modules": {
+      "columns": [
+        {
+          "Field": "course_code",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "title",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "credits",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "type",
+          "Type": "enum('Compulsory','Optional','Auxiliary')",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "semester",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "level",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "selection",
+          "Type": "enum('IT','MIT')",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "year",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "non_written_type",
+          "Type": "varchar(50)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "academic_year",
+          "Type": "varchar(50)",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": []
+    },
+    "password_resets": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "email",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "token",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "expires_at",
+          "Type": "timestamp",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "email",
+          "CONSTRAINT_NAME": "fk_password_resets_user",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "email"
+        }
+      ]
+    },
+    "registered_course_units": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "header_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "course_code",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "course_type",
+          "Type": "enum('Compulsory','Optional','Auxiliary')",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "semester",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "header_id",
+          "CONSTRAINT_NAME": "registered_course_units_ibfk_1",
+          "REFERENCED_TABLE_NAME": "course_unit_registration_headers",
+          "REFERENCED_COLUMN_NAME": "id"
+        }
+      ]
+    },
+    "staff_concerns": {
+      "columns": [
+        {
+          "Field": "concern_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "alloc_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "exam_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "staff_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "role",
+          "Type": "varchar(50)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "reason",
+          "Type": "text",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "status",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Pending",
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        },
+        {
+          "Field": "replacement_staff_id",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "staff_id",
+          "CONSTRAINT_NAME": "staff_concerns_ibfk_1",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        },
+        {
+          "COLUMN_NAME": "alloc_id",
+          "CONSTRAINT_NAME": "staff_concerns_ibfk_2",
+          "REFERENCED_TABLE_NAME": "exam_draft_allocations",
+          "REFERENCED_COLUMN_NAME": "alloc_id"
+        }
+      ]
+    },
+    "student_details": {
+      "columns": [
+        {
+          "Field": "user_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "student_number",
+          "Type": "varchar(20)",
+          "Null": "NO",
+          "Key": "UNI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "level",
+          "Type": "varchar(10)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "address",
+          "Type": "text",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "user_id",
+          "CONSTRAINT_NAME": "student_details_ibfk_1",
+          "REFERENCED_TABLE_NAME": "users",
+          "REFERENCED_COLUMN_NAME": "user_id"
+        }
+      ]
+    },
+    "timetable_config": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "deadline_date",
+          "Type": "date",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "allowed_dates",
+          "Type": "json",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        },
+        {
+          "Field": "updated_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+        }
+      ],
+      "fks": []
+    },
+    "users": {
+      "columns": [
+        {
+          "Field": "user_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "email",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "UNI",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "password_hash",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "role",
+          "Type": "varchar(50)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "name",
+          "Type": "varchar(255)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "mobile",
+          "Type": "varchar(20)",
+          "Null": "YES",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "is_verified",
+          "Type": "tinyint(1)",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        },
+        {
+          "Field": "created_at",
+          "Type": "timestamp",
+          "Null": "YES",
+          "Key": "",
+          "Default": "CURRENT_TIMESTAMP",
+          "Extra": "DEFAULT_GENERATED"
+        },
+        {
+          "Field": "approval_status",
+          "Type": "enum('Pending','Approved','Rejected')",
+          "Null": "YES",
+          "Key": "",
+          "Default": "Pending",
+          "Extra": ""
+        }
+      ],
+      "fks": []
+    },
+    "venue_allocations": {
+      "columns": [
+        {
+          "Field": "id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "PRI",
+          "Default": null,
+          "Extra": "auto_increment"
+        },
+        {
+          "Field": "slot_id",
+          "Type": "int",
+          "Null": "NO",
+          "Key": "MUL",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "venue_name",
+          "Type": "varchar(100)",
+          "Null": "NO",
+          "Key": "",
+          "Default": null,
+          "Extra": ""
+        },
+        {
+          "Field": "assigned_non_repeat",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        },
+        {
+          "Field": "assigned_repeat",
+          "Type": "int",
+          "Null": "YES",
+          "Key": "",
+          "Default": "0",
+          "Extra": ""
+        }
+      ],
+      "fks": [
+        {
+          "COLUMN_NAME": "slot_id",
+          "CONSTRAINT_NAME": "venue_allocations_ibfk_1",
+          "REFERENCED_TABLE_NAME": "exam_slots",
+          "REFERENCED_COLUMN_NAME": "slot_id"
+        }
+      ]
+    }
+  }
+}

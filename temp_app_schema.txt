@@ -1,0 +1,14 @@
+CREATE TABLE `examiner_appointments` (
+  `appointment_id` int NOT NULL AUTO_INCREMENT,
+  `course_code` varchar(20) NOT NULL,
+  `user_id` int NOT NULL,
+  `examiner_role` enum('Examiner 1','Examiner 2') NOT NULL,
+  `academic_year` varchar(10) NOT NULL,
+  `status` enum('Pending','Active','Completed') DEFAULT 'Active',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`appointment_id`),
+  UNIQUE KEY `unique_appointment` (`course_code`,`academic_year`,`examiner_role`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `examiner_appointments_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_exam_appt_course` FOREIGN KEY (`course_code`) REFERENCES `modules` (`course_code`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

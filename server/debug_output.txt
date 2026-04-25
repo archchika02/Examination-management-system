@@ -1,0 +1,93 @@
+--- Modules Table (Top 50) ---
+Code: CSC2101, Title: Data Structures, Year: 2022/2023
+Code: CSC2102, Title: Databases, Year: 2022/2023
+Code: CSC2201, Title: Web Dev, Year: 2022/2023
+Code: CSC2301, Title: AI Basics, Year: 2022/2023
+Code: INTE  21333, Title: Event Driven Programming, Year: 2022/2023
+Code: INTE 21213, Title: Information System Modelling, Year: 2022/2023
+Code: INTE 21223, Title: Test Course, Year: 2022/2023
+Code: INTE 21313, Title: Business Information Systems, Year: 2022/2023
+Code: INTE 21323, Title: Web Application Development, Year: 2022/2023
+Code: INTE 41243, Title: Test Academy Course, Year: 2024/2025
+Code: INTE11213, Title: Fundamentals of Computing, Year: 2024/2025
+Code: INTE11223, Title: Programming Concepts, Year: 2024/2025
+Code: INTE12213, Title: Object Oriented Programming, Year: 2024/2025
+Code: INTE12223, Title: Database Design and Development, Year: 2024/2025
+Code: INTE12243, Title: Computer Networks, Year: 2024/2025
+Code: INTE21213, Title: Information Systems Modelling, Year: 2023/2024
+Code: INTE21243, Title: Computer Architecture and Operating Systems, Year: 2023/2024
+Code: INTE21313, Title: Business Information Systems, Year: 2023/2024
+Code: INTE21323, Title: Web Application Development, Year: 2023/2024
+Code: INTE21333, Title: Event Driven Programming, Year: 2023/2024
+Code: INTE21343, Title: Software Engineering Concepts, Year: 2023/2024
+Code: INTE31233, Title: Human Computer Interaction, Year: 2022/2023
+Code: INTE31243, Title: Software Quality Engineering, Year: 2022/2023
+Code: INTE31283, Title: Big Data and Data Warehousing, Year: 2022/2023
+Code: INTE31356, Title: Software Development Project, Year: 2022/2023
+Code: INTE31373, Title: Machine Learning, Year: 2022/2023
+Code: INTE31393, Title: Information Security, Year: 2022/2023
+Code: INTE31403, Title: System Administration and Maintenance, Year: 2022/2023
+Code: INTE31413, Title: Information Technology Infrastructure, Year: 2022/2023
+Code: INTE41212, Title: Systems Modelling and Simulation, Year: 2021/2022
+Code: INTE41232, Title: Information Systems Innovation & Technologies, Year: 2021/2022
+Code: INTE41272, Title: Enterprise Architecture, Year: 2021/2022
+Code: INTE41283, Title: Information Systems Strategy and Management, Year: 2021/2022
+Code: INTE41292, Title: Mobile Computing, Year: 2021/2022
+Code: INTE41302, Title: Geographical Information Systems, Year: 2021/2022
+Code: INTE41312, Title: Image Processing and Computer Graphics, Year: 2021/2022
+Code: INTE41323, Title: Neural Networks and Deep Learning, Year: 2021/2022
+Code: INTE41333, Title: Data Mining and Applied Analytics, Year: 2021/2022
+Code: INTE41342, Title: Industrial Automation, Year: 2021/2022
+Code: INTE41352, Title: System Integration Technologies – 2, Year: 2021/2022
+Code: INTE41363, Title: Computer Crimes and Digital Forensics, Year: 2021/2022
+Code: INTE42222, Title: Reinforcement Learning, Year: 2021/2022
+Code: INTE42232, Title: Data Engineering, Year: 2021/2022
+Code: INTE42252, Title: Semantic Web and Ontological Engineering, Year: 2021/2022
+Code: INTE42282, Title: Knowledge Management, Year: 2021/2022
+Code: INTE42292, Title: Parallel and High Performance Computing, Year: 2021/2022
+Code: INTE42302, Title: Robotics, Year: 2021/2022
+Code: INTE42312, Title: Virtual and Augmented Reality, Year: 2021/2022
+Code: INTE42322, Title: Vision Based Systems, Year: 2021/2022
+Code: INTE42333, Title: Complex Systems and Agent Based Modelling, Year: 2021/2022
+
+--- Exam Timetables (Unique Codes/Years) ---
+Code: INTE41212, Year: 2024/2025
+Code: TEST101, Year: 2024/2025
+Code: INTE 41212, Year: 2024/2025
+Code: MGTE 41233, Year: 2024/2025
+Code: MGTE 41262, Year: 2024/2025
+Code: MGTE 41252, Year: 2024/2025
+Code: MGTE 41222, Year: 2024/2025
+Code: MGTE 41212, Year: 2024/2025
+Code: INTE 21323, Year: 2024/2025
+Code: MGTE 11233, Year: 2024/2025
+Code: MGTE 11243, Year: 2024/2025
+Code: INTE 11223, Year: 2024/2025
+Code: INTE 11213, Year: 2024/2025
+Code: MGTE 31403, Year: 2024/2025
+Code: MGTE 31383, Year: 2024/2025
+Code: MGTE 31413, Year: 2024/2025
+Code: MGTE 31373, Year: 2024/2025
+Code: INTE 21345, Year: 2024/2025
+Code: inte 12213, Year: 2024/2025
+Code: inte12243, Year: 2024/2025
+Code: inte 12223, Year: 2024/2025
+Code: inte22303, Year: 2024/2025
+Code: inte 21343, Year: 2024/2025
+Code: inte 22283, Year: 2024/2025
+Code: inte 22313, Year: 2024/2025
+Code: inte21333, Year: 2024/2025
+Code: inte21323, Year: 2024/2025
+Code: inte 21313, Year: 2024/2025
+Code: INTE 21213, Year: 2024/2025
+Code: inte31678, Year: 2024/2025
+Code: inte 41234, Year: 2024/2025
+Code: inte41567, Year: 2024/2025
+Code: inate31456, Year: 2024/2025
+Code: inte21345, Year: 2024/2025
+Code: inte4567, Year: 2024/2025
+Code: INTE 21678, Year: 2024/2025
+Code: inte 34564, Year: 2024/2025
+Code: CSC2301, Year: 2024/2025
+Code: MGTE31222, Year: 2024/2025
+Code: MGTE31303, Year: 2024/2025

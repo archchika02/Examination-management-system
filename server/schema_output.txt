@@ -1,0 +1,14 @@
+CREATE TABLE `batch_configurations` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `batch_rep_id` int DEFAULT NULL,
+  `level` int DEFAULT '1',
+  `course_code` varchar(50) NOT NULL,
+  `preferred_dates` json DEFAULT NULL,
+  `status` enum('DRAFT','SENT') DEFAULT 'DRAFT',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fk_batch_rep` (`batch_rep_id`),
+  KEY `fk_batch_course` (`course_code`),
+  CONSTRAINT `fk_batch_course` FOREIGN KEY (`course_code`) REFERENCES `courses` (`course_code`),
+  CONSTRAINT `fk_batch_rep` FOREIGN KEY (`batch_rep_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci

@@ -1,0 +1,16 @@
+CREATE TABLE `exam_slots` (
+  `slot_id` int NOT NULL AUTO_INCREMENT,
+  `timetable_id` int NOT NULL,
+  `course_code` varchar(20) NOT NULL,
+  `date` date DEFAULT NULL,
+  `start_time` time DEFAULT NULL,
+  `end_time` time DEFAULT NULL,
+  `created_by` int DEFAULT NULL,
+  `std_non_repeat` int DEFAULT NULL,
+  `std_repeat` int DEFAULT NULL,
+  PRIMARY KEY (`slot_id`),
+  KEY `timetable_id` (`timetable_id`),
+  KEY `course_code` (`course_code`),
+  CONSTRAINT `exam_slots_ibfk_1` FOREIGN KEY (`timetable_id`) REFERENCES `exam_timetables` (`timetable_id`) ON DELETE CASCADE,
+  CONSTRAINT `exam_slots_ibfk_2` FOREIGN KEY (`course_code`) REFERENCES `courses` (`course_code`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
