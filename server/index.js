@@ -18,7 +18,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Basic Route
@@ -44,29 +44,68 @@ app.use('/api/add-drop', addDropRoutes);
 const medicalRepeatRoutes = require('./routes/medicalRepeatRoutes');
 app.use('/api/medical-repeat', medicalRepeatRoutes);
 
+const courseRoutes = require('./routes/courseRoutes');
+app.use('/api/modules', courseRoutes);
+
+const userRoutes = require('./routes/userRoutes');
+app.use('/api/users', userRoutes);
+
+const reportRoutes = require('./routes/reportRoutes');
+app.use('/api/reports', reportRoutes);
+
+const deadlineRoutes = require('./routes/deadlineRoutes');
+app.use('/api/deadlines', deadlineRoutes);
+
+
 // --- Background Jobs ---
-// Delete unverified accounts older than 24 hours. Runs every hour at minute 0.
-cron.schedule('0 * * * *', async () => {
-    console.log('[CRON] Running daily cleanup of unverified accounts...');
+
+// Cleanup function: deletes unverified accounts older than 24 hours
+const cleanupUnverifiedUsers = async () => {
+    console.log('[CRON] Running cleanup of unverified accounts...');
+    // Get a dedicated connection so FK_CHECKS is scoped only to this operation
+    const connection = await pool.getConnection();
     try {
-        // Find users who are not verified and whose created_at is older than 24 hours
-        // student_details row deletes itself due to ON DELETE CASCADE on user_id if setup correctly, 
-        // but let's do a join delete to be extra safe in case DB constraints vary
-        const [result] = await pool.execute(
-            `DELETE users FROM users 
+        // Find expired unverified users first
+        const [expired] = await connection.execute(
+            `SELECT user_id, email FROM users 
              WHERE is_verified = FALSE 
              AND created_at < (NOW() - INTERVAL 24 HOUR)`
         );
 
-        if (result.affectedRows > 0) {
-            console.log(`[CRON] Successfully deleted ${result.affectedRows} unverified user(s) older than 24 hours.`);
-        } else {
+        if (expired.length === 0) {
             console.log('[CRON] No unverified accounts needed cleanup.');
+            return;
         }
+
+        const userIds = expired.map(u => u.user_id);
+        const ids = userIds.map(() => '?').join(',');
+
+        // Disable FK checks temporarily so we can delete from users directly
+        // (child tables like student_details, email_verifications, etc. will cascade or have SET NULL)
+        await connection.execute('SET FOREIGN_KEY_CHECKS = 0');
+
+        const [result] = await connection.execute(
+            `DELETE FROM users WHERE user_id IN (${ids})`, userIds
+        );
+
+        await connection.execute('SET FOREIGN_KEY_CHECKS = 1');
+
+        console.log(`[CRON] Deleted ${result.affectedRows} unverified user(s) older than 24 hours.`);
     } catch (err) {
-        console.error('[CRON ERROR] Failed to clean up unverified accounts:', err);
+        // Always re-enable FK checks even on error
+        try { await connection.execute('SET FOREIGN_KEY_CHECKS = 1'); } catch (_) { }
+        console.error('[CRON ERROR] Failed to clean up unverified accounts:', err.message || err);
+    } finally {
+        connection.release();
     }
-});
+};
+
+// Run once immediately on server start (handles cases where server was restarted)
+cleanupUnverifiedUsers();
+
+// Then run every 5 minutes to reliably catch expired accounts
+// (Using '*/5 * * * *' instead of hourly to survive nodemon restarts in development)
+cron.schedule('*/5 * * * *', cleanupUnverifiedUsers);
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

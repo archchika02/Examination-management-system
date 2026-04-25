@@ -1,0 +1,148 @@
+{
+  "tt": [
+    {
+      "timetable_id": 212,
+      "course_code": "inte 11213",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 213,
+      "course_code": "inte 12223",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 214,
+      "course_code": "inte 12213",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 215,
+      "course_code": "inte12243",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 216,
+      "course_code": "inte 11223",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 217,
+      "course_code": "INTE 21213",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 218,
+      "course_code": "inte 21313",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 219,
+      "course_code": "inte21323",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 220,
+      "course_code": "inte21333",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 221,
+      "course_code": "inte 21343",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 222,
+      "course_code": "inte 22313",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 223,
+      "course_code": "inte 22283",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 224,
+      "course_code": "inte22303",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 225,
+      "course_code": "inte21345",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 226,
+      "course_code": "inte4567",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 227,
+      "course_code": "INTE 21678",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 228,
+      "course_code": "inte 34564",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 229,
+      "course_code": "inte 21345",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 230,
+      "course_code": "CSC2101",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 231,
+      "course_code": "CSC2102",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 232,
+      "course_code": "CSC2201",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 233,
+      "course_code": "CSC2301",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 234,
+      "course_code": "CS101",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    },
+    {
+      "timetable_id": 235,
+      "course_code": "MATH101",
+      "academic_year": "2023/2024",
+      "is_submitted": 1
+    }
+  ]
+}

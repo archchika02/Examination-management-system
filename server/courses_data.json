@@ -1,0 +1,42 @@
+[
+  {
+    "course_code": "CSC2101",
+    "title": "Data Structures"
+  },
+  {
+    "course_code": "CSC2102",
+    "title": "Databases"
+  },
+  {
+    "course_code": "CSC2201",
+    "title": "Web Dev"
+  },
+  {
+    "course_code": "CSC2301",
+    "title": "AI Basics"
+  },
+  {
+    "course_code": "INTE  21333",
+    "title": "Event Driven Programming"
+  },
+  {
+    "course_code": "INTE 21213",
+    "title": "Information System Modelling"
+  },
+  {
+    "course_code": "INTE 21223",
+    "title": "Test Course"
+  },
+  {
+    "course_code": "INTE 21313",
+    "title": "Business Information Systems"
+  },
+  {
+    "course_code": "INTE 21323",
+    "title": "Web Application Development"
+  },
+  {
+    "course_code": "INTE 41243",
+    "title": "Test Academy Course"
+  }
+]

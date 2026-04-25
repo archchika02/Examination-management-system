@@ -1,0 +1,53 @@
+# Node bits
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build artifacts
+dist/
+dist-ssr/
+build/
+*.local
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Project specific debug/temp files
+server/debug_output.txt
+server/error.txt
+server/latest_token.txt
+server/uploads/
+server/mr_debug.json
+server/tt_debug.json
+server/tt_all_debug.json
+server/schema_out.json
+server/courses_structure.json
+server/courses_data.json
+server/cols.json
+debug_db_v2.js
+debug_final.js
+diagnostic_attendant_9.js
+test_live_endpoint.js
+test_live_endpoint_v2.js
+check_report_data.js
+
+# Logs
+logs
+*.log

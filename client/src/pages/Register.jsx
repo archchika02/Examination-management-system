@@ -6,6 +6,40 @@ import authBg from '../assets/auth-bg.png';
 const Register = () => {
     const { register } = useAuth();
     const navigate = useNavigate();
+
+    // Recognized University Domains and Test Emails
+    const STUDENT_DOMAINS = ['@stu.kln.ac.lk'];
+    const STUDENT_TEST_EMAILS = [
+        'archchika27@gmail.com',  //batch rep 4
+        'lihij13980@gamening.com',
+        'hemoyev878@gamening.com',
+        'wixal14117@creteanu.com',
+        'mawik46348@cslua.com',
+        'rekayap949@mypethealh.com'
+    ];
+
+    const STAFF_DOMAINS = ['@kln.ac.lk'];
+    const STAFF_TEST_EMAILS = [
+        'Vithusivam97@gmail.com', //dept staff
+        'mahaf55625@okexbit.com',
+        'archchika27@gmail.com',
+        'bagivi1341@gxuzi.com',
+        'wevaw72949@gxuzi.com',
+        'yihobat906@gxuzi.com',
+        'nacow76709@gxuzi.com',
+        'thavashikalaxi@gmail.com',  //faculty Stff
+        'archchika.t@gmail.com',  //hall Attendant
+        'yibiko1642@cslua.com',
+        'kavitha.aachi@gmail.com',  //as
+        'Vithu97work@gmail.com' //hall ata
+    ];
+
+    const isStudentEmail = (email) =>
+        STUDENT_DOMAINS.some(domain => email.endsWith(domain)) || STUDENT_TEST_EMAILS.includes(email);
+
+    const isStaffEmail = (email) =>
+        STAFF_DOMAINS.some(domain => email.endsWith(domain)) || STAFF_TEST_EMAILS.includes(email);
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -18,7 +52,7 @@ const Register = () => {
         address: ''
     });
     const [error, setError] = useState('');
-    const [availableRoles, setAvailableRoles] = useState(['Student', 'BatchRepresentative']);
+    const [availableRoles, setAvailableRoles] = useState([]); // Start empty to force email first
     const [takenRoles, setTakenRoles] = useState({ dean: false, supervisor: false });
 
     // Real-time Validation State
@@ -48,12 +82,13 @@ const Register = () => {
         setFormData(prev => {
             const newData = { ...prev, [name]: value };
             if (name === 'email') {
-                if (value.endsWith('@stu.kln.ac.lk') || value === 'lihij13980@gamening.com' || value === 'hemoyev878@gamening.com') {
-                    setAvailableRoles(['Student', 'BatchRepresentative']);
-                    if (!['Student', 'BatchRepresentative'].includes(newData.role)) {
+                if (isStudentEmail(value)) {
+                    const studentRoles = ['Student', 'BatchRepresentative'];
+                    setAvailableRoles(studentRoles);
+                    if (!studentRoles.includes(newData.role)) {
                         newData.role = 'Student';
                     }
-                } else if (value.endsWith('@kln.ac.lk') || value === 'archchika27@gmail.com' || value === 'bagivi1341@gxuzi.com' || value === 'wevaw72949@gxuzi.com' || value === 'yihobat906@gxuzi.com' || value === 'nacow76709@gxuzi.com' || value === 'wevaw72949@gxuzi.com' || value === 'thavashikalaxi@gmail.com' || value === 'archchika.t@gmail.com') {
+                } else if (isStaffEmail(value)) {
                     let staffRoles = ['FacultyStaff', 'DeptStaff', 'Dean', 'HallAttendant', 'AcademicSupervisor'];
                     if (takenRoles.dean) staffRoles = staffRoles.filter(r => r !== 'Dean');
                     if (takenRoles.supervisor) staffRoles = staffRoles.filter(r => r !== 'AcademicSupervisor');
@@ -62,10 +97,9 @@ const Register = () => {
                         newData.role = staffRoles[0] || '';
                     }
                 } else {
-                    let allRoles = ['Student', 'BatchRepresentative', 'FacultyStaff', 'DeptStaff', 'Dean', 'HallAttendant', 'AcademicSupervisor'];
-                    if (takenRoles.dean) allRoles = allRoles.filter(r => r !== 'Dean');
-                    if (takenRoles.supervisor) allRoles = allRoles.filter(r => r !== 'AcademicSupervisor');
-                    setAvailableRoles(allRoles);
+                    // No roles available for unrecognized emails
+                    setAvailableRoles([]);
+                    newData.role = '';
                 }
             }
 
@@ -107,15 +141,18 @@ const Register = () => {
         }
 
         if (formData.role === 'Student' || formData.role === 'BatchRepresentative') {
-            if (!formData.email.endsWith('@stu.kln.ac.lk') && formData.email !== 'archchika27@gmail.com' && formData.email !== 'lihij13980@gamening.com' && formData.email !== 'hemoyev878@gamening.com') {
+            if (!isStudentEmail(formData.email)) {
                 setError('Student/BatchRepresentative must use @stu.kln.ac.lk email');
                 return;
             }
-        } else {
-            if (!formData.email.endsWith('@kln.ac.lk') && formData.email !== 'archchika27@gmail.com' && formData.email !== 'bagivi1341@gxuzi.com' && formData.email !== 'wevaw72949@gxuzi.com' && formData.email !== 'yihobat906@gxuzi.com' && formData.email !== 'nacow76709@gxuzi.com' && formData.email !== 'wevaw72949@gxuzi.com' && formData.email !== 'thavashikalaxi@gmail.com' && formData.email !== 'archchika.t@gmail.com') {
+        } else if (formData.role) {
+            if (!isStaffEmail(formData.email)) {
                 setError('Staff roles must use @kln.ac.lk email');
                 return;
             }
+        } else {
+            setError('Please enter a valid university email to select a role');
+            return;
         }
 
         if (formData.mobile && !/^\d{10}$/.test(formData.mobile)) {
@@ -243,10 +280,14 @@ const Register = () => {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1 leading-normal">Role</label>
-                                <select name="role" value={formData.role} onChange={handleChange} className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-white leading-normal">
-                                    {availableRoles.map(role => (
-                                        <option key={role} value={role}>{role}</option>
-                                    ))}
+                                <select name="role" value={formData.role} onChange={handleChange} className="appearance-none block w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition sm:text-sm bg-white leading-normal" disabled={availableRoles.length === 0}>
+                                    {availableRoles.length === 0 ? (
+                                        <option value="">Enter University Email to Select Role</option>
+                                    ) : (
+                                        availableRoles.map(role => (
+                                            <option key={role} value={role}>{role}</option>
+                                        ))
+                                    )}
                                 </select>
                             </div>
                             {(formData.role === 'Student' || formData.role === 'BatchRepresentative') && (

@@ -1,0 +1,14 @@
+[
+  {
+    "COLUMN_NAME": "staff_id",
+    "CONSTRAINT_NAME": "staff_concerns_ibfk_1",
+    "REFERENCED_TABLE_NAME": "users",
+    "REFERENCED_COLUMN_NAME": "user_id"
+  },
+  {
+    "COLUMN_NAME": "alloc_id",
+    "CONSTRAINT_NAME": "staff_concerns_ibfk_2",
+    "REFERENCED_TABLE_NAME": "exam_draft_allocations",
+    "REFERENCED_COLUMN_NAME": "alloc_id"
+  }
+]

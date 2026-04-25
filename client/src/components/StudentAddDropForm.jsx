@@ -5,84 +5,90 @@ const StudentAddDropForm = () => {
     const { user } = useAuth();
     const [formData, setFormData] = useState({});
     const [submitted, setSubmitted] = useState(false);
+    const [academicYear, setAcademicYear] = useState('2023/2024');
+    const [dynamicStructure, setDynamicStructure] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const formatDate = (dateString, separator = '-') => {
+        if (!dateString) return '';
+        const [year, month, day] = dateString.split('-');
+        return `${day}${separator}${month}${separator}${year}`;
+    };
+
+    const DatePickerField = ({ id, value, onChange, placeholder = "DD/MM/YYYY" }) => {
+        const uniqueId = `date-picker-${id}`;
+        const today = new Date().toISOString().split('T')[0];
+        return (
+            <div className="relative w-full">
+                <input
+                    type="text"
+                    readOnly
+                    placeholder={placeholder}
+                    className="h-8 border-b border-dashed border-black w-full text-center focus:bg-blue-50 outline-none font-serif cursor-pointer"
+                    value={value ? formatDate(value, '/') : ''}
+                    onClick={() => document.getElementById(uniqueId).showPicker()}
+                />
+                <input
+                    type="date"
+                    id={uniqueId}
+                    min={today}
+                    className="absolute opacity-0 pointer-events-none"
+                    value={value || ''}
+                    onChange={(e) => onChange(e.target.value)}
+                />
+            </div>
+        );
+    };
+
+    useEffect(() => {
+        const loadInitialData = async () => {
+            try {
+                setLoading(true);
+                // 1. Fetch Deadlines
+                const deadlineRes = await fetch('http://localhost:5000/api/deadlines');
+                let currentAcademicYear = '2023/2024';
+
+                if (deadlineRes.ok) {
+                    const data = await deadlineRes.json();
+                    const targetDeadline = data.find(d => d.form_name === 'Add/Drop Form');
+                    if (targetDeadline && targetDeadline.academic_year) {
+                        currentAcademicYear = targetDeadline.academic_year;
+                        setAcademicYear(currentAcademicYear);
+                    }
+                }
+
+                // 2. Fetch Form Structure
+                const formRes = await fetch('http://localhost:5000/api/configurations/forms/add_drop');
+                if (formRes.ok) {
+                    let structure = await formRes.json();
+                    // Interpolate placeholders
+                    const interpolate = (obj) => {
+                        const str = JSON.stringify(obj);
+                        const replaced = str.replace(/{{academicYear}}/g, currentAcademicYear);
+                        return JSON.parse(replaced);
+                    };
+                    setDynamicStructure(interpolate(structure));
+                }
+            } catch (err) {
+                console.error('Error loading initial data:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadInitialData();
+    }, []);
 
     // Form Structure (Copied from EditFormsSection.jsx ID: 2)
-    const formStructure = [
-        {
-            id: 'header_1',
-            type: 'header',
-            content: [
-                { text: 'UNIVERSITY OF KELANIYA - SRI LANKA', style: 'h2' },
-                { text: 'FACULTY OF SCIENCE', style: 'h3' },
-                { text: 'APPLICATION TO ADD/ DROP COURSE UNITS', style: 'h2_underline' },
-                { text: 'SEMESTER II - ACADEMIC YEAR 2023/2024', style: 'h3' }
-            ]
-        },
-        {
-            id: 'student_info',
-            type: 'section',
-            fields: [
-                { id: 'st_no', label: 'STUDENT NUMBER', type: 'box_input', count: 12 },
-                { id: 'st_name', label: 'STUDENT NAME (Mr/Ms)', type: 'line_input' },
-                { id: 'contact', label: 'CONTACT NUMBER', type: 'line_input' },
-                { id: 'email', label: 'EMAIL ADDRESS', type: 'line_input' },
-            ]
-        },
-        {
-            id: 'course_info',
-            type: 'row_group',
-            fields: [
-                { id: 'combo', label: 'COURSE COMBINATION', type: 'box_small' },
-                { id: 'year', label: 'YEAR', type: 'box_small' }
-            ]
-        },
-        {
-            id: 'add_table',
-            type: 'table',
-            title: 'TO ADD A COURSE UNIT',
-            columns: ['Course Unit', 'Recommendation of the relevant Senior Academic Advisor (Signature)'],
-            rows: 4
-        },
-        {
-            id: 'drop_table',
-            type: 'table',
-            title: 'TO DROP A COURSE UNIT',
-            columns: ['Course Unit', 'Recommendation of the relevant Senior Academic Advisor (Signature)'],
-            rows: 4
-        },
-        {
-            id: 'credits_summary',
-            type: 'section',
-            fields: [
-                { id: 'sem1_cred', label: 'Number of credits registered for Semester I', type: 'text_right' },
-                { id: 'sem2_cred', label: 'Number of credits registered for Semester II', type: 'text_right' },
-                { id: 'total_cred', label: 'Total number of credits registered for Academic Year 2023/2024', type: 'text_right' },
-            ]
-        },
-        {
-            id: 'declaration',
-            type: 'text_block',
-            content: 'Declaration: This is my final selection of course units for Semester II of 2023/2024, and I shall not change them for any reason after this date.'
-        },
-        {
-            id: 'signatures',
-            type: 'signature_row',
-            labels: ['Date', 'Signature']
-        },
-        {
-            id: 'approvals',
-            type: 'signature_row',
-            labels: ['Date', 'Signature of the Dean'],
-            footer: 'Office of the Dean – Faculty of Science, University of Kelaniya'
-        }
-    ];
+    const formStructure = dynamicStructure.length > 0 ? dynamicStructure : [];
 
     useEffect(() => {
         if (user) {
             setFormData(prev => ({
                 ...prev,
                 st_name: user.name || '',
-                email: user.email || ''
+                email: user.email || '',
+                year: user.level || '1'
             }));
         }
     }, [user]);
@@ -137,7 +143,8 @@ const StudentAddDropForm = () => {
                 signature: formData.signatures_Signature,
                 signature_date: formData.signatures_Date,
                 added_courses,
-                dropped_courses
+                dropped_courses,
+                academicYear
             };
 
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -171,12 +178,19 @@ const StudentAddDropForm = () => {
         switch (element.type) {
             case 'header':
                 return (
-                    <div key={element.id} className="text-center mb-6 space-y-1">
+                    <div key={element.id} className="text-center mb-6 space-y-1 flex flex-col items-center">
                         {element.content.map((item, idx) => {
+                            if (item.type === 'image') {
+                                return (
+                                    <div key={idx} className="mb-4">
+                                        <img src={item.src} alt={item.alt} className="h-24 w-auto object-contain mx-auto" />
+                                    </div>
+                                );
+                            }
                             let className = "text-gray-900 font-serif ";
-                            if (item.style === 'h2') className += "text-xl font-bold";
-                            if (item.style === 'h3') className += "text-lg font-semibold";
-                            if (item.style === 'h2_underline') className += "text-xl font-bold underline decoration-2 underline-offset-4 mb-4 block";
+                            if (item.style === 'h2') className += "text-xl font-bold uppercase";
+                            if (item.style === 'h3') className += "text-lg font-semibold uppercase";
+                            if (item.style === 'h2_underline') className += "text-xl font-bold underline decoration-2 underline-offset-4 mb-4 block uppercase";
                             return <div key={idx} className={className}>{item.text}</div>;
                         })}
                     </div>
@@ -216,7 +230,7 @@ const StudentAddDropForm = () => {
                                     <div className="border-r border-black border-b border-black last:border-b-0 h-10 p-1">
                                         <input
                                             type="text"
-                                            className="w-full h-full border-none focus:bg-blue-50 outline-none px-2 text-center uppercase"
+                                            className="w-full h-full border-none focus:bg-blue-50 outline-none px-2 text-center uppercase font-serif text-sm"
                                             placeholder={`Course Unit ${rIdx + 1}`}
                                             value={formData[`${element.id}_row${rIdx}_col0`] || ''}
                                             onChange={(e) => handleInputChange(`${element.id}_row${rIdx}_col0`, e.target.value.toUpperCase())}
@@ -247,13 +261,21 @@ const StudentAddDropForm = () => {
                             <div key={idx} className="flex-1 text-center">
                                 {/* Only enable Applicant Signature */}
                                 {['Signature', 'Date'].some(txt => label === txt) && element.id === 'signatures' ? (
-                                    <input
-                                        type={label === 'Date' ? 'date' : 'text'}
-                                        placeholder={label === 'Signature' ? 'Type Name as Digital Signature' : ''}
-                                        className="h-8 border-b border-dashed border-black w-full text-center focus:bg-blue-50 outline-none font-serif"
-                                        value={formData[`${element.id}_${label}`] || ''}
-                                        onChange={(e) => handleInputChange(`${element.id}_${label}`, e.target.value)}
-                                    />
+                                    label === 'Date' ? (
+                                        <DatePickerField
+                                            id={`${element.id}_${label}`}
+                                            value={formData[`${element.id}_${label}`] || ''}
+                                            onChange={(val) => handleInputChange(`${element.id}_${label}`, val)}
+                                        />
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            placeholder="Type Name as Digital Signature"
+                                            className="h-8 border-b border-dashed border-black w-full text-center focus:bg-blue-50 outline-none font-serif"
+                                            value={formData[`${element.id}_${label}`] || ''}
+                                            onChange={(e) => handleInputChange(`${element.id}_${label}`, e.target.value)}
+                                        />
+                                    )
                                 ) : (
                                     <div className="h-8 border-b border-dashed border-black w-full bg-gray-50"></div>
                                 )}
@@ -338,7 +360,15 @@ const StudentAddDropForm = () => {
         )
     };
 
-    // Removed Virtual React Fragment helper as it causes unmounting on re-renders
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-500 font-medium font-serif italic">Loading formal structure...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-5xl mx-auto pb-20 animate-fade-in-up">
@@ -347,13 +377,6 @@ const StudentAddDropForm = () => {
                     <h2 className="text-2xl font-bold text-gray-800">Add / Drop Course Request</h2>
                     <p className="text-gray-500 text-sm mt-1">Submit a request to add or drop course units.</p>
                 </div>
-                <button
-                    onClick={handleSubmit}
-                    disabled={submitted}
-                    className={`px-6 py-2 ${submitted ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold rounded-lg shadow-lg flex items-center gap-2 transition-colors`}
-                >
-                    {submitted ? 'Sending...' : 'Submit Request'}
-                </button>
             </div>
 
             <div className="bg-white p-12 shadow-xl border border-gray-200 min-h-screen relative mx-auto w-full max-w-[210mm]">
@@ -364,6 +387,26 @@ const StudentAddDropForm = () => {
                     }
                     return renderFormElement(element);
                 })}
+            </div>
+
+            <div className="mt-12 flex justify-end no-print">
+                <button
+                    onClick={handleSubmit}
+                    disabled={submitted}
+                    className={`px-8 py-3 ${submitted ? 'bg-gray-400' : 'bg-blue-700 hover:bg-blue-800'} text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2 active:scale-95`}
+                >
+                    {submitted ? (
+                        <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            Sending...
+                        </>
+                    ) : (
+                        <>
+                            <span>➕</span>
+                            Submit Request
+                        </>
+                    )}
+                </button>
             </div>
         </div>
     );
